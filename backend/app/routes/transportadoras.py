@@ -4,7 +4,7 @@ from app import db
 
 transportadoras_bp = Blueprint('transportadoras', __name__, url_prefix='/api/transportadoras')
 
-# Listar transportadoras (búsqueda opcional)
+# Listar transportadoras (paginado y búsqueda opcional, honorarios relacionados)
 @transportadoras_bp.route('/', methods=['GET'])
 def listar_transportadoras():
     page = request.args.get('page', 1, type=int)
@@ -34,7 +34,16 @@ def listar_transportadoras():
                 "tipo_documento": t.tipo_documento,
                 "numero_documento": t.numero_documento,
                 "telefono": t.telefono,
-                "honorarios": str(t.honorarios) if t.honorarios is not None else None
+                # "honorarios" ahora es una lista de honorarios registrados para esa transportadora
+                "honorarios": [
+                    {
+                        "id": h.id,
+                        "descripcion": h.descripcion,
+                        "monto": float(h.monto),
+                        "fecha": h.fecha.isoformat() if h.fecha else None,
+                        "moneda_id": getattr(h, "moneda_id", None)  # Si existe el campo en tu modelo
+                    } for h in t.honorarios_registrados
+                ]
             }
             for t in transportadoras.items
         ],
@@ -60,8 +69,8 @@ def crear_transportadora():
         ciudad_id=data['ciudad_id'],
         tipo_documento=data.get('tipo_documento'),
         numero_documento=data.get('numero_documento'),
-        telefono=data.get('telefono'),
-        honorarios=data.get('honorarios')
+        telefono=data.get('telefono')
+        # ⚠️ Ya no se crea con "honorarios", sino que los honorarios van en su propia tabla (Honorario)
     )
     db.session.add(transportadora)
     db.session.commit()
@@ -84,8 +93,6 @@ def modificar_transportadora(id):
     transportadora.tipo_documento = data.get('tipo_documento', transportadora.tipo_documento)
     transportadora.numero_documento = data.get('numero_documento', transportadora.numero_documento)
     transportadora.telefono = data.get('telefono', transportadora.telefono)
-    if data.get('honorarios') is not None:
-        transportadora.honorarios = data.get('honorarios')
     db.session.commit()
     return jsonify({"message": "Transportadora modificada"})
 

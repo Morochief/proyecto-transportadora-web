@@ -27,8 +27,10 @@ def crear_honorario():
     transportadora_id = data.get('transportadora_id')
     moneda_id = data.get('moneda_id')
     if not monto or not transportadora_id or not moneda_id:
-        return jsonify({"error": "Faltan campos obligatorios"}), 400
-
+        return jsonify({"error": "Faltan campos obligatorios (monto, transportadora y moneda)"}), 400
+    # Valida que exista la moneda
+    if not Moneda.query.get(moneda_id):
+        return jsonify({"error": "Moneda no encontrada"}), 404
     honorario = Honorario(
         monto=monto,
         transportadora_id=transportadora_id,
@@ -43,9 +45,13 @@ def crear_honorario():
 def modificar_honorario(id):
     honorario = Honorario.query.get_or_404(id)
     data = request.json
-    honorario.monto            = data.get('monto', honorario.monto)
-    honorario.transportadora_id= data.get('transportadora_id', honorario.transportadora_id)
-    honorario.moneda_id        = data.get('moneda_id', honorario.moneda_id)
+    honorario.monto = data.get('monto', honorario.monto)
+    honorario.transportadora_id = data.get('transportadora_id', honorario.transportadora_id)
+    moneda_id = data.get('moneda_id', honorario.moneda_id)
+    # Valida que exista la moneda
+    if not moneda_id or not Moneda.query.get(moneda_id):
+        return jsonify({"error": "Moneda no encontrada o no definida"}), 400
+    honorario.moneda_id = moneda_id
     db.session.commit()
     return jsonify({"message": "Honorario modificado"})
 

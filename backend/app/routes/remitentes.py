@@ -28,7 +28,8 @@ def listar_remitentes():
                 "tipo_documento": r.tipo_documento,
                 "numero_documento": r.numero_documento,
                 "direccion": r.direccion,
-                "ciudad_id": r.ciudad_id
+                "ciudad_id": r.ciudad_id,
+                "ciudad_nombre": r.ciudad.nombre if r.ciudad else ""
             }
             for r in remitentes.items
         ],
