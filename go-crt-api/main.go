@@ -10,14 +10,21 @@ import (
 	_ "github.com/lib/pq"
 )
 
-// Estructura básica de CRT (ajusta campos según lo que devuelvas)
+// ✅ ACTUALIZADO: Estructura CRT con todos los campos necesarios
 type CRT struct {
-	NumeroCRT          string `json:"numero_crt"`
-	Estado             string `json:"estado"`
-	Transportadora     string `json:"transportadora"`
-	Remitente          string `json:"remitente"`
-	Destinatario       string `json:"destinatario"`
-	FacturaExportacion string `json:"factura_exportacion"`
+	ID                      int    `json:"id"` // ✅ NUEVO: ID numérico
+	NumeroCRT               string `json:"numero_crt"`
+	Estado                  string `json:"estado"`
+	Transportadora          string `json:"transportadora"`
+	TransportadoraNombre    string `json:"transportadora_nombre"`
+	TransportadoraDireccion string `json:"transportadora_direccion"`
+	Remitente               string `json:"remitente"`
+	Destinatario            string `json:"destinatario"`
+	FacturaExportacion      string `json:"factura_exportacion"`
+	DetallesMercaderia      string `json:"detalles_mercaderia"`
+	Aduana                  string `json:"aduana"`
+	TipoBultos              string `json:"tipo_bultos"`
+	Tramo                   string `json:"tramo"`
 }
 
 var db *sql.DB
@@ -29,7 +36,6 @@ func main() {
 	if err != nil {
 		log.Fatal("❌ Error opening database:", err)
 	}
-
 	if err := db.Ping(); err != nil {
 		log.Fatal("❌ Error connecting to PostgreSQL:", err)
 	}
@@ -52,9 +58,10 @@ func main() {
 		})
 	})
 
-	// Endpoints
+	// ✅ IMPORTANTE: Endpoints en el orden correcto (más específico primero)
 	r.HandleFunc("/api/crts/simple", listarSimple).Methods("GET", "OPTIONS")
-	r.HandleFunc("/api/crts/{numero}", obtenerCRT).Methods("GET", "OPTIONS")
+	r.HandleFunc("/api/crts/{id:[0-9]+}", obtenerCRTPorID).Methods("GET", "OPTIONS")  // ID numérico
+	r.HandleFunc("/api/crts/{numero}", obtenerCRTPorNumero).Methods("GET", "OPTIONS") // Número de CRT
 
 	log.Println("🚀 Servidor HTTP corriendo en :8080")
 	log.Fatal(http.ListenAndServe(":8080", r))
@@ -62,23 +69,32 @@ func main() {
 
 // GET /api/crts/simple
 func listarSimple(w http.ResponseWriter, r *http.Request) {
+	log.Println("📋 GET /api/crts/simple")
+
 	query := `
-		SELECT 
-			c.numero_crt, c.estado,
-			COALESCE(t.nombre, ''),
-			COALESCE(rm.nombre, ''),
-			COALESCE(d.nombre, ''),
-			COALESCE(c.factura_exportacion, '')
-		FROM crts c
-		LEFT JOIN transportadoras t ON t.id = c.transportadora_id
-		LEFT JOIN remitentes rm ON rm.id = c.remitente_id
-		LEFT JOIN remitentes d ON d.id = c.destinatario_id
-		ORDER BY c.id DESC
-	`
+        SELECT
+            c.id,
+            c.numero_crt, 
+            c.estado,
+            COALESCE(t.nombre, '') as transportadora,
+            COALESCE(rm.nombre, '') as remitente,
+            COALESCE(d.nombre, '') as destinatario,
+            COALESCE(c.factura_exportacion, '') as factura,
+            COALESCE(c.detalles_mercaderia, '') as detalles
+        FROM crts c
+        LEFT JOIN transportadoras t ON t.id = c.transportadora_id
+        LEFT JOIN remitentes rm ON rm.id = c.remitente_id
+        LEFT JOIN remitentes d ON d.id = c.destinatario_id
+        ORDER BY c.id DESC
+        LIMIT 20
+    `
+
+	log.Println("🔍 Ejecutando query:", query)
+
 	rows, err := db.Query(query)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
 		log.Println("❌ Error ejecutando query:", err)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 	defer rows.Close()
@@ -86,11 +102,12 @@ func listarSimple(w http.ResponseWriter, r *http.Request) {
 	var crts []CRT
 	for rows.Next() {
 		var c CRT
-		if err := rows.Scan(&c.NumeroCRT, &c.Estado, &c.Transportadora, &c.Remitente, &c.Destinatario, &c.FacturaExportacion); err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
+		if err := rows.Scan(&c.ID, &c.NumeroCRT, &c.Estado, &c.Transportadora, &c.Remitente, &c.Destinatario, &c.FacturaExportacion, &c.DetallesMercaderia); err != nil {
 			log.Println("❌ Error en rows.Scan:", err)
+			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
+		c.TransportadoraNombre = c.Transportadora // Para compatibilidad
 		crts = append(crts, c)
 	}
 
@@ -99,33 +116,116 @@ func listarSimple(w http.ResponseWriter, r *http.Request) {
 	log.Printf("✅ Enviados %d CRTs\n", len(crts))
 }
 
-// GET /api/crts/{numero}
-func obtenerCRT(w http.ResponseWriter, r *http.Request) {
+// GET /api/crts/{id} - Por ID numérico (NUEVO)
+func obtenerCRTPorID(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
-	numero := vars["numero"]
+	id := vars["id"]
+
+	log.Printf("🔍 GET /api/crts/%s (por ID)\n", id)
 
 	query := `
-		SELECT 
-			c.numero_crt, c.estado,
-			COALESCE(t.nombre, ''),
-			COALESCE(rm.nombre, ''),
-			COALESCE(d.nombre, ''),
-			COALESCE(c.factura_exportacion, '')
-		FROM crts c
-		LEFT JOIN transportadoras t ON t.id = c.transportadora_id
-		LEFT JOIN remitentes rm ON rm.id = c.remitente_id
-		LEFT JOIN remitentes d ON d.id = c.destinatario_id
-		WHERE c.numero_crt = $1
-	`
+        SELECT
+            c.id,
+            c.numero_crt, 
+            c.estado,
+            COALESCE(t.nombre, '') as transportadora,
+            COALESCE(t.direccion, '') as transportadora_direccion,
+            COALESCE(rm.nombre, '') as remitente,
+            COALESCE(d.nombre, '') as destinatario,
+            COALESCE(c.factura_exportacion, '') as factura,
+            COALESCE(c.detalles_mercaderia, '') as detalles
+        FROM crts c
+        LEFT JOIN transportadoras t ON t.id = c.transportadora_id
+        LEFT JOIN remitentes rm ON rm.id = c.remitente_id
+        LEFT JOIN remitentes d ON d.id = c.destinatario_id
+        WHERE c.id = $1
+    `
+
+	log.Printf("🔍 Query: %s con ID=%s\n", query, id)
+
 	var c CRT
-	err := db.QueryRow(query, numero).Scan(&c.NumeroCRT, &c.Estado, &c.Transportadora, &c.Remitente, &c.Destinatario, &c.FacturaExportacion)
+	err := db.QueryRow(query, id).Scan(
+		&c.ID,
+		&c.NumeroCRT,
+		&c.Estado,
+		&c.Transportadora,
+		&c.TransportadoraDireccion,
+		&c.Remitente,
+		&c.Destinatario,
+		&c.FacturaExportacion,
+		&c.DetallesMercaderia,
+	)
+
 	if err != nil {
+		log.Printf("❌ Error buscando CRT por ID %s: %v\n", id, err)
 		http.Error(w, "CRT no encontrado: "+err.Error(), http.StatusNotFound)
-		log.Println("❌ Error buscando CRT:", err)
 		return
 	}
 
+	// Para compatibilidad con el frontend
+	c.TransportadoraNombre = c.Transportadora
+	c.Aduana = "" // Valores por defecto
+	c.TipoBultos = ""
+	c.Tramo = ""
+
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(c)
-	log.Printf("✅ Enviado CRT: %+v\n", c)
+	log.Printf("✅ Enviado CRT por ID %s: numero_crt=%s, detalles_mercaderia='%s'\n", id, c.NumeroCRT, c.DetallesMercaderia)
+}
+
+// GET /api/crts/{numero} - Por número de CRT
+func obtenerCRTPorNumero(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	numero := vars["numero"]
+
+	log.Printf("🔍 GET /api/crts/%s (por número)\n", numero)
+
+	query := `
+        SELECT
+            c.id,
+            c.numero_crt, 
+            c.estado,
+            COALESCE(t.nombre, '') as transportadora,
+            COALESCE(t.direccion, '') as transportadora_direccion,
+            COALESCE(rm.nombre, '') as remitente,
+            COALESCE(d.nombre, '') as destinatario,
+            COALESCE(c.factura_exportacion, '') as factura,
+            COALESCE(c.detalles_mercaderia, '') as detalles
+        FROM crts c
+        LEFT JOIN transportadoras t ON t.id = c.transportadora_id
+        LEFT JOIN remitentes rm ON rm.id = c.remitente_id
+        LEFT JOIN remitentes d ON d.id = c.destinatario_id
+        WHERE c.numero_crt = $1
+    `
+
+	log.Printf("🔍 Query: %s con numero=%s\n", query, numero)
+
+	var c CRT
+	err := db.QueryRow(query, numero).Scan(
+		&c.ID,
+		&c.NumeroCRT,
+		&c.Estado,
+		&c.Transportadora,
+		&c.TransportadoraDireccion,
+		&c.Remitente,
+		&c.Destinatario,
+		&c.FacturaExportacion,
+		&c.DetallesMercaderia,
+	)
+
+	if err != nil {
+		log.Printf("❌ Error buscando CRT por número %s: %v\n", numero, err)
+		http.Error(w, "CRT no encontrado: "+err.Error(), http.StatusNotFound)
+		return
+	}
+
+	// Para compatibilidad con el frontend
+	c.TransportadoraNombre = c.Transportadora
+	c.Aduana = "" // Valores por defecto
+	c.TipoBultos = ""
+	c.Tramo = ""
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(c)
+	log.Printf("✅ Enviado CRT por número %s: id=%d, detalles_mercaderia='%s'\n", numero, c.ID, c.DetallesMercaderia)
 }

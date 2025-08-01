@@ -74,6 +74,8 @@ def generar_pdf_mic_desde_crt(crt_id):
     """
     Genera un PDF del MIC directamente desde un CRT,
     permitiendo que ciertos campos sean editados por el usuario antes de generar el PDF.
+
+    ✅ ACTUALIZADO: Ahora maneja correctamente el campo_38 que viene del frontend
     """
     try:
         user_data = request.json if request.is_json else {}
@@ -153,12 +155,19 @@ def generar_pdf_mic_desde_crt(crt_id):
                 if crt.factura_exportacion or crt.nro_despacho else ""
             ),
             "campo_37_valor_manual": "",
+            # ✅ ACTUALIZADO: Inicializar campo_38 con detalles_mercaderia del CRT
             "campo_38_datos_campo11_crt": (crt.detalles_mercaderia or "")[:1500],
             "campo_40_tramo": "",
         }
 
-        # <--- Aquí se actualiza con los datos recibidos desde el frontend:
+        # ✅ ACTUALIZADO: Manejar el campo_38 del frontend correctamente
+        # El frontend envía 'campo_38', pero internamente usamos 'campo_38_datos_campo11_crt'
         if user_data:
+            # Mapear campo_38 del frontend al campo interno
+            if 'campo_38' in user_data:
+                user_data['campo_38_datos_campo11_crt'] = user_data.pop(
+                    'campo_38')
+
             mic_data.update(user_data)
 
         # === BLINDAJE: SIEMPRE iguala el campo 9 al campo 1 antes de generar PDF ===
@@ -168,6 +177,7 @@ def generar_pdf_mic_desde_crt(crt_id):
         print("======================")
         print("Campo 1:", repr(mic_data['campo_1_transporte']))
         print("Campo 9:", repr(mic_data['campo_9_datos_transporte']))
+        print("Campo 38:", repr(mic_data['campo_38_datos_campo11_crt']))
         print("======================")
 
         # Generar el PDF usando tu función existente
@@ -204,6 +214,7 @@ def mic_pdf(mic_id):
     print("======================")
     print("Campo 1:", repr(mic_data['campo_1_transporte']))
     print("Campo 9:", repr(mic_data['campo_9_datos_transporte']))
+    print("Campo 38:", repr(mic_data['campo_38_datos_campo11_crt']))
     print("======================")
 
     generar_micdta_pdf_con_datos(mic_data, filename)
