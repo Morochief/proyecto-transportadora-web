@@ -2,7 +2,7 @@
 from flask import Blueprint, request, jsonify, send_file
 from sqlalchemy.orm import joinedload
 from datetime import datetime
-from app.models import db, MIC, CRT, Ciudad, Transportadora
+from app.models import db, MIC, CRT, Ciudad, Transportadora, Remitente
 from app.utils.layout_mic import generar_micdta_pdf_con_datos
 
 mic_bp = Blueprint('mic', __name__, url_prefix='/api/mic')
@@ -14,54 +14,112 @@ def join_lines(*parts):
     """Une los campos con salto de línea solo si existen."""
     return "\n".join([str(p) for p in parts if p])
 
-# ✅ NUEVA FUNCIÓN: Formatear entidad con documento (sin usar requests)
+# ✅ NUEVA FUNCIÓN MEJORADA: Formatear entidad COMPLETA con todos los datos del CRT
 
 
-def formatear_con_documento(entidad):
+def formatear_entidad_completa_crt(entidad):
     """
-    Formatea una entidad (transportadora, remitente, destinatario) con sus datos de documento
-    Ejemplo de salida:
-    EMPRESA XYZ S.A.
-    RUC: 80012345-6
-    Av. Principal 1234
-    Asunción - Paraguay
+    ✅ MEJORADA: Formatea una entidad (transportadora, remitente, destinatario) 
+    con TODOS sus datos exactamente como están en el CRT
+
+    Ejemplo de salida esperada:
+    JOSAPAR - JOAQUIM OLIVEIRA S/A. PARTICIPACOES
+    RUA SESMARIA ROCHA, S/N - RURAL
+    ITAQUI - RS -BRASIL
+    CNPJ:87456562/0008.07
     """
     if not entidad:
         return ""
 
     lines = []
 
-    # 1. Nombre de la entidad
+    # 1. ✅ NOMBRE COMPLETO (línea principal)
     if hasattr(entidad, 'nombre') and entidad.nombre:
-        lines.append(entidad.nombre)
+        lines.append(entidad.nombre.strip())
 
-    # 2. Documento (RUC, CI, CNPJ, etc.)
-    documento = ""
-    tipo_documento = ""
-
-    if hasattr(entidad, 'documento') and entidad.documento:
-        documento = entidad.documento
-    if hasattr(entidad, 'tipo_documento') and entidad.tipo_documento:
-        tipo_documento = entidad.tipo_documento
-
-    if documento and tipo_documento:
-        lines.append(f"{tipo_documento}: {documento}")
-    elif documento:  # Si hay documento pero no tipo
-        lines.append(f"DOC: {documento}")
-
-    # 3. Dirección
+    # 2. ✅ DIRECCIÓN COMPLETA (puede ser multilínea)
     if hasattr(entidad, 'direccion') and entidad.direccion:
-        lines.append(entidad.direccion)
-
-    # 4. Ciudad - País
-    if hasattr(entidad, 'ciudad') and entidad.ciudad:
-        if entidad.ciudad.pais:
-            lines.append(
-                f"{entidad.ciudad.nombre} - {entidad.ciudad.pais.nombre}")
+        direccion = entidad.direccion.strip()
+        # Si la dirección tiene saltos de línea, respetarlos
+        if '\n' in direccion:
+            for linea_dir in direccion.split('\n'):
+                if linea_dir.strip():
+                    lines.append(linea_dir.strip())
         else:
-            lines.append(entidad.ciudad.nombre)
+            lines.append(direccion)
 
-    return "\n".join(lines)
+    # 3. ✅ CIUDAD - ESTADO/PROVINCIA - PAÍS
+    ciudad_line = ""
+    if hasattr(entidad, 'ciudad') and entidad.ciudad:
+        # Ciudad
+        if entidad.ciudad.nombre:
+            ciudad_line = entidad.ciudad.nombre.strip()
+
+        # País (agregar solo si existe)
+        if entidad.ciudad.pais and entidad.ciudad.pais.nombre:
+            pais = entidad.ciudad.pais.nombre.strip()
+            if ciudad_line:
+                ciudad_line += f" - {pais}"
+            else:
+                ciudad_line = pais
+
+    if ciudad_line:
+        lines.append(ciudad_line)
+
+    # 4. ✅ DOCUMENTO COMPLETO (tipo:número)
+    documento_line = ""
+    tipo_documento = ""
+    numero_documento = ""
+
+    # Obtener tipo de documento
+    if hasattr(entidad, 'tipo_documento') and entidad.tipo_documento:
+        tipo_documento = entidad.tipo_documento.strip()
+
+    # Obtener número de documento
+    if hasattr(entidad, 'numero_documento') and entidad.numero_documento:
+        numero_documento = entidad.numero_documento.strip()
+
+    # Formar línea de documento
+    if tipo_documento and numero_documento:
+        documento_line = f"{tipo_documento}:{numero_documento}"
+    elif numero_documento:  # Si solo hay número, usar formato genérico
+        documento_line = f"DOC:{numero_documento}"
+
+    if documento_line:
+        lines.append(documento_line)
+
+    # 5. ✅ INFORMACIÓN ADICIONAL (teléfono para transportadoras)
+    if hasattr(entidad, 'telefono') and entidad.telefono:
+        telefono = entidad.telefono.strip()
+        if telefono:
+            lines.append(f"Tel: {telefono}")
+
+    resultado = "\n".join(lines)
+
+    # Debug para verificar el formateo
+    tipo_entidad = "Desconocida"
+    if hasattr(entidad, 'codigo'):  # Es transportadora
+        tipo_entidad = "Transportadora"
+    else:  # Es remitente/destinatario/consignatario
+        tipo_entidad = "Remitente/Destinatario"
+
+    print(f"🎯 FORMATEO {tipo_entidad}:")
+    print(f"   📝 Nombre: '{getattr(entidad, 'nombre', 'N/A')}'")
+    print(f"   📍 Dirección: '{getattr(entidad, 'direccion', 'N/A')}'")
+    print(
+        f"   🏙️ Ciudad: '{getattr(entidad.ciudad, 'nombre', 'N/A') if hasattr(entidad, 'ciudad') and entidad.ciudad else 'N/A'}'")
+    print(f"   🌍 País: '{getattr(entidad.ciudad.pais, 'nombre', 'N/A') if hasattr(entidad, 'ciudad') and entidad.ciudad and entidad.ciudad.pais else 'N/A'}'")
+    print(f"   📄 Tipo Doc: '{getattr(entidad, 'tipo_documento', 'N/A')}'")
+    print(f"   🔢 Núm Doc: '{getattr(entidad, 'numero_documento', 'N/A')}'")
+    print(f"   📞 Teléfono: '{getattr(entidad, 'telefono', 'N/A')}'")
+    print(f"   📋 RESULTADO ({len(lines)} líneas):")
+    for i, line in enumerate(lines, 1):
+        print(f"      Línea {i}: '{line}'")
+    print(
+        f"   📄 TEXTO FINAL ({len(resultado)} chars): '{resultado[:100]}{'...' if len(resultado) > 100 else ''}'")
+    print()
+
+    return resultado
 
 # ========== SERIALIZADOR DETALLADO ==========
 
@@ -115,61 +173,97 @@ def to_dict_mic(mic):
         "creado_en": mic.creado_en.strftime('%Y-%m-%d %H:%M:%S') if getattr(mic, "creado_en", None) else ""
     }
 
-# ========== CRUD MIC COMPLETO ==========
+# ========== GENERAR PDF DESDE CRT MEJORADO ==========
 
 
 @mic_bp.route('/generate_pdf_from_crt/<int:crt_id>', methods=['POST'])
 def generar_pdf_mic_desde_crt(crt_id):
     """
-    ✅ ACTUALIZADO: Genera un PDF del MIC directamente desde un CRT con documentos,
-    usando tu lógica original de SQLAlchemy (SIN requests)
+    ✅ ACTUALIZADO: Genera un PDF del MIC directamente desde un CRT
+    con clonación COMPLETA de datos exactamente como están en el CRT
     """
     try:
         user_data = request.json if request.is_json else {}
 
-        # ✅ USAR TU LÓGICA ORIGINAL: SQLAlchemy en lugar de requests
+        print(f"🔍 INICIANDO CLONACIÓN COMPLETA CRT -> MIC (ID: {crt_id})")
+        print("="*80)
+
+        # ✅ CARGAR CRT CON TODAS LAS RELACIONES NECESARIAS
         crt = CRT.query.options(
-            joinedload(CRT.remitente),
+            joinedload(CRT.remitente).joinedload(
+                Remitente.ciudad).joinedload(Ciudad.pais),
             joinedload(CRT.transportadora).joinedload(
                 Transportadora.ciudad).joinedload(Ciudad.pais),
-            joinedload(CRT.destinatario),
-            joinedload(CRT.consignatario),
+            joinedload(CRT.destinatario).joinedload(
+                Remitente.ciudad).joinedload(Ciudad.pais),
+            joinedload(CRT.consignatario).joinedload(
+                Remitente.ciudad).joinedload(Ciudad.pais),
             joinedload(CRT.moneda),
             joinedload(CRT.gastos),
             joinedload(CRT.ciudad_emision).joinedload(Ciudad.pais)
         ).get_or_404(crt_id)
 
-        print(f"🔍 CRT cargado desde base de datos: {crt.numero_crt}")
+        print(f"✅ CRT CARGADO: {crt.numero_crt}")
         print(
             f"🚛 Transportadora: {crt.transportadora.nombre if crt.transportadora else 'N/A'}")
         print(
             f"📤 Remitente: {crt.remitente.nombre if crt.remitente else 'N/A'}")
         print(
             f"📥 Destinatario: {crt.destinatario.nombre if crt.destinatario else 'N/A'}")
-
-        # ✅ NUEVO: Usar formateo con documentos para campos 1, 33, 34, 35
-        campo_1_formateado = formatear_con_documento(crt.transportadora)
-        campo_33_formateado = formatear_con_documento(crt.remitente)
-        campo_34_formateado = formatear_con_documento(crt.destinatario)
-        campo_35_formateado = formatear_con_documento(
-            crt.consignatario) if crt.consignatario else campo_34_formateado
-
         print(
-            f"✅ Campo 1 formateado ({len(campo_1_formateado)} chars): {campo_1_formateado[:100]}...")
-        print(
-            f"✅ Campo 33 formateado ({len(campo_33_formateado)} chars): {campo_33_formateado[:100]}...")
-        print(
-            f"✅ Campo 34 formateado ({len(campo_34_formateado)} chars): {campo_34_formateado[:100]}...")
+            f"📦 Consignatario: {crt.consignatario.nombre if crt.consignatario else 'N/A'}")
+        print()
 
-        # ✅ ACTUALIZADO: Usar tu estructura original + campos con documentos
+        # ✅ FORMATEAR DATOS COMPLETOS CON LA NUEVA FUNCIÓN
+        print("🎯 INICIANDO FORMATEO COMPLETO DE ENTIDADES...")
+        print("-" * 60)
+
+        # Campo 1 y 9: Transportadora completa
+        campo_1_transportadora = formatear_entidad_completa_crt(
+            crt.transportadora)
+
+        # Campo 33: Remitente completo
+        campo_33_remitente = formatear_entidad_completa_crt(crt.remitente)
+
+        # Campo 34: Destinatario completo
+        campo_34_destinatario = formatear_entidad_completa_crt(
+            crt.destinatario)
+
+        # Campo 35: Consignatario completo (o destinatario si no hay consignatario)
+        campo_35_consignatario = formatear_entidad_completa_crt(
+            crt.consignatario) if crt.consignatario else campo_34_destinatario
+
+        print("✅ FORMATEO COMPLETO TERMINADO")
+        print("-" * 60)
+
+        # ✅ VERIFICACIÓN DE CONTENIDO CLONADO
+        print("🔍 VERIFICACIÓN DE CLONACIÓN:")
+        print(
+            f"📋 Campo 1 (Transportadora): {len(campo_1_transportadora)} chars")
+        print(
+            f"   Preview: {campo_1_transportadora[:80]}{'...' if len(campo_1_transportadora) > 80 else ''}")
+        print(f"📋 Campo 33 (Remitente): {len(campo_33_remitente)} chars")
+        print(
+            f"   Preview: {campo_33_remitente[:80]}{'...' if len(campo_33_remitente) > 80 else ''}")
+        print(f"📋 Campo 34 (Destinatario): {len(campo_34_destinatario)} chars")
+        print(
+            f"   Preview: {campo_34_destinatario[:80]}{'...' if len(campo_34_destinatario) > 80 else ''}")
+        print(
+            f"📋 Campo 35 (Consignatario): {len(campo_35_consignatario)} chars")
+        print(
+            f"   Preview: {campo_35_consignatario[:80]}{'...' if len(campo_35_consignatario) > 80 else ''}")
+        print()
+
+        # ✅ CONSTRUIR DATOS MIC CON CLONACIÓN COMPLETA
         mic_data = {
-            # ✅ CAMPOS CON DOCUMENTOS INCLUIDOS
-            "campo_1_transporte": campo_1_formateado,
-            "campo_33_datos_campo1_crt": campo_33_formateado,
-            "campo_34_datos_campo4_crt": campo_34_formateado,
-            "campo_35_datos_campo6_crt": campo_35_formateado,
+            # ✅ CAMPOS PRINCIPALES CON DATOS COMPLETOS CLONADOS
+            "campo_1_transporte": campo_1_transportadora,
+            "campo_9_datos_transporte": campo_1_transportadora,  # Mismo que campo 1
+            "campo_33_datos_campo1_crt": campo_33_remitente,
+            "campo_34_datos_campo4_crt": campo_34_destinatario,
+            "campo_35_datos_campo6_crt": campo_35_consignatario,
 
-            # ✅ TU LÓGICA ORIGINAL MANTENIDA
+            # ✅ OTROS CAMPOS DEL CRT CLONADOS
             "campo_2_numero": "",
             "campo_3_transporte": "",
             "campo_4_estado": "PROVISORIO",
@@ -177,7 +271,6 @@ def generar_pdf_mic_desde_crt(crt_id):
             "campo_6_fecha": crt.fecha_emision.strftime('%Y-%m-%d') if crt.fecha_emision else "",
             "campo_7_pto_seguro": "",
             "campo_8_destino": crt.lugar_entrega or "",
-            "campo_9_datos_transporte": campo_1_formateado,  # Mismo que campo 1
             "campo_10_numero": "",
             "campo_11_placa": "",
             "campo_12_modelo_chasis": "",
@@ -210,31 +303,28 @@ def generar_pdf_mic_desde_crt(crt_id):
             "campo_40_tramo": "",
         }
 
-        # ✅ ACTUALIZADO: Manejar el campo_38 del frontend correctamente
+        # ✅ APLICAR DATOS DEL USUARIO (si los hay)
         if user_data:
             if 'campo_38' in user_data:
                 user_data['campo_38_datos_campo11_crt'] = user_data.pop(
                     'campo_38')
             mic_data.update(user_data)
 
-        # === BLINDAJE: SIEMPRE iguala el campo 9 al campo 1 antes de generar PDF ===
-        mic_data["campo_9_datos_transporte"] = mic_data["campo_1_transporte"]
+        # ✅ RESUMEN FINAL DE CLONACIÓN
+        print("🎯 RESUMEN DE CLONACIÓN COMPLETA:")
+        print(
+            f"   📋 Campo 1 (Transportadora): {len(mic_data['campo_1_transporte'])} chars - {'✅ CON DATOS' if mic_data['campo_1_transporte'] else '❌ VACÍO'}")
+        print(
+            f"   📋 Campo 33 (Remitente): {len(mic_data['campo_33_datos_campo1_crt'])} chars - {'✅ CON DATOS' if mic_data['campo_33_datos_campo1_crt'] else '❌ VACÍO'}")
+        print(
+            f"   📋 Campo 34 (Destinatario): {len(mic_data['campo_34_datos_campo4_crt'])} chars - {'✅ CON DATOS' if mic_data['campo_34_datos_campo4_crt'] else '❌ VACÍO'}")
+        print(
+            f"   📋 Campo 35 (Consignatario): {len(mic_data['campo_35_datos_campo6_crt'])} chars - {'✅ CON DATOS' if mic_data['campo_35_datos_campo6_crt'] else '❌ VACÍO'}")
+        print(
+            f"   📦 Campo 38 (Mercadería): {len(mic_data['campo_38_datos_campo11_crt'])} chars - {'✅ CON DATOS' if mic_data['campo_38_datos_campo11_crt'] else '❌ VACÍO'}")
+        print("="*80)
 
-        # --- DEBUG ---
-        print("="*60)
-        print("🚛 Campo 1 (Transportador con doc):",
-              repr(mic_data['campo_1_transporte'][:120]))
-        print("📤 Campo 33 (Remitente con doc):", repr(
-            mic_data['campo_33_datos_campo1_crt'][:120]))
-        print("📥 Campo 34 (Destinatario con doc):", repr(
-            mic_data['campo_34_datos_campo4_crt'][:120]))
-        print("📋 Campo 35 (Consignatario con doc):", repr(
-            mic_data['campo_35_datos_campo6_crt'][:120]))
-        print("📦 Campo 38:", repr(
-            mic_data['campo_38_datos_campo11_crt'][:120]))
-        print("="*60)
-
-        # Generar el PDF usando tu función existente
+        # Generar el PDF
         import tempfile
         import os
         with tempfile.NamedTemporaryFile(suffix='.pdf', delete=False) as tmp_file:
@@ -245,12 +335,14 @@ def generar_pdf_mic_desde_crt(crt_id):
         response = send_file(filename, as_attachment=True,
                              download_name=f"MIC_CRT_{crt.numero_crt or crt.id}.pdf")
         response.call_on_close(lambda: os.unlink(filename))
+
+        print(f"✅ PDF MIC GENERADO EXITOSAMENTE para CRT {crt.numero_crt}")
         return response
 
     except Exception as e:
         import traceback
         print("="*50)
-        print("ERROR EN /generate_pdf_from_crt:")
+        print("❌ ERROR EN CLONACIÓN CRT -> MIC:")
         print(traceback.format_exc())
         print("="*50)
         return jsonify({"error": str(e)}), 500
@@ -261,19 +353,71 @@ def mic_pdf(mic_id):
     mic = MIC.query.get_or_404(mic_id)
     mic_data = to_dict_mic(mic)
 
-    # BLINDAJE también aquí
+    # BLINDAJE: Asegurar que campo 9 = campo 1
     mic_data["campo_9_datos_transporte"] = mic_data["campo_1_transporte"]
 
     filename = f"mic_{mic.id}.pdf"
-    print("======================")
-    print("Campo 1:", repr(mic_data['campo_1_transporte']))
-    print("Campo 9:", repr(mic_data['campo_9_datos_transporte']))
-    print("Campo 38:", repr(mic_data['campo_38_datos_campo11_crt']))
-    print("======================")
+    print("🎯 GENERANDO PDF DESDE MIC GUARDADO:")
+    print(f"   📋 Campo 1: {len(mic_data['campo_1_transporte'])} chars")
+    print(f"   📋 Campo 9: {len(mic_data['campo_9_datos_transporte'])} chars")
+    print(
+        f"   📦 Campo 38: {len(mic_data['campo_38_datos_campo11_crt'])} chars")
 
     generar_micdta_pdf_con_datos(mic_data, filename)
     return send_file(filename, as_attachment=True)
 
-# Recuerda: registrar el blueprint en tu app principal
-# from app.routes.mic import mic_bp
-# app.register_blueprint(mic_bp)
+# ✅ NUEVA RUTA: Verificar clonación de datos específicos
+
+
+@mic_bp.route('/verify_clone/<int:crt_id>', methods=['GET'])
+def verificar_clonacion(crt_id):
+    """
+    Ruta de verificación para mostrar cómo se clonarían los datos del CRT al MIC
+    """
+    try:
+        crt = CRT.query.options(
+            joinedload(CRT.remitente).joinedload(
+                Remitente.ciudad).joinedload(Ciudad.pais),
+            joinedload(CRT.transportadora).joinedload(
+                Transportadora.ciudad).joinedload(Ciudad.pais),
+            joinedload(CRT.destinatario).joinedload(
+                Remitente.ciudad).joinedload(Ciudad.pais),
+            joinedload(CRT.consignatario).joinedload(
+                Remitente.ciudad).joinedload(Ciudad.pais),
+        ).get_or_404(crt_id)
+
+        # Formatear datos
+        campo_1 = formatear_entidad_completa_crt(crt.transportadora)
+        campo_33 = formatear_entidad_completa_crt(crt.remitente)
+        campo_34 = formatear_entidad_completa_crt(crt.destinatario)
+        campo_35 = formatear_entidad_completa_crt(
+            crt.consignatario) if crt.consignatario else campo_34
+
+        return jsonify({
+            "crt_numero": crt.numero_crt,
+            "clonacion": {
+                "campo_1_transportadora": {
+                    "texto": campo_1,
+                    "lineas": campo_1.split('\n'),
+                    "longitud": len(campo_1)
+                },
+                "campo_33_remitente": {
+                    "texto": campo_33,
+                    "lineas": campo_33.split('\n'),
+                    "longitud": len(campo_33)
+                },
+                "campo_34_destinatario": {
+                    "texto": campo_34,
+                    "lineas": campo_34.split('\n'),
+                    "longitud": len(campo_34)
+                },
+                "campo_35_consignatario": {
+                    "texto": campo_35,
+                    "lineas": campo_35.split('\n'),
+                    "longitud": len(campo_35)
+                }
+            }
+        })
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
