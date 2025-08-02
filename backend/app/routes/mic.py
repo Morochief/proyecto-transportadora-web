@@ -4,7 +4,6 @@ from sqlalchemy.orm import joinedload
 from datetime import datetime
 from app.models import db, MIC, CRT, Ciudad, Transportadora
 from app.utils.layout_mic import generar_micdta_pdf_con_datos
-import requests
 
 mic_bp = Blueprint('mic', __name__, url_prefix='/api/mic')
 
@@ -15,31 +14,52 @@ def join_lines(*parts):
     """Une los campos con salto de línea solo si existen."""
     return "\n".join([str(p) for p in parts if p])
 
-# ✅ NUEVA FUNCIÓN: Formatear datos con documento desde el microservicio Go
+# ✅ NUEVA FUNCIÓN: Formatear entidad con documento (sin usar requests)
 
 
-def formatear_datos_con_documento_go(nombre, documento, tipo_documento, direccion=None):
+def formatear_con_documento(entidad):
     """
-    Formatea los datos que vienen del microservicio Go con documentos
+    Formatea una entidad (transportadora, remitente, destinatario) con sus datos de documento
     Ejemplo de salida:
     EMPRESA XYZ S.A.
     RUC: 80012345-6
     Av. Principal 1234
+    Asunción - Paraguay
     """
-    if not nombre:
+    if not entidad:
         return ""
 
-    lines = [nombre]
+    lines = []
 
-    # Agregar documento si existe
+    # 1. Nombre de la entidad
+    if hasattr(entidad, 'nombre') and entidad.nombre:
+        lines.append(entidad.nombre)
+
+    # 2. Documento (RUC, CI, CNPJ, etc.)
+    documento = ""
+    tipo_documento = ""
+
+    if hasattr(entidad, 'documento') and entidad.documento:
+        documento = entidad.documento
+    if hasattr(entidad, 'tipo_documento') and entidad.tipo_documento:
+        tipo_documento = entidad.tipo_documento
+
     if documento and tipo_documento:
         lines.append(f"{tipo_documento}: {documento}")
-    elif documento:
+    elif documento:  # Si hay documento pero no tipo
         lines.append(f"DOC: {documento}")
 
-    # Agregar dirección si existe
-    if direccion:
-        lines.append(direccion)
+    # 3. Dirección
+    if hasattr(entidad, 'direccion') and entidad.direccion:
+        lines.append(entidad.direccion)
+
+    # 4. Ciudad - País
+    if hasattr(entidad, 'ciudad') and entidad.ciudad:
+        if entidad.ciudad.pais:
+            lines.append(
+                f"{entidad.ciudad.nombre} - {entidad.ciudad.pais.nombre}")
+        else:
+            lines.append(entidad.ciudad.nombre)
 
     return "\n".join(lines)
 
@@ -101,69 +121,62 @@ def to_dict_mic(mic):
 @mic_bp.route('/generate_pdf_from_crt/<int:crt_id>', methods=['POST'])
 def generar_pdf_mic_desde_crt(crt_id):
     """
-    ✅ ACTUALIZADO: Genera un PDF del MIC desde un CRT obtenido del microservicio Go,
-    incluyendo documentos en los campos 1, 33, 34, 35
+    ✅ ACTUALIZADO: Genera un PDF del MIC directamente desde un CRT con documentos,
+    usando tu lógica original de SQLAlchemy (SIN requests)
     """
     try:
         user_data = request.json if request.is_json else {}
 
-        # ✅ NUEVO: Obtener datos del microservicio Go
-        print(f"🔍 Obteniendo CRT {crt_id} desde microservicio Go...")
-        go_response = requests.get(f"http://localhost:8080/api/crts/{crt_id}")
+        # ✅ USAR TU LÓGICA ORIGINAL: SQLAlchemy en lugar de requests
+        crt = CRT.query.options(
+            joinedload(CRT.remitente),
+            joinedload(CRT.transportadora).joinedload(
+                Transportadora.ciudad).joinedload(Ciudad.pais),
+            joinedload(CRT.destinatario),
+            joinedload(CRT.consignatario),
+            joinedload(CRT.moneda),
+            joinedload(CRT.gastos),
+            joinedload(CRT.ciudad_emision).joinedload(Ciudad.pais)
+        ).get_or_404(crt_id)
 
-        if go_response.status_code != 200:
-            print(f"❌ Error del microservicio Go: {go_response.status_code}")
-            return jsonify({"error": f"CRT {crt_id} no encontrado en microservicio Go"}), 404
+        print(f"🔍 CRT cargado desde base de datos: {crt.numero_crt}")
+        print(
+            f"🚛 Transportadora: {crt.transportadora.nombre if crt.transportadora else 'N/A'}")
+        print(
+            f"📤 Remitente: {crt.remitente.nombre if crt.remitente else 'N/A'}")
+        print(
+            f"📥 Destinatario: {crt.destinatario.nombre if crt.destinatario else 'N/A'}")
 
-        crt_data = go_response.json()
-        print(f"✅ CRT obtenido: {crt_data.get('numero_crt', 'N/A')}")
-
-        # ✅ NUEVO: Formatear campos con documentos usando datos del microservicio Go
-        campo_1_formateado = formatear_datos_con_documento_go(
-            crt_data.get('transportadora_nombre', ''),
-            crt_data.get('transportadora_documento', ''),
-            crt_data.get('transportadora_tipo_documento', ''),
-            crt_data.get('transportadora_direccion', '')
-        )
-
-        campo_33_formateado = formatear_datos_con_documento_go(
-            crt_data.get('remitente', ''),
-            crt_data.get('remitente_documento', ''),
-            crt_data.get('remitente_tipo_documento', '')
-        )
-
-        campo_34_formateado = formatear_datos_con_documento_go(
-            crt_data.get('destinatario', ''),
-            crt_data.get('destinatario_documento', ''),
-            crt_data.get('destinatario_tipo_documento', '')
-        )
-
-        # Campo 35: Consignatario (usar destinatario por defecto)
-        campo_35_formateado = campo_34_formateado
+        # ✅ NUEVO: Usar formateo con documentos para campos 1, 33, 34, 35
+        campo_1_formateado = formatear_con_documento(crt.transportadora)
+        campo_33_formateado = formatear_con_documento(crt.remitente)
+        campo_34_formateado = formatear_con_documento(crt.destinatario)
+        campo_35_formateado = formatear_con_documento(
+            crt.consignatario) if crt.consignatario else campo_34_formateado
 
         print(
-            f"🏢 Campo 1 formateado ({len(campo_1_formateado)} chars): {campo_1_formateado[:100]}...")
+            f"✅ Campo 1 formateado ({len(campo_1_formateado)} chars): {campo_1_formateado[:100]}...")
         print(
-            f"📤 Campo 33 formateado ({len(campo_33_formateado)} chars): {campo_33_formateado[:100]}...")
+            f"✅ Campo 33 formateado ({len(campo_33_formateado)} chars): {campo_33_formateado[:100]}...")
         print(
-            f"📥 Campo 34 formateado ({len(campo_34_formateado)} chars): {campo_34_formateado[:100]}...")
+            f"✅ Campo 34 formateado ({len(campo_34_formateado)} chars): {campo_34_formateado[:100]}...")
 
-        # ✅ ACTUALIZADO: Construir mic_data con campos formateados
+        # ✅ ACTUALIZADO: Usar tu estructura original + campos con documentos
         mic_data = {
-            # ✅ Campos con documentos incluidos
+            # ✅ CAMPOS CON DOCUMENTOS INCLUIDOS
             "campo_1_transporte": campo_1_formateado,
             "campo_33_datos_campo1_crt": campo_33_formateado,
             "campo_34_datos_campo4_crt": campo_34_formateado,
             "campo_35_datos_campo6_crt": campo_35_formateado,
 
-            # Campos normales desde el microservicio Go
+            # ✅ TU LÓGICA ORIGINAL MANTENIDA
             "campo_2_numero": "",
             "campo_3_transporte": "",
-            "campo_4_estado": crt_data.get('estado', 'PROVISORIO'),
+            "campo_4_estado": "PROVISORIO",
             "campo_5_hoja": "1 / 1",
-            "campo_6_fecha": datetime.now().strftime('%Y-%m-%d'),  # Fecha actual por defecto
+            "campo_6_fecha": crt.fecha_emision.strftime('%Y-%m-%d') if crt.fecha_emision else "",
             "campo_7_pto_seguro": "",
-            "campo_8_destino": "",  # Será llenado por el usuario
+            "campo_8_destino": crt.lugar_entrega or "",
             "campo_9_datos_transporte": campo_1_formateado,  # Mismo que campo 1
             "campo_10_numero": "",
             "campo_11_placa": "",
@@ -178,19 +191,22 @@ def generar_pdf_mic_desde_crt(crt_id):
             "campo_20_asteriscos_5": "******",
             "campo_21_asteriscos_6": "******",
             "campo_22_asteriscos_7": "******",
-            "campo_23_numero_campo2_crt": crt_data.get('numero_crt', ''),
+            "campo_23_numero_campo2_crt": crt.numero_crt or "",
             "campo_24_aduana": "",
-            "campo_25_moneda": "DOLAR AMERICANO",  # Por defecto
+            "campo_25_moneda": crt.moneda.nombre if crt.moneda else "",
             "campo_26_pais": "520-PARAGUAY",
-            "campo_27_valor_campo16": str(crt_data.get('declaracion_mercaderia', '')),
+            "campo_27_valor_campo16": str(crt.declaracion_mercaderia or ""),
             "campo_28_total": "",
             "campo_29_seguro": "",
             "campo_30_tipo_bultos": "",
             "campo_31_cantidad": "",
-            "campo_32_peso_bruto": str(crt_data.get('peso_bruto', '')),
-            "campo_36_factura_despacho": crt_data.get('factura_exportacion', ''),
+            "campo_32_peso_bruto": str(crt.peso_bruto or ""),
+            "campo_36_factura_despacho": (
+                f"Factura: {crt.factura_exportacion or ''} | Despacho: {crt.nro_despacho or ''}"
+                if crt.factura_exportacion or crt.nro_despacho else ""
+            ),
             "campo_37_valor_manual": "",
-            "campo_38_datos_campo11_crt": (crt_data.get('detalles_mercaderia', '') or '')[:1500],
+            "campo_38_datos_campo11_crt": (crt.detalles_mercaderia or "")[:1500],
             "campo_40_tramo": "",
         }
 
@@ -218,7 +234,7 @@ def generar_pdf_mic_desde_crt(crt_id):
             mic_data['campo_38_datos_campo11_crt'][:120]))
         print("="*60)
 
-        # Generar el PDF
+        # Generar el PDF usando tu función existente
         import tempfile
         import os
         with tempfile.NamedTemporaryFile(suffix='.pdf', delete=False) as tmp_file:
@@ -227,13 +243,10 @@ def generar_pdf_mic_desde_crt(crt_id):
         generar_micdta_pdf_con_datos(mic_data, filename)
 
         response = send_file(filename, as_attachment=True,
-                             download_name=f"MIC_CRT_{crt_data.get('numero_crt', crt_id)}.pdf")
+                             download_name=f"MIC_CRT_{crt.numero_crt or crt.id}.pdf")
         response.call_on_close(lambda: os.unlink(filename))
         return response
 
-    except requests.RequestException as e:
-        print(f"❌ Error de conexión con microservicio Go: {e}")
-        return jsonify({"error": f"Error conectando con microservicio Go: {str(e)}"}), 500
     except Exception as e:
         import traceback
         print("="*50)
@@ -262,4 +275,5 @@ def mic_pdf(mic_id):
     return send_file(filename, as_attachment=True)
 
 # Recuerda: registrar el blueprint en tu app principal
-# from app.routes.mic import mic
+# from app.routes.mic import mic_bp
+# app.register_blueprint(mic_bp)
