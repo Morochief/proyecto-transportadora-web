@@ -593,7 +593,7 @@ def crear_crt_prueba():
         # Buscar o crear entidades necesarias
         moneda = Moneda.query.filter_by(codigo='USD').first()
         if not moneda:
-            moneda = Moneda(codigo='USD', nombre='Dólar Americano', simbolo=')
+            moneda = Moneda(codigo='USD', nombre='Dólar Americano', simbolo='')
             db.session.add(moneda)
             db.session.flush()
 
@@ -702,6 +702,8 @@ def crear_crt_prueba():
         }), 500
 
 # ✅ NUEVA RUTA: Listar todos los MICs
+
+
 @mic_bp.route('/', methods=['GET'])
 def listar_mics():
     """
@@ -738,6 +740,8 @@ def listar_mics():
         return jsonify({"error": str(e)}), 500
 
 # ✅ NUEVA RUTA: Crear MIC desde datos manuales
+
+
 @mic_bp.route('/', methods=['POST'])
 def crear_mic():
     """
@@ -745,9 +749,10 @@ def crear_mic():
     """
     try:
         data = request.json
-        
+
         # Validar campos requeridos
-        campos_requeridos = ['campo_1_transporte', 'campo_23_numero_campo2_crt']
+        campos_requeridos = ['campo_1_transporte',
+                             'campo_23_numero_campo2_crt']
         for campo in campos_requeridos:
             if not data.get(campo):
                 return jsonify({"error": f"Campo requerido: {campo}"}), 400
@@ -760,10 +765,12 @@ def crear_mic():
             campo_3_transporte=data.get('campo_3_transporte', ''),
             campo_4_estado=data.get('campo_4_estado', 'PROVISORIO'),
             campo_5_hoja=data.get('campo_5_hoja', '1 / 1'),
-            campo_6_fecha=datetime.strptime(data.get('campo_6_fecha'), '%Y-%m-%d') if data.get('campo_6_fecha') else datetime.now().date(),
+            campo_6_fecha=datetime.strptime(data.get(
+                'campo_6_fecha'), '%Y-%m-%d') if data.get('campo_6_fecha') else datetime.now().date(),
             campo_7_pto_seguro=data.get('campo_7_pto_seguro', ''),
             campo_8_destino=data.get('campo_8_destino', ''),
-            campo_9_datos_transporte=data.get('campo_9_datos_transporte') or data.get('campo_1_transporte'),
+            campo_9_datos_transporte=data.get(
+                'campo_9_datos_transporte') or data.get('campo_1_transporte'),
             campo_10_numero=data.get('campo_10_numero', ''),
             campo_11_placa=data.get('campo_11_placa', ''),
             campo_12_modelo_chasis=data.get('campo_12_modelo_chasis', ''),
@@ -787,12 +794,17 @@ def crear_mic():
             campo_30_tipo_bultos=data.get('campo_30_tipo_bultos', ''),
             campo_31_cantidad=data.get('campo_31_cantidad', ''),
             campo_32_peso_bruto=data.get('campo_32_peso_bruto', ''),
-            campo_33_datos_campo1_crt=data.get('campo_33_datos_campo1_crt', ''),
-            campo_34_datos_campo4_crt=data.get('campo_34_datos_campo4_crt', ''),
-            campo_35_datos_campo6_crt=data.get('campo_35_datos_campo6_crt', ''),
-            campo_36_factura_despacho=data.get('campo_36_factura_despacho', ''),
+            campo_33_datos_campo1_crt=data.get(
+                'campo_33_datos_campo1_crt', ''),
+            campo_34_datos_campo4_crt=data.get(
+                'campo_34_datos_campo4_crt', ''),
+            campo_35_datos_campo6_crt=data.get(
+                'campo_35_datos_campo6_crt', ''),
+            campo_36_factura_despacho=data.get(
+                'campo_36_factura_despacho', ''),
             campo_37_valor_manual=data.get('campo_37_valor_manual', ''),
-            campo_38_datos_campo11_crt=data.get('campo_38_datos_campo11_crt', ''),
+            campo_38_datos_campo11_crt=data.get(
+                'campo_38_datos_campo11_crt', ''),
             campo_40_tramo=data.get('campo_40_tramo', ''),
             creado_en=datetime.now()
         )
