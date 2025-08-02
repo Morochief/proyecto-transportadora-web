@@ -82,6 +82,175 @@ def draw_campo39(c, x, y, w, h, height_px, pt_per_px, mic_data=None):
     c.drawString(fecha_x, fecha_y, txt_fecha)
 
 
+def draw_text_fit_area_dynamic(c, text, x, y, width, height, fontName="Helvetica", min_font=7, max_font=12, leading_ratio=1.15):
+    """
+    ✅ FUNCIÓN CORREGIDA: Ajusta dinámicamente el tamaño de fuente para aprovechar el espacio disponible
+    RANGOS MÁS CONSERVADORES para evitar desbordamiento
+
+    Args:
+        c: Canvas de reportlab
+        text: Texto a dibujar
+        x, y: Coordenadas de inicio (esquina superior izquierda del área de texto)
+        width, height: Dimensiones del área disponible REAL
+        fontName: Nombre de la fuente
+        min_font: Tamaño mínimo de fuente (reducido a 7)
+        max_font: Tamaño máximo de fuente (reducido a 12)
+        leading_ratio: Ratio de espaciado entre líneas (reducido a 1.15)
+    """
+    if not text:
+        return
+
+    # Limpieza de texto
+    import re
+    clean_text = text.replace('\r\n', '\n').replace('\r', '\n')
+    clean_text = re.sub(
+        r'[\x00-\x08\x0b\x0c\x0e-\x1f\x7f-\x9f]', '', clean_text)
+
+    print(f"🎯 CAMPO 38 DINÁMICO CORREGIDO:")
+    print(f"📏 Área disponible: {width:.1f} x {height:.1f} pts")
+    print(f"📝 Texto: {len(clean_text)} caracteres")
+
+    # ✅ MÁRGENES MÁS GRANDES para evitar desbordamiento
+    margin_horizontal = 15  # Margen izquierdo/derecho
+    margin_vertical = 25    # Margen superior/inferior
+
+    effective_width = width - (margin_horizontal * 2)
+    effective_height = height - (margin_vertical * 2)
+
+    print(
+        f"📐 Área efectiva (con márgenes): {effective_width:.1f} x {effective_height:.1f} pts")
+
+    # Intentar tamaños de fuente desde el máximo hacia el mínimo
+    best_font_size = min_font
+    best_lines = []
+
+    for font_size in range(int(max_font), int(min_font) - 1, -1):
+        print(f"🔍 Probando fuente tamaño {font_size}")
+
+        # Dividir texto en líneas que caben en el ancho efectivo
+        lines = []
+        manual_lines = clean_text.split('\n')
+
+        for manual_line in manual_lines:
+            if not manual_line.strip():
+                lines.append("")
+                continue
+
+            words = manual_line.split()
+            current_line = ""
+
+            for word in words:
+                test_line = current_line + " " + word if current_line else word
+                text_width = c.stringWidth(test_line, fontName, font_size)
+
+                if text_width <= effective_width:
+                    current_line = test_line
+                else:
+                    if current_line:
+                        lines.append(current_line)
+                    current_line = word
+
+            if current_line:
+                lines.append(current_line)
+
+        # Calcular altura total necesaria
+        line_height = font_size * leading_ratio
+        total_height = len(lines) * line_height
+
+        print(
+            f"   📋 {len(lines)} líneas, altura total: {total_height:.1f}pts (disponible: {effective_height:.1f}pts)")
+
+        # Si cabe todo el texto, esta es la mejor opción
+        if total_height <= effective_height:
+            best_font_size = font_size
+            best_lines = lines
+            print(f"   ✅ Fuente {font_size} CABE perfectamente")
+            break
+        else:
+            print(
+                f"   ❌ Fuente {font_size} NO CABE (excede por {total_height - effective_height:.1f}pts)")
+
+    # Si ningún tamaño funciona, usar el mínimo y truncar
+    if not best_lines:
+        print(f"⚠️ Usando fuente mínima {min_font} y truncando texto")
+        best_font_size = min_font
+
+        # Recalcular con fuente mínima
+        lines = []
+        manual_lines = clean_text.split('\n')
+
+        for manual_line in manual_lines:
+            if not manual_line.strip():
+                lines.append("")
+                continue
+
+            words = manual_line.split()
+            current_line = ""
+
+            for word in words:
+                test_line = current_line + " " + word if current_line else word
+                text_width = c.stringWidth(test_line, fontName, best_font_size)
+
+                if text_width <= effective_width:
+                    current_line = test_line
+                else:
+                    if current_line:
+                        lines.append(current_line)
+                    current_line = word
+
+            if current_line:
+                lines.append(current_line)
+
+        # Truncar líneas que no caben
+        line_height = best_font_size * leading_ratio
+        max_lines = int(effective_height / line_height)
+        best_lines = lines[:max_lines]
+
+        if len(lines) > max_lines:
+            print(
+                f"   ✂️ Truncando: {len(lines) - max_lines} líneas eliminadas")
+            # Agregar indicador de truncamiento
+            if best_lines:
+                last_line = best_lines[-1]
+                if len(last_line) > 10:
+                    best_lines[-1] = last_line[:-3] + "..."
+
+    # ✅ DIBUJAR con márgenes aplicados
+    c.setFont(fontName, best_font_size)
+    line_height = best_font_size * leading_ratio
+
+    # ✅ COORDENADAS CORREGIDAS: Empezar desde la parte superior del área efectiva
+    start_x = x + margin_horizontal
+    start_y = y + height - margin_vertical  # Desde arriba hacia abajo
+
+    print(f"🎨 DIBUJANDO con fuente {best_font_size}:")
+    print(f"📍 Inicio: x={start_x:.1f}, y={start_y:.1f}")
+
+    for i, line in enumerate(best_lines):
+        line_y = start_y - (i * line_height)
+
+        # ✅ VERIFICACIÓN: No dibujar fuera del área
+        if line_y < y:
+            print(f"   ⚠️ Línea {i+1} fuera del área, deteniéndose")
+            break
+
+        safe_line = str(line).encode('utf-8', errors='ignore').decode('utf-8')
+        c.drawString(start_x, line_y, safe_line)
+        print(
+            f"   📝 Línea {i+1}: '{safe_line[:40]}{'...' if len(safe_line) > 40 else ''}' en y={line_y:.1f}")
+
+    print(
+        f"✅ Campo 38 renderizado: {len(best_lines)} líneas con fuente {best_font_size}")
+
+    return {
+        'font_size_used': best_font_size,
+        'lines_drawn': len(best_lines),
+        'lines_total': len(clean_text.split('\n')),
+        'truncated': len(best_lines) < len(clean_text.split('\n')),
+        'effective_area': f"{effective_width:.1f}x{effective_height:.1f}"
+    }
+
+
 def draw_multiline_text_simple(c, text, x, y, w, h, font_size=9, font="Helvetica"):
     """
     ✅ MEJORADO: Método simple con mejor manejo de saltos de línea
@@ -224,6 +393,7 @@ def generar_micdta_pdf_con_datos(mic_data, filename="mic_{id}.pdf"):
     """
     ✅ MEJORADA: Función principal con debug completo de todos los datos
     Y SOPORTE PARA DOCUMENTOS EN CAMPOS 1, 33, 34, 35
+    ✅ CAMPO 38 CON AJUSTE DINÁMICO DE FUENTE CORREGIDO
     """
     print("🔄 Iniciando generación de PDF MIC...")
     print(f"📋 Datos recibidos: {len(mic_data)} campos")
@@ -419,21 +589,51 @@ def generar_micdta_pdf_con_datos(mic_data, filename="mic_{id}.pdf"):
             c.setFont("Helvetica", 11)
             c.drawString(tx, ty - 16, subtitulo)
 
-        # ✅ ESPECIAL: Debug para campo 38
+        # ✅ ESPECIAL: Campo 38 con ajuste dinámico de fuente CORREGIDO
         if n == 38:
-            print(f"🎯 Procesando Campo 38 (n={n})")
+            print(f"🎯 Procesando Campo 38 (n={n}) - AJUSTE DINÁMICO CORREGIDO")
             print(f"📍 Coordenadas: x={x}, y={y}, w={w}, h={h}")
             print(f"🔑 Key: {key}")
+
             if key and mic_data.get(key):
                 valor = mic_data[key]
                 print(f"✅ Campo 38 tiene datos: {len(valor)} caracteres")
                 print(f"📝 Primeros 100 chars: {valor[:100]}...")
+
+                # ✅ COORDENADAS CORREGIDAS PARA CAMPO 38
+                x_frame = x * pt_per_px
+                y_frame = (height_px - y - h) * pt_per_px
+                w_frame = w * pt_per_px
+                h_frame = h * pt_per_px
+
+                # ✅ ÁREA DE TEXTO (descontando título)
+                text_area_h = h_frame - 40  # Descontar espacio del título
+
+                print(f"🖼️ Campo 38 - Usando ajuste dinámico CORREGIDO")
+                print(
+                    f"   📏 Rectángulo completo: x={x_frame:.1f}, y={y_frame:.1f}, w={w_frame:.1f}, h={h_frame:.1f}")
+                print(f"   📝 Área de texto: h={text_area_h:.1f}")
+
+                # ✅ LLAMAR A LA FUNCIÓN DINÁMICA CORREGIDA
+                resultado = draw_text_fit_area_dynamic(
+                    c, valor,
+                    x=x_frame, y=y_frame, width=w_frame, height=text_area_h,
+                    fontName="Helvetica", min_font=7, max_font=12, leading_ratio=1.15
+                )
+
+                print(f"🎨 Resultado Campo 38 CORREGIDO:")
+                print(f"   📏 Fuente usada: {resultado['font_size_used']}")
+                print(f"   📋 Líneas dibujadas: {resultado['lines_drawn']}")
+                print(f"   📊 Líneas totales: {resultado['lines_total']}")
+                print(f"   📐 Área efectiva: {resultado['effective_area']}")
+                print(f"   ✂️ Truncado: {resultado['truncated']}")
+
             else:
                 print(
                     f"❌ Campo 38 sin datos. Valor: {mic_data.get(key, 'KEY_NOT_FOUND')}")
 
         # ✅ ESPECIAL: Debug para campos con documentos
-        if n in [1, 33, 34, 35]:
+        elif n in [1, 33, 34, 35]:
             campo_nombre = {1: 'Transportador', 33: 'Remitente',
                             34: 'Destinatario', 35: 'Consignatario'}[n]
             print(f"🎯 Procesando Campo {n} ({campo_nombre}) con documentos")
@@ -445,8 +645,8 @@ def generar_micdta_pdf_con_datos(mic_data, filename="mic_{id}.pdf"):
                     print(
                         f"   Línea {i}: '{line[:50]}{'...' if len(line) > 50 else ''}'")
 
-        # ✅ CORREGIDO: MULTILÍNEA solo para 1, 9, 33, 34, 35, 38 - USAR MÉTODO ORIGINAL PARA MÁS LÍNEAS
-        if n in [1, 9, 33, 34, 35, 38] and key and mic_data.get(key):
+        # ✅ MULTILÍNEA para campos 1, 9, 33, 34, 35 (EXCLUYENDO 38)
+        if n in [1, 9, 33, 34, 35] and key and mic_data.get(key):
             x_frame = (x + 8) * pt_per_px
             y_frame = (height_px - y - h + 8 - 30) * pt_per_px
             w_frame = (w - 16) * pt_per_px
@@ -455,19 +655,13 @@ def generar_micdta_pdf_con_datos(mic_data, filename="mic_{id}.pdf"):
             print(
                 f"🖼️ Dibujando campo multilínea {n} con frame: x={x_frame}, y={y_frame}, w={w_frame}, h={h_frame}")
 
-            # ✅ ESPECIAL: Para campo 38 usar método simple directo
-            if n == 38:
-                print(f"🎯 CAMPO 38 - Usando método simple directo")
-                draw_multiline_text_simple(
-                    c, mic_data[key], x_frame, y_frame, w_frame, h_frame, font_size=8, font="Helvetica")
-            else:
-                # ✅ RESTAURADO: Para campos 1, 9, 33, 34, 35 usar método ORIGINAL (MÁS LÍNEAS)
-                print(
-                    f"🎯 CAMPO {n} - Usando método ORIGINAL Frame/Paragraph para MÁS LÍNEAS")
-                draw_multiline_text(
-                    c, mic_data[key], x_frame, y_frame, w_frame, h_frame, font_size=10)
+            # ✅ Para campos 1, 9, 33, 34, 35 usar método ORIGINAL Frame/Paragraph
+            print(
+                f"🎯 CAMPO {n} - Usando método ORIGINAL Frame/Paragraph para MÁS LÍNEAS")
+            draw_multiline_text(
+                c, mic_data[key], x_frame, y_frame, w_frame, h_frame, font_size=10)
 
-        # --- PARA CAMPOS NORMALES (incluyendo ahora el 12 con lógica especial) ---
+        # --- PARA CAMPOS NORMALES (incluyendo el 12 con lógica especial) ---
         elif key and mic_data.get(key):
             # ✅ ESPECIAL: Para campo 12, dibujar dos líneas si contiene \n
             if n == 12 and '\n' in str(mic_data[key]):
@@ -506,7 +700,7 @@ def generar_micdta_pdf_con_datos(mic_data, filename="mic_{id}.pdf"):
     c.save()
     print(f"✅ PDF generado exitosamente: {filename}")
 
-    # ✅ RESUMEN FINAL CON TODOS TUS PRINTS ORIGINALES
+    # ✅ RESUMEN FINAL
     print("🎯 RESUMEN DE CAMPOS CON DOCUMENTOS:")
     for key, descripcion in campos_documentos.items():
         if key in mic_data and mic_data[key]:
@@ -517,6 +711,6 @@ def generar_micdta_pdf_con_datos(mic_data, filename="mic_{id}.pdf"):
 
     print("🎯 RESUMEN - MÉTODO DE RENDERIZADO:")
     print("   📋 Campos 1,9,33,34,35: Frame/Paragraph (MÁS LÍNEAS) ✅")
-    print("   📦 Campo 38: Método simple (para compatibilidad)")
+    print("   📦 Campo 38: Ajuste dinámico de fuente CORREGIDO ✅")
     print("   📄 Otros campos: Una línea normal")
     print("   🔍 Debug completo: ACTIVADO ✅")
