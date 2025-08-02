@@ -4,6 +4,7 @@ from sqlalchemy.orm import joinedload
 from datetime import datetime
 from app.models import db, MIC, CRT, Ciudad, Transportadora
 from app.utils.layout_mic import generar_micdta_pdf_con_datos
+import requests
 
 mic_bp = Blueprint('mic', __name__, url_prefix='/api/mic')
 
@@ -13,6 +14,34 @@ mic_bp = Blueprint('mic', __name__, url_prefix='/api/mic')
 def join_lines(*parts):
     """Une los campos con salto de línea solo si existen."""
     return "\n".join([str(p) for p in parts if p])
+
+# ✅ NUEVA FUNCIÓN: Formatear datos con documento desde el microservicio Go
+
+
+def formatear_datos_con_documento_go(nombre, documento, tipo_documento, direccion=None):
+    """
+    Formatea los datos que vienen del microservicio Go con documentos
+    Ejemplo de salida:
+    EMPRESA XYZ S.A.
+    RUC: 80012345-6
+    Av. Principal 1234
+    """
+    if not nombre:
+        return ""
+
+    lines = [nombre]
+
+    # Agregar documento si existe
+    if documento and tipo_documento:
+        lines.append(f"{tipo_documento}: {documento}")
+    elif documento:
+        lines.append(f"DOC: {documento}")
+
+    # Agregar dirección si existe
+    if direccion:
+        lines.append(direccion)
+
+    return "\n".join(lines)
 
 # ========== SERIALIZADOR DETALLADO ==========
 
@@ -72,43 +101,70 @@ def to_dict_mic(mic):
 @mic_bp.route('/generate_pdf_from_crt/<int:crt_id>', methods=['POST'])
 def generar_pdf_mic_desde_crt(crt_id):
     """
-    Genera un PDF del MIC directamente desde un CRT,
-    permitiendo que ciertos campos sean editados por el usuario antes de generar el PDF.
-
-    ✅ ACTUALIZADO: Ahora maneja correctamente el campo_38 que viene del frontend
+    ✅ ACTUALIZADO: Genera un PDF del MIC desde un CRT obtenido del microservicio Go,
+    incluyendo documentos en los campos 1, 33, 34, 35
     """
     try:
         user_data = request.json if request.is_json else {}
 
-        crt = CRT.query.options(
-            joinedload(CRT.remitente),
-            joinedload(CRT.transportadora).joinedload(
-                Transportadora.ciudad).joinedload(Ciudad.pais),
-            joinedload(CRT.destinatario),
-            joinedload(CRT.consignatario),
-            joinedload(CRT.moneda),
-            joinedload(CRT.gastos),
-            joinedload(CRT.ciudad_emision).joinedload(Ciudad.pais)
-        ).get_or_404(crt_id)
+        # ✅ NUEVO: Obtener datos del microservicio Go
+        print(f"🔍 Obteniendo CRT {crt_id} desde microservicio Go...")
+        go_response = requests.get(f"http://localhost:8080/api/crts/{crt_id}")
 
-        # --- TRANSPORTE multilínea (para campo 1 y 9) ---
-        _transporte_multilinea = join_lines(
-            crt.transportadora.nombre if crt.transportadora else "",
-            crt.transportadora.direccion if crt.transportadora else "",
-            crt.transportadora.ciudad.nombre if crt.transportadora and crt.transportadora.ciudad else "",
-            crt.transportadora.ciudad.pais.nombre if crt.transportadora and crt.transportadora.ciudad and crt.transportadora.ciudad.pais else ""
+        if go_response.status_code != 200:
+            print(f"❌ Error del microservicio Go: {go_response.status_code}")
+            return jsonify({"error": f"CRT {crt_id} no encontrado en microservicio Go"}), 404
+
+        crt_data = go_response.json()
+        print(f"✅ CRT obtenido: {crt_data.get('numero_crt', 'N/A')}")
+
+        # ✅ NUEVO: Formatear campos con documentos usando datos del microservicio Go
+        campo_1_formateado = formatear_datos_con_documento_go(
+            crt_data.get('transportadora_nombre', ''),
+            crt_data.get('transportadora_documento', ''),
+            crt_data.get('transportadora_tipo_documento', ''),
+            crt_data.get('transportadora_direccion', '')
         )
 
+        campo_33_formateado = formatear_datos_con_documento_go(
+            crt_data.get('remitente', ''),
+            crt_data.get('remitente_documento', ''),
+            crt_data.get('remitente_tipo_documento', '')
+        )
+
+        campo_34_formateado = formatear_datos_con_documento_go(
+            crt_data.get('destinatario', ''),
+            crt_data.get('destinatario_documento', ''),
+            crt_data.get('destinatario_tipo_documento', '')
+        )
+
+        # Campo 35: Consignatario (usar destinatario por defecto)
+        campo_35_formateado = campo_34_formateado
+
+        print(
+            f"🏢 Campo 1 formateado ({len(campo_1_formateado)} chars): {campo_1_formateado[:100]}...")
+        print(
+            f"📤 Campo 33 formateado ({len(campo_33_formateado)} chars): {campo_33_formateado[:100]}...")
+        print(
+            f"📥 Campo 34 formateado ({len(campo_34_formateado)} chars): {campo_34_formateado[:100]}...")
+
+        # ✅ ACTUALIZADO: Construir mic_data con campos formateados
         mic_data = {
-            "campo_1_transporte": _transporte_multilinea,
+            # ✅ Campos con documentos incluidos
+            "campo_1_transporte": campo_1_formateado,
+            "campo_33_datos_campo1_crt": campo_33_formateado,
+            "campo_34_datos_campo4_crt": campo_34_formateado,
+            "campo_35_datos_campo6_crt": campo_35_formateado,
+
+            # Campos normales desde el microservicio Go
             "campo_2_numero": "",
             "campo_3_transporte": "",
-            "campo_4_estado": "PROVISORIO",
+            "campo_4_estado": crt_data.get('estado', 'PROVISORIO'),
             "campo_5_hoja": "1 / 1",
-            "campo_6_fecha": crt.fecha_emision.strftime('%Y-%m-%d') if crt.fecha_emision else "",
+            "campo_6_fecha": datetime.now().strftime('%Y-%m-%d'),  # Fecha actual por defecto
             "campo_7_pto_seguro": "",
-            "campo_8_destino": crt.lugar_entrega or "",
-            "campo_9_datos_transporte": _transporte_multilinea,
+            "campo_8_destino": "",  # Será llenado por el usuario
+            "campo_9_datos_transporte": campo_1_formateado,  # Mismo que campo 1
             "campo_10_numero": "",
             "campo_11_placa": "",
             "campo_12_modelo_chasis": "",
@@ -122,65 +178,47 @@ def generar_pdf_mic_desde_crt(crt_id):
             "campo_20_asteriscos_5": "******",
             "campo_21_asteriscos_6": "******",
             "campo_22_asteriscos_7": "******",
-            "campo_23_numero_campo2_crt": crt.numero_crt or "",
+            "campo_23_numero_campo2_crt": crt_data.get('numero_crt', ''),
             "campo_24_aduana": "",
-            "campo_25_moneda": crt.moneda.nombre if crt.moneda else "",
+            "campo_25_moneda": "DOLAR AMERICANO",  # Por defecto
             "campo_26_pais": "520-PARAGUAY",
-            "campo_27_valor_campo16": str(crt.declaracion_mercaderia or ""),
+            "campo_27_valor_campo16": str(crt_data.get('declaracion_mercaderia', '')),
             "campo_28_total": "",
             "campo_29_seguro": "",
             "campo_30_tipo_bultos": "",
             "campo_31_cantidad": "",
-            "campo_32_peso_bruto": str(crt.peso_bruto or ""),
-            "campo_33_datos_campo1_crt": join_lines(
-                crt.remitente.nombre if crt.remitente else "",
-                crt.remitente.direccion if crt.remitente else "",
-                crt.remitente.ciudad.nombre if crt.remitente and crt.remitente.ciudad else "",
-                crt.remitente.ciudad.pais.nombre if crt.remitente and crt.remitente.ciudad and crt.remitente.ciudad.pais else ""
-            ) if crt.remitente else "",
-            "campo_34_datos_campo4_crt": join_lines(
-                crt.destinatario.nombre if crt.destinatario else "",
-                crt.destinatario.direccion if crt.destinatario else "",
-                crt.destinatario.ciudad.nombre if crt.destinatario and crt.destinatario.ciudad else "",
-                crt.destinatario.ciudad.pais.nombre if crt.destinatario and crt.destinatario.ciudad and crt.destinatario.ciudad.pais else ""
-            ) if crt.destinatario else "",
-            "campo_35_datos_campo6_crt": join_lines(
-                crt.consignatario.nombre if crt.consignatario else "",
-                crt.consignatario.direccion if crt.consignatario else "",
-                crt.consignatario.ciudad.nombre if crt.consignatario and crt.consignatario.ciudad else "",
-                crt.consignatario.ciudad.pais.nombre if crt.consignatario and crt.consignatario.ciudad and crt.consignatario.ciudad.pais else ""
-            ) if crt.consignatario else "",
-            "campo_36_factura_despacho": (
-                f"Factura: {crt.factura_exportacion or ''} | Despacho: {crt.nro_despacho or ''}"
-                if crt.factura_exportacion or crt.nro_despacho else ""
-            ),
+            "campo_32_peso_bruto": str(crt_data.get('peso_bruto', '')),
+            "campo_36_factura_despacho": crt_data.get('factura_exportacion', ''),
             "campo_37_valor_manual": "",
-            # ✅ ACTUALIZADO: Inicializar campo_38 con detalles_mercaderia del CRT
-            "campo_38_datos_campo11_crt": (crt.detalles_mercaderia or "")[:1500],
+            "campo_38_datos_campo11_crt": (crt_data.get('detalles_mercaderia', '') or '')[:1500],
             "campo_40_tramo": "",
         }
 
         # ✅ ACTUALIZADO: Manejar el campo_38 del frontend correctamente
-        # El frontend envía 'campo_38', pero internamente usamos 'campo_38_datos_campo11_crt'
         if user_data:
-            # Mapear campo_38 del frontend al campo interno
             if 'campo_38' in user_data:
                 user_data['campo_38_datos_campo11_crt'] = user_data.pop(
                     'campo_38')
-
             mic_data.update(user_data)
 
         # === BLINDAJE: SIEMPRE iguala el campo 9 al campo 1 antes de generar PDF ===
         mic_data["campo_9_datos_transporte"] = mic_data["campo_1_transporte"]
 
-        # --- DEBUG opcional ---
-        print("======================")
-        print("Campo 1:", repr(mic_data['campo_1_transporte']))
-        print("Campo 9:", repr(mic_data['campo_9_datos_transporte']))
-        print("Campo 38:", repr(mic_data['campo_38_datos_campo11_crt']))
-        print("======================")
+        # --- DEBUG ---
+        print("="*60)
+        print("🚛 Campo 1 (Transportador con doc):",
+              repr(mic_data['campo_1_transporte'][:120]))
+        print("📤 Campo 33 (Remitente con doc):", repr(
+            mic_data['campo_33_datos_campo1_crt'][:120]))
+        print("📥 Campo 34 (Destinatario con doc):", repr(
+            mic_data['campo_34_datos_campo4_crt'][:120]))
+        print("📋 Campo 35 (Consignatario con doc):", repr(
+            mic_data['campo_35_datos_campo6_crt'][:120]))
+        print("📦 Campo 38:", repr(
+            mic_data['campo_38_datos_campo11_crt'][:120]))
+        print("="*60)
 
-        # Generar el PDF usando tu función existente
+        # Generar el PDF
         import tempfile
         import os
         with tempfile.NamedTemporaryFile(suffix='.pdf', delete=False) as tmp_file:
@@ -189,10 +227,13 @@ def generar_pdf_mic_desde_crt(crt_id):
         generar_micdta_pdf_con_datos(mic_data, filename)
 
         response = send_file(filename, as_attachment=True,
-                             download_name=f"MIC_CRT_{crt.numero_crt or crt.id}.pdf")
+                             download_name=f"MIC_CRT_{crt_data.get('numero_crt', crt_id)}.pdf")
         response.call_on_close(lambda: os.unlink(filename))
         return response
 
+    except requests.RequestException as e:
+        print(f"❌ Error de conexión con microservicio Go: {e}")
+        return jsonify({"error": f"Error conectando con microservicio Go: {str(e)}"}), 500
     except Exception as e:
         import traceback
         print("="*50)
@@ -207,7 +248,7 @@ def mic_pdf(mic_id):
     mic = MIC.query.get_or_404(mic_id)
     mic_data = to_dict_mic(mic)
 
-    # BLINDAJE también aquí, si quieres (opcional)
+    # BLINDAJE también aquí
     mic_data["campo_9_datos_transporte"] = mic_data["campo_1_transporte"]
 
     filename = f"mic_{mic.id}.pdf"
@@ -221,5 +262,4 @@ def mic_pdf(mic_id):
     return send_file(filename, as_attachment=True)
 
 # Recuerda: registrar el blueprint en tu app principal
-# from app.routes.mic import mic_bp
-# app.register_blueprint(mic_bp)
+# from app.routes.mic import mic

@@ -223,6 +223,7 @@ def draw_multiline_text(c, text, x, y, w, h, font_size=13, font="Helvetica"):
 def generar_micdta_pdf_con_datos(mic_data, filename="mic_{id}.pdf"):
     """
     ✅ MEJORADA: Función principal con debug completo de todos los datos
+    Y SOPORTE PARA DOCUMENTOS EN CAMPOS 1, 33, 34, 35
     """
     print("🔄 Iniciando generación de PDF MIC...")
     print(f"📋 Datos recibidos: {len(mic_data)} campos")
@@ -267,6 +268,29 @@ def generar_micdta_pdf_con_datos(mic_data, filename="mic_{id}.pdf"):
         else:
             print(f"  {key}: NO ENCONTRADO")
     print("\n")
+
+    # ✅ NUEVO: DEBUG ESPECÍFICO PARA CAMPOS CON DOCUMENTOS
+    campos_documentos = {
+        'campo_1_transporte': 'Transportador',
+        'campo_33_datos_campo1_crt': 'Remitente',
+        'campo_34_datos_campo4_crt': 'Destinatario',
+        'campo_35_datos_campo6_crt': 'Consignatario'
+    }
+
+    print("📄 CAMPOS CON DOCUMENTOS:")
+    for key, descripcion in campos_documentos.items():
+        if key in mic_data and mic_data[key]:
+            value = mic_data[key]
+            lines = value.split('\n')
+            print(f"  📋 {descripcion} ({key}): {len(lines)} líneas")
+            for i, line in enumerate(lines[:3], 1):  # Mostrar máximo 3 líneas
+                print(
+                    f"    Línea {i}: '{line[:50]}{'...' if len(line) > 50 else ''}'")
+            if len(lines) > 3:
+                print(f"    ... y {len(lines) - 3} líneas más")
+        else:
+            print(f"  ❌ {descripcion} ({key}): NO ENCONTRADO")
+    print()
 
     width_px, height_px = 1700, 2800
     pt_per_px = 0.75
@@ -370,9 +394,9 @@ def generar_micdta_pdf_con_datos(mic_data, filename="mic_{id}.pdf"):
         (38, 55, 2004, 1613, 222, "38 Marcas y números de los bultos, descripción de las mercaderías",
          "Marcas e números dos volumes, descrição das mercadorias", "campo_38_datos_campo11_crt"),
         (39, 55, 2226, 838, 498, "", "", None),
-        (40, 891, 2226, 780, 330, "40 Nº DTA, ruta y plazo de transporte",
+        (40, 891, 2226, 780, 326, "40 Nº DTA, ruta y plazo de transporte",
          "Nº DTA, rota e prazo de transporte", "campo_40_tramo"),
-        (41, 891, 2552, 780, 173, "41 Firma y sello de la Aduana de Partida",
+        (41, 891, 2552, 780, 175, "41 Firma y sello de la Aduana de Partida",
          "Assinatura e carimbo de Alfândega de", None),
     ]
 
@@ -408,7 +432,20 @@ def generar_micdta_pdf_con_datos(mic_data, filename="mic_{id}.pdf"):
                 print(
                     f"❌ Campo 38 sin datos. Valor: {mic_data.get(key, 'KEY_NOT_FOUND')}")
 
-        # --- MULTILÍNEA solo para 1, 9, 33, 34, 35, 38 (QUITAMOS EL 12) ---
+        # ✅ ESPECIAL: Debug para campos con documentos
+        if n in [1, 33, 34, 35]:
+            campo_nombre = {1: 'Transportador', 33: 'Remitente',
+                            34: 'Destinatario', 35: 'Consignatario'}[n]
+            print(f"🎯 Procesando Campo {n} ({campo_nombre}) con documentos")
+            if key and mic_data.get(key):
+                valor = mic_data[key]
+                lines = valor.split('\n')
+                print(f"✅ Campo {n} tiene {len(lines)} líneas de datos")
+                for i, line in enumerate(lines[:2], 1):
+                    print(
+                        f"   Línea {i}: '{line[:50]}{'...' if len(line) > 50 else ''}'")
+
+        # ✅ CORREGIDO: MULTILÍNEA solo para 1, 9, 33, 34, 35, 38 - USAR MÉTODO ORIGINAL PARA MÁS LÍNEAS
         if n in [1, 9, 33, 34, 35, 38] and key and mic_data.get(key):
             x_frame = (x + 8) * pt_per_px
             y_frame = (height_px - y - h + 8 - 30) * pt_per_px
@@ -424,6 +461,9 @@ def generar_micdta_pdf_con_datos(mic_data, filename="mic_{id}.pdf"):
                 draw_multiline_text_simple(
                     c, mic_data[key], x_frame, y_frame, w_frame, h_frame, font_size=8, font="Helvetica")
             else:
+                # ✅ RESTAURADO: Para campos 1, 9, 33, 34, 35 usar método ORIGINAL (MÁS LÍNEAS)
+                print(
+                    f"🎯 CAMPO {n} - Usando método ORIGINAL Frame/Paragraph para MÁS LÍNEAS")
                 draw_multiline_text(
                     c, mic_data[key], x_frame, y_frame, w_frame, h_frame, font_size=10)
 
@@ -465,3 +505,18 @@ def generar_micdta_pdf_con_datos(mic_data, filename="mic_{id}.pdf"):
 
     c.save()
     print(f"✅ PDF generado exitosamente: {filename}")
+
+    # ✅ RESUMEN FINAL CON TODOS TUS PRINTS ORIGINALES
+    print("🎯 RESUMEN DE CAMPOS CON DOCUMENTOS:")
+    for key, descripcion in campos_documentos.items():
+        if key in mic_data and mic_data[key]:
+            lines_count = len(mic_data[key].split('\n'))
+            print(f"   📋 {descripcion}: {lines_count} líneas")
+        else:
+            print(f"   ❌ {descripcion}: Sin datos")
+
+    print("🎯 RESUMEN - MÉTODO DE RENDERIZADO:")
+    print("   📋 Campos 1,9,33,34,35: Frame/Paragraph (MÁS LÍNEAS) ✅")
+    print("   📦 Campo 38: Método simple (para compatibilidad)")
+    print("   📄 Otros campos: Una línea normal")
+    print("   🔍 Debug completo: ACTIVADO ✅")

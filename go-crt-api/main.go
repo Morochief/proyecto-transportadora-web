@@ -3,6 +3,7 @@ package main
 import (
 	"database/sql"
 	"encoding/json"
+	"fmt"
 	"log"
 	"net/http"
 
@@ -10,24 +11,46 @@ import (
 	_ "github.com/lib/pq"
 )
 
-// ✅ ACTUALIZADO: Estructura CRT con todos los campos necesarios
+// ✅ Estructura CRT ACTUALIZADA con campos de documento
 type CRT struct {
-	ID                      int    `json:"id"` // ✅ NUEVO: ID numérico
-	NumeroCRT               string `json:"numero_crt"`
-	Estado                  string `json:"estado"`
-	Transportadora          string `json:"transportadora"`
-	TransportadoraNombre    string `json:"transportadora_nombre"`
-	TransportadoraDireccion string `json:"transportadora_direccion"`
-	Remitente               string `json:"remitente"`
-	Destinatario            string `json:"destinatario"`
-	FacturaExportacion      string `json:"factura_exportacion"`
-	DetallesMercaderia      string `json:"detalles_mercaderia"`
-	Aduana                  string `json:"aduana"`
-	TipoBultos              string `json:"tipo_bultos"`
-	Tramo                   string `json:"tramo"`
+	ID        int    `json:"id"`
+	NumeroCRT string `json:"numero_crt"`
+	Estado    string `json:"estado"`
+
+	// ✅ TRANSPORTADORA con documentos
+	Transportadora              string `json:"transportadora"`
+	TransportadoraNombre        string `json:"transportadora_nombre"`
+	TransportadoraDireccion     string `json:"transportadora_direccion"`
+	TransportadoraDocumento     string `json:"transportadora_documento"`
+	TransportadoraTipoDocumento string `json:"transportadora_tipo_documento"`
+
+	// ✅ REMITENTE con documentos
+	Remitente              string `json:"remitente"`
+	RemitenteDocumento     string `json:"remitente_documento"`
+	RemitenteTipoDocumento string `json:"remitente_tipo_documento"`
+
+	// ✅ DESTINATARIO con documentos
+	Destinatario              string `json:"destinatario"`
+	DestinatarioDocumento     string `json:"destinatario_documento"`
+	DestinatarioTipoDocumento string `json:"destinatario_tipo_documento"`
+
+	// Campos normales
+	FacturaExportacion    string  `json:"factura_exportacion"`
+	DetallesMercaderia    string  `json:"detalles_mercaderia"`
+	Aduana                string  `json:"aduana"`
+	TipoBultos            string  `json:"tipo_bultos"`
+	Tramo                 string  `json:"tramo"`
+	DeclaracionMercaderia string  `json:"declaracion_mercaderia"`
+	PesoBruto             float64 `json:"peso_bruto"`
 }
 
 var db *sql.DB
+
+func printBanner() {
+	fmt.Println("\033[1;32m")
+	fmt.Println("OIKOOOOO LPM!! 💪 🚀  (Ñandeko)")
+	fmt.Println("\033[0m")
+}
 
 func main() {
 	var err error
@@ -40,6 +63,8 @@ func main() {
 		log.Fatal("❌ Error connecting to PostgreSQL:", err)
 	}
 	log.Println("✅ Conectado a PostgreSQL correctamente.")
+
+	printBanner()
 
 	r := mux.NewRouter()
 
@@ -58,29 +83,36 @@ func main() {
 		})
 	})
 
-	// ✅ IMPORTANTE: Endpoints en el orden correcto (más específico primero)
 	r.HandleFunc("/api/crts/simple", listarSimple).Methods("GET", "OPTIONS")
-	r.HandleFunc("/api/crts/{id:[0-9]+}", obtenerCRTPorID).Methods("GET", "OPTIONS")  // ID numérico
-	r.HandleFunc("/api/crts/{numero}", obtenerCRTPorNumero).Methods("GET", "OPTIONS") // Número de CRT
+	r.HandleFunc("/api/crts/{id:[0-9]+}", obtenerCRTPorID).Methods("GET", "OPTIONS")
+	r.HandleFunc("/api/crts/{numero}", obtenerCRTPorNumero).Methods("GET", "OPTIONS")
 
 	log.Println("🚀 Servidor HTTP corriendo en :8080")
 	log.Fatal(http.ListenAndServe(":8080", r))
 }
 
-// GET /api/crts/simple
+// ✅ ACTUALIZADO: GET /api/crts/simple con documentos
 func listarSimple(w http.ResponseWriter, r *http.Request) {
 	log.Println("📋 GET /api/crts/simple")
 
 	query := `
         SELECT
             c.id,
-            c.numero_crt, 
+            c.numero_crt,
             c.estado,
             COALESCE(t.nombre, '') as transportadora,
+            COALESCE(t.documento, '') as transportadora_documento,
+            COALESCE(t.tipo_documento, '') as transportadora_tipo_documento,
             COALESCE(rm.nombre, '') as remitente,
+            COALESCE(rm.documento, '') as remitente_documento,
+            COALESCE(rm.tipo_documento, '') as remitente_tipo_documento,
             COALESCE(d.nombre, '') as destinatario,
+            COALESCE(d.documento, '') as destinatario_documento,
+            COALESCE(d.tipo_documento, '') as destinatario_tipo_documento,
             COALESCE(c.factura_exportacion, '') as factura,
-            COALESCE(c.detalles_mercaderia, '') as detalles
+            COALESCE(c.detalles_mercaderia, '') as detalles,
+            COALESCE(c.declaracion_mercaderia, '') as declaracion_mercaderia,
+            COALESCE(c.peso_bruto, 0) as peso_bruto
         FROM crts c
         LEFT JOIN transportadoras t ON t.id = c.transportadora_id
         LEFT JOIN remitentes rm ON rm.id = c.remitente_id
@@ -88,8 +120,6 @@ func listarSimple(w http.ResponseWriter, r *http.Request) {
         ORDER BY c.id DESC
         LIMIT 20
     `
-
-	log.Println("🔍 Ejecutando query:", query)
 
 	rows, err := db.Query(query)
 	if err != nil {
@@ -102,46 +132,68 @@ func listarSimple(w http.ResponseWriter, r *http.Request) {
 	var crts []CRT
 	for rows.Next() {
 		var c CRT
-		if err := rows.Scan(&c.ID, &c.NumeroCRT, &c.Estado, &c.Transportadora, &c.Remitente, &c.Destinatario, &c.FacturaExportacion, &c.DetallesMercaderia); err != nil {
+		if err := rows.Scan(
+			&c.ID,
+			&c.NumeroCRT,
+			&c.Estado,
+			&c.Transportadora,
+			&c.TransportadoraDocumento,
+			&c.TransportadoraTipoDocumento,
+			&c.Remitente,
+			&c.RemitenteDocumento,
+			&c.RemitenteTipoDocumento,
+			&c.Destinatario,
+			&c.DestinatarioDocumento,
+			&c.DestinatarioTipoDocumento,
+			&c.FacturaExportacion,
+			&c.DetallesMercaderia,
+			&c.DeclaracionMercaderia,
+			&c.PesoBruto); err != nil {
 			log.Println("❌ Error en rows.Scan:", err)
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
-		c.TransportadoraNombre = c.Transportadora // Para compatibilidad
+		c.TransportadoraNombre = c.Transportadora
 		crts = append(crts, c)
 	}
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(crts)
-	log.Printf("✅ Enviados %d CRTs\n", len(crts))
+	log.Printf("✅ Enviados %d CRTs con documentos\n", len(crts))
 }
 
-// GET /api/crts/{id} - Por ID numérico (NUEVO)
+// ✅ ACTUALIZADO: GET /api/crts/{id} con documentos
 func obtenerCRTPorID(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	id := vars["id"]
 
-	log.Printf("🔍 GET /api/crts/%s (por ID)\n", id)
+	log.Printf("🔍 GET /api/crts/%s (por ID) - CON DOCUMENTOS\n", id)
 
 	query := `
         SELECT
             c.id,
-            c.numero_crt, 
+            c.numero_crt,
             c.estado,
             COALESCE(t.nombre, '') as transportadora,
             COALESCE(t.direccion, '') as transportadora_direccion,
+            COALESCE(t.documento, '') as transportadora_documento,
+            COALESCE(t.tipo_documento, '') as transportadora_tipo_documento,
             COALESCE(rm.nombre, '') as remitente,
+            COALESCE(rm.documento, '') as remitente_documento,
+            COALESCE(rm.tipo_documento, '') as remitente_tipo_documento,
             COALESCE(d.nombre, '') as destinatario,
+            COALESCE(d.documento, '') as destinatario_documento,
+            COALESCE(d.tipo_documento, '') as destinatario_tipo_documento,
             COALESCE(c.factura_exportacion, '') as factura,
-            COALESCE(c.detalles_mercaderia, '') as detalles
+            COALESCE(c.detalles_mercaderia, '') as detalles,
+            COALESCE(c.declaracion_mercaderia, '') as declaracion_mercaderia,
+            COALESCE(c.peso_bruto, 0) as peso_bruto
         FROM crts c
         LEFT JOIN transportadoras t ON t.id = c.transportadora_id
         LEFT JOIN remitentes rm ON rm.id = c.remitente_id
         LEFT JOIN remitentes d ON d.id = c.destinatario_id
         WHERE c.id = $1
     `
-
-	log.Printf("🔍 Query: %s con ID=%s\n", query, id)
 
 	var c CRT
 	err := db.QueryRow(query, id).Scan(
@@ -150,10 +202,18 @@ func obtenerCRTPorID(w http.ResponseWriter, r *http.Request) {
 		&c.Estado,
 		&c.Transportadora,
 		&c.TransportadoraDireccion,
+		&c.TransportadoraDocumento,
+		&c.TransportadoraTipoDocumento,
 		&c.Remitente,
+		&c.RemitenteDocumento,
+		&c.RemitenteTipoDocumento,
 		&c.Destinatario,
+		&c.DestinatarioDocumento,
+		&c.DestinatarioTipoDocumento,
 		&c.FacturaExportacion,
 		&c.DetallesMercaderia,
+		&c.DeclaracionMercaderia,
+		&c.PesoBruto,
 	)
 
 	if err != nil {
@@ -162,43 +222,53 @@ func obtenerCRTPorID(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Para compatibilidad con el frontend
 	c.TransportadoraNombre = c.Transportadora
-	c.Aduana = "" // Valores por defecto
+	c.Aduana = ""
 	c.TipoBultos = ""
 	c.Tramo = ""
 
+	// ✅ DEBUG: Mostrar documentos obtenidos
+	log.Printf("🏢 Transportadora: %s | Doc: %s %s", c.Transportadora, c.TransportadoraTipoDocumento, c.TransportadoraDocumento)
+	log.Printf("📤 Remitente: %s | Doc: %s %s", c.Remitente, c.RemitenteTipoDocumento, c.RemitenteDocumento)
+	log.Printf("📥 Destinatario: %s | Doc: %s %s", c.Destinatario, c.DestinatarioTipoDocumento, c.DestinatarioDocumento)
+
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(c)
-	log.Printf("✅ Enviado CRT por ID %s: numero_crt=%s, detalles_mercaderia='%s'\n", id, c.NumeroCRT, c.DetallesMercaderia)
+	log.Printf("✅ Enviado CRT por ID %s con documentos completos\n", id)
 }
 
-// GET /api/crts/{numero} - Por número de CRT
+// ✅ ACTUALIZADO: GET /api/crts/{numero} con documentos
 func obtenerCRTPorNumero(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	numero := vars["numero"]
 
-	log.Printf("🔍 GET /api/crts/%s (por número)\n", numero)
+	log.Printf("🔍 GET /api/crts/%s (por número) - CON DOCUMENTOS\n", numero)
 
 	query := `
         SELECT
             c.id,
-            c.numero_crt, 
+            c.numero_crt,
             c.estado,
             COALESCE(t.nombre, '') as transportadora,
             COALESCE(t.direccion, '') as transportadora_direccion,
+            COALESCE(t.documento, '') as transportadora_documento,
+            COALESCE(t.tipo_documento, '') as transportadora_tipo_documento,
             COALESCE(rm.nombre, '') as remitente,
+            COALESCE(rm.documento, '') as remitente_documento,
+            COALESCE(rm.tipo_documento, '') as remitente_tipo_documento,
             COALESCE(d.nombre, '') as destinatario,
+            COALESCE(d.documento, '') as destinatario_documento,
+            COALESCE(d.tipo_documento, '') as destinatario_tipo_documento,
             COALESCE(c.factura_exportacion, '') as factura,
-            COALESCE(c.detalles_mercaderia, '') as detalles
+            COALESCE(c.detalles_mercaderia, '') as detalles,
+            COALESCE(c.declaracion_mercaderia, '') as declaracion_mercaderia,
+            COALESCE(c.peso_bruto, 0) as peso_bruto
         FROM crts c
         LEFT JOIN transportadoras t ON t.id = c.transportadora_id
         LEFT JOIN remitentes rm ON rm.id = c.remitente_id
         LEFT JOIN remitentes d ON d.id = c.destinatario_id
         WHERE c.numero_crt = $1
     `
-
-	log.Printf("🔍 Query: %s con numero=%s\n", query, numero)
 
 	var c CRT
 	err := db.QueryRow(query, numero).Scan(
@@ -207,10 +277,18 @@ func obtenerCRTPorNumero(w http.ResponseWriter, r *http.Request) {
 		&c.Estado,
 		&c.Transportadora,
 		&c.TransportadoraDireccion,
+		&c.TransportadoraDocumento,
+		&c.TransportadoraTipoDocumento,
 		&c.Remitente,
+		&c.RemitenteDocumento,
+		&c.RemitenteTipoDocumento,
 		&c.Destinatario,
+		&c.DestinatarioDocumento,
+		&c.DestinatarioTipoDocumento,
 		&c.FacturaExportacion,
 		&c.DetallesMercaderia,
+		&c.DeclaracionMercaderia,
+		&c.PesoBruto,
 	)
 
 	if err != nil {
@@ -219,13 +297,12 @@ func obtenerCRTPorNumero(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Para compatibilidad con el frontend
 	c.TransportadoraNombre = c.Transportadora
-	c.Aduana = "" // Valores por defecto
+	c.Aduana = ""
 	c.TipoBultos = ""
 	c.Tramo = ""
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(c)
-	log.Printf("✅ Enviado CRT por número %s: id=%d, detalles_mercaderia='%s'\n", numero, c.ID, c.DetallesMercaderia)
+	log.Printf("✅ Enviado CRT por número %s con documentos completos\n", numero)
 }
