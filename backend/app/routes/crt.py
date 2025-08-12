@@ -1,8 +1,8 @@
-# ========== IMPORTS COMPLETOS Y ORDENADOS ==========
+# ========== IMPORTS LIMPIOS ==========
 from flask import Blueprint, request, jsonify, send_file
-from sqlalchemy.orm import joinedload
-from sqlalchemy import text
-from datetime import datetime
+from sqlalchemy import text, or_
+from sqlalchemy.orm import joinedload, aliased
+from datetime import datetime, timedelta
 from io import BytesIO
 import traceback
 
@@ -12,8 +12,8 @@ from reportlab.pdfgen import canvas
 from reportlab.lib.pagesizes import A4
 from reportlab.pdfbase.pdfmetrics import stringWidth
 
-from PyPDF2 import PdfReader, PdfWriter
 from app.utils.layout_crt import dibujar_lineas_dinamicas, lineas
+
 
 crt_bp = Blueprint('crt', __name__, url_prefix='/api/crts')
 
@@ -136,8 +136,10 @@ def get_next_crt_number():
 
 @crt_bp.route('/', methods=['GET'])
 def listar_crts():
+    # Permite page_size o per_page (ambos válidos)
     page = request.args.get('page', type=int, default=None)
-    page_size = request.args.get('page_size', type=int, default=None)
+    page_size = request.args.get('page_size', type=int, default=None) \
+        or request.args.get('per_page', type=int, default=None)
 
     q = CRT.query.options(
         joinedload(CRT.gastos),
@@ -161,6 +163,293 @@ def listar_crts():
     else:
         crts = q.all()
         return jsonify([to_dict_crt(c) for c in crts])
+
+
+# ========== ✅ NUEVO: LISTADO PAGINADO CON ACCIONES ==========
+
+
+@crt_bp.route('/paginated', methods=['GET'])
+def listar_crts_paginated_con_acciones():
+    """
+    Listado paginado con filtros, outerjoin + distinct, y fecha_hasta inclusivo.
+    """
+    try:
+        # Parámetros de paginación
+        page = request.args.get('page', 1, type=int)
+        per_page = request.args.get('per_page', 20, type=int)
+
+        # Parámetros de filtrado
+        buscar = request.args.get('q', '', type=str).strip()
+        estado = request.args.get('estado', '', type=str)
+        transportadora_id = request.args.get('transportadora_id', type=int)
+        fecha_desde = request.args.get('fecha_desde', '', type=str)
+        fecha_hasta = request.args.get('fecha_hasta', '', type=str)
+
+        # Aliases para outerjoin
+        Rem = aliased(Remitente)
+        Trans = aliased(Transportadora)
+
+        # Query base con relaciones
+        query = CRT.query.options(
+            joinedload(CRT.remitente).joinedload(
+                Remitente.ciudad).joinedload(Ciudad.pais),
+            joinedload(CRT.transportadora).joinedload(
+                Transportadora.ciudad).joinedload(Ciudad.pais),
+            joinedload(CRT.destinatario).joinedload(
+                Remitente.ciudad).joinedload(Ciudad.pais),
+            joinedload(CRT.consignatario).joinedload(
+                Remitente.ciudad).joinedload(Ciudad.pais),
+            joinedload(CRT.notificar_a).joinedload(
+                Remitente.ciudad).joinedload(Ciudad.pais),
+            joinedload(CRT.moneda),
+            joinedload(CRT.gastos),
+            joinedload(CRT.ciudad_emision),
+            joinedload(CRT.pais_emision)
+        )
+
+        # Filtro de búsqueda (outerjoin para no excluir nulos) + distinct para evitar duplicados
+        if buscar:
+            like = f"%{buscar}%"
+            query = (query
+                     .outerjoin(Rem, CRT.remitente)
+                     .outerjoin(Trans, CRT.transportadora)
+                     .filter(or_(
+                         CRT.numero_crt.ilike(like),
+                         Rem.nombre.ilike(like),
+                         Trans.nombre.ilike(like),
+                         CRT.detalles_mercaderia.ilike(like)
+                     ))
+                     .distinct())
+
+        if estado:
+            query = query.filter(CRT.estado == estado)
+
+        if transportadora_id:
+            query = query.filter(CRT.transportadora_id == transportadora_id)
+
+        if fecha_desde:
+            fecha_desde_dt = datetime.strptime(fecha_desde, '%Y-%m-%d')
+            query = query.filter(CRT.fecha_emision >= fecha_desde_dt)
+
+        if fecha_hasta:
+            # Inclusivo: hasta el final del día
+            fecha_hasta_dt = datetime.strptime(
+                fecha_hasta, '%Y-%m-%d') + timedelta(days=1) - timedelta(microseconds=1)
+            query = query.filter(CRT.fecha_emision <= fecha_hasta_dt)
+
+        # Orden y paginación
+        query = query.order_by(CRT.id.desc())
+        pagination = query.paginate(
+            page=page, per_page=per_page, error_out=False)
+
+        crts_data = []
+        for crt in pagination.items:
+            crt_dict = to_dict_crt(crt)
+            crt_dict.update({
+                "ciudad_emision": crt.ciudad_emision.nombre if crt.ciudad_emision else "",
+                "pais_emision": crt.pais_emision.nombre if crt.pais_emision else "",
+
+                "remitente_ciudad": crt.remitente.ciudad.nombre if crt.remitente and crt.remitente.ciudad else "",
+                "remitente_pais": crt.remitente.ciudad.pais.nombre if crt.remitente and crt.remitente.ciudad and crt.remitente.ciudad.pais else "",
+
+                "destinatario_ciudad": crt.destinatario.ciudad.nombre if crt.destinatario and crt.destinatario.ciudad else "",
+                "destinatario_pais": crt.destinatario.ciudad.pais.nombre if crt.destinatario and crt.destinatario.ciudad and crt.destinatario.ciudad.pais else "",
+
+                "consignatario_ciudad": crt.consignatario.ciudad.nombre if crt.consignatario and crt.consignatario.ciudad else "",
+                "consignatario_pais": crt.consignatario.ciudad.pais.nombre if crt.consignatario and crt.consignatario.ciudad and crt.consignatario.ciudad.pais else "",
+
+                "transportadora_ciudad": crt.transportadora.ciudad.nombre if crt.transportadora and crt.transportadora.ciudad else "",
+                "transportadora_pais": crt.transportadora.ciudad.pais.nombre if crt.transportadora and crt.transportadora.ciudad and crt.transportadora.ciudad.pais else "",
+
+                "acciones": {
+                    "puede_editar": True,
+                    "puede_eliminar": crt.estado != "FINALIZADO",
+                    "puede_generar_pdf": True,
+                    "puede_generar_mic": True,
+                    "puede_duplicar": True
+                },
+                "urls": {
+                    "detalle": f"/api/crts/{crt.id}",
+                    "editar": f"/api/crts/{crt.id}",
+                    "eliminar": f"/api/crts/{crt.id}",
+                    "pdf": f"/api/crts/{crt.id}/pdf",
+                    "mic_pdf": f"/api/mic/generate_pdf_from_crt/{crt.id}",
+                    "duplicar": f"/api/crts/{crt.id}/duplicate"
+                }
+            })
+            crts_data.append(crt_dict)
+
+        result = {
+            "crts": crts_data,
+            "pagination": {
+                "page": pagination.page,
+                "pages": pagination.pages,
+                "per_page": pagination.per_page,
+                "total": pagination.total,
+                "has_prev": pagination.has_prev,
+                "has_next": pagination.has_next,
+                "prev_num": pagination.prev_num,
+                "next_num": pagination.next_num
+            },
+            "filtros_aplicados": {
+                "buscar": buscar,
+                "estado": estado,
+                "transportadora_id": transportadora_id,
+                "fecha_desde": fecha_desde,
+                "fecha_hasta": fecha_hasta
+            }
+        }
+
+        print(
+            f"✅ Listado paginado: {len(crts_data)} CRTs en página {page}/{pagination.pages}")
+        return jsonify(result)
+
+    except Exception as e:
+        print(f"❌ Error en listado paginado: {e}")
+        traceback.print_exc()
+        return jsonify({"error": str(e)}), 500
+
+
+# ========== ✅ NUEVO: OBTENER ESTADOS DISPONIBLES ==========
+
+
+@crt_bp.route('/estados', methods=['GET'])
+def obtener_estados_disponibles():
+    """
+    ✅ NUEVO: Obtener lista de estados disponibles para filtros
+    """
+    try:
+        # Obtener estados únicos de la base de datos
+        estados_query = db.session.query(CRT.estado.distinct()).all()
+        estados = [estado[0] for estado in estados_query if estado[0]]
+
+        # Agregar estados estándar si no existen
+        estados_estandar = ["BORRADOR", "EMITIDO",
+                            "EN_TRANSITO", "ENTREGADO", "FINALIZADO", "CANCELADO"]
+        for estado in estados_estandar:
+            if estado not in estados:
+                estados.append(estado)
+
+        return jsonify({
+            "estados": sorted(estados),
+            # Solo estos se pueden editar completamente
+            "estados_editables": ["BORRADOR", "EMITIDO"],
+            # Solo estos se pueden eliminar
+            "estados_eliminables": ["BORRADOR", "EMITIDO", "CANCELADO"]
+        })
+
+    except Exception as e:
+        print(f"❌ Error obteniendo estados: {e}")
+        return jsonify({"error": str(e)}), 500
+
+# ========== ✅ NUEVO: DUPLICAR CRT ==========
+
+
+@crt_bp.route('/<int:crt_id>/duplicate', methods=['POST'])
+def duplicar_crt(crt_id):
+    """
+    ✅ NUEVO: Duplicar un CRT existente con nuevo número
+    """
+    try:
+        # Cargar CRT original con todas las relaciones
+        original_crt = CRT.query.options(
+            joinedload(CRT.gastos)
+        ).get_or_404(crt_id)
+
+        # Generar nuevo número CRT
+        siguiente_numero = None
+        if original_crt.transportadora:
+            # Usar la lógica existente para generar el siguiente número
+            ultimo_crt = (
+                CRT.query
+                .filter(
+                    CRT.transportadora_id == original_crt.transportadora_id,
+                    CRT.numero_crt.startswith("PY"),
+                    db.func.length(CRT.numero_crt) == 11
+                )
+                .order_by(CRT.numero_crt.desc())
+                .first()
+            )
+
+            if ultimo_crt and ultimo_crt.numero_crt:
+                try:
+                    ultimo_num = int(ultimo_crt.numero_crt[2:])
+                    siguiente_numero = f"PY{(ultimo_num + 1):09d}"
+                except Exception:
+                    siguiente_numero = f"PY{int(datetime.now().strftime('%Y%m%d%H%M')):09d}"
+            else:
+                siguiente_numero = f"PY{int(datetime.now().strftime('%Y%m%d%H%M')):09d}"
+
+        if not siguiente_numero:
+            siguiente_numero = f"COPY_{original_crt.numero_crt}_{int(datetime.now().timestamp())}"
+
+        # Crear nuevo CRT copiando todos los campos
+        nuevo_crt = CRT(
+            numero_crt=siguiente_numero,
+            fecha_emision=datetime.now(),  # Nueva fecha de emisión
+            estado="BORRADOR",  # Estado borrador para que pueda ser editado
+            remitente_id=original_crt.remitente_id,
+            destinatario_id=original_crt.destinatario_id,
+            consignatario_id=original_crt.consignatario_id,
+            notificar_a_id=original_crt.notificar_a_id,
+            transportadora_id=original_crt.transportadora_id,
+            ciudad_emision_id=original_crt.ciudad_emision_id,
+            pais_emision_id=original_crt.pais_emision_id,
+            lugar_entrega=original_crt.lugar_entrega,
+            fecha_entrega=original_crt.fecha_entrega,
+            detalles_mercaderia=original_crt.detalles_mercaderia,
+            peso_bruto=original_crt.peso_bruto,
+            peso_neto=original_crt.peso_neto,
+            volumen=original_crt.volumen,
+            incoterm=original_crt.incoterm,
+            moneda_id=original_crt.moneda_id,
+            valor_incoterm=original_crt.valor_incoterm,
+            valor_mercaderia=original_crt.valor_mercaderia,
+            declaracion_mercaderia=original_crt.declaracion_mercaderia,
+            valor_flete_externo=original_crt.valor_flete_externo,
+            valor_reembolso=original_crt.valor_reembolso,
+            factura_exportacion=None,  # Limpiar número de factura
+            nro_despacho=None,  # Limpiar número de despacho
+            transporte_sucesivos=original_crt.transporte_sucesivos,
+            observaciones=f"Duplicado de CRT {original_crt.numero_crt}\n{original_crt.observaciones or ''}",
+            formalidades_aduana=original_crt.formalidades_aduana,
+            fecha_firma=None  # Limpiar fecha de firma
+        )
+
+        db.session.add(nuevo_crt)
+        db.session.flush()  # Para obtener el ID
+
+        # Copiar gastos
+        for gasto_original in original_crt.gastos:
+            nuevo_gasto = CRT_Gasto(
+                crt_id=nuevo_crt.id,
+                tramo=gasto_original.tramo,
+                valor_remitente=gasto_original.valor_remitente,
+                moneda_remitente_id=gasto_original.moneda_remitente_id,
+                valor_destinatario=gasto_original.valor_destinatario,
+                moneda_destinatario_id=gasto_original.moneda_destinatario_id
+            )
+            db.session.add(nuevo_gasto)
+
+        db.session.commit()
+
+        print(
+            f"✅ CRT duplicado: {original_crt.numero_crt} -> {siguiente_numero}")
+
+        return jsonify({
+            "message": "CRT duplicado exitosamente",
+            "original_id": crt_id,
+            "nuevo_id": nuevo_crt.id,
+            "nuevo_numero": siguiente_numero,
+            "url_editar": f"/api/crts/{nuevo_crt.id}"
+        }), 201
+
+    except Exception as e:
+        db.session.rollback()
+        print(f"❌ Error duplicando CRT {crt_id}: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({"error": str(e)}), 500
 
 # ========== DETALLE CRT ==========
 
@@ -195,7 +484,6 @@ def obtener_crt_por_numero(numero_crt):
     if not crt:
         return jsonify({"error": "CRT no encontrado"}), 404
     return jsonify(to_dict_crt(crt)), 200
-
 
 # ========== CREAR CRT ==========
 
@@ -267,15 +555,38 @@ def crear_crt():
         print(traceback.format_exc())
         return jsonify({"error": str(e), "trace": traceback.format_exc()}), 500
 
-# ========== EDITAR CRT ==========
+# ========== ✅ EDITAR CRT MEJORADO ==========
 
 
 @crt_bp.route('/<int:crt_id>', methods=['PUT'])
 def editar_crt(crt_id):
+    """
+    ✅ MEJORADO: Editar CRT con validaciones de estado y permisos
+    """
     try:
         crt = CRT.query.options(joinedload(CRT.gastos)).filter_by(
             id=crt_id).first_or_404()
         data = request.json
+
+        # ✅ Validaciones de estado
+        if crt.estado in ["FINALIZADO"]:
+            return jsonify({
+                "error": "No se puede editar un CRT finalizado",
+                "estado_actual": crt.estado
+            }), 403
+
+        # ✅ Validaciones adicionales según el estado
+        if crt.estado == "EN_TRANSITO" and not data.get("permitir_edicion_en_transito"):
+            return jsonify({
+                "error": "CRT en tránsito. ¿Está seguro que desea editarlo?",
+                "requiere_confirmacion": True,
+                "estado_actual": crt.estado
+            }), 409
+
+        # ✅ Agregar log de cambios
+        cambios_realizados = []
+
+        # Procesar campos numéricos
         NUMERIC_FIELDS = [
             "peso_bruto", "peso_neto", "volumen",
             "valor_incoterm", "valor_mercaderia", "declaracion_mercaderia",
@@ -283,6 +594,22 @@ def editar_crt(crt_id):
         ]
         data = limpiar_numericos(data, NUMERIC_FIELDS)
 
+        # Detectar cambios en campos principales
+        campos_importantes = {
+            'numero_crt': 'Número CRT',
+            'estado': 'Estado',
+            'remitente_id': 'Remitente',
+            'destinatario_id': 'Destinatario',
+            'transportadora_id': 'Transportadora'
+        }
+
+        for campo, nombre in campos_importantes.items():
+            if data.get(campo) and getattr(crt, campo) != data[campo]:
+                valor_anterior = getattr(crt, campo)
+                cambios_realizados.append(
+                    f"{nombre}: {valor_anterior} → {data[campo]}")
+
+        # Aplicar cambios
         crt.numero_crt = data.get("numero_crt", crt.numero_crt)
         crt.estado = data.get("estado", crt.estado)
         crt.fecha_emision = datetime.strptime(data.get(
@@ -324,26 +651,48 @@ def editar_crt(crt_id):
         crt.fecha_firma = datetime.strptime(data.get(
             "fecha_firma"), "%Y-%m-%d") if data.get("fecha_firma") else crt.fecha_firma
 
-        for g in crt.gastos:
-            db.session.delete(g)
-        db.session.flush()
-        for gasto in data.get("gastos", []):
-            g = CRT_Gasto(
-                crt_id=crt.id,
-                tramo=gasto.get("tramo"),
-                valor_remitente=parse_number(gasto.get("valor_remitente")),
-                moneda_remitente_id=gasto.get("moneda_remitente_id"),
-                valor_destinatario=parse_number(
-                    gasto.get("valor_destinatario")),
-                moneda_destinatario_id=gasto.get("moneda_destinatario_id")
-            )
-            db.session.add(g)
+        # Actualizar gastos si se proporcionan
+        if "gastos" in data:
+            for g in crt.gastos:
+                db.session.delete(g)
+            db.session.flush()
+            for gasto in data.get("gastos", []):
+                g = CRT_Gasto(
+                    crt_id=crt.id,
+                    tramo=gasto.get("tramo"),
+                    valor_remitente=parse_number(gasto.get("valor_remitente")),
+                    moneda_remitente_id=gasto.get("moneda_remitente_id"),
+                    valor_destinatario=parse_number(
+                        gasto.get("valor_destinatario")),
+                    moneda_destinatario_id=gasto.get("moneda_destinatario_id")
+                )
+                db.session.add(g)
+
+        # ✅ Agregar timestamp de última modificación en observaciones
+        if cambios_realizados:
+            timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+            log_cambios = f"\n--- Editado {timestamp} ---\nCambios: {', '.join(cambios_realizados)}"
+            crt.observaciones = (crt.observaciones or "") + log_cambios
+
         db.session.commit()
-        return jsonify({"message": "CRT actualizado", "id": crt.id})
+
+        print(f"✅ CRT {crt.numero_crt} editado exitosamente")
+        if cambios_realizados:
+            print(f"   Cambios: {', '.join(cambios_realizados)}")
+
+        return jsonify({
+            "message": "CRT actualizado exitosamente",
+            "id": crt.id,
+            "cambios_realizados": cambios_realizados,
+            "nuevo_estado": crt.estado
+        })
+
     except Exception as e:
-        print("\nERROR EN EDITAR CRT".center(80, "-"))
-        print(traceback.format_exc())
-        return jsonify({"error": str(e), "trace": traceback.format_exc()}), 500
+        db.session.rollback()
+        print(f"❌ Error editando CRT {crt_id}: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({"error": str(e)}), 500
 
 # ========== ELIMINAR CRT ==========
 
@@ -360,6 +709,22 @@ def eliminar_crt(crt_id):
         return jsonify({"message": "CRT eliminado"})
     except Exception as e:
         print("\nERROR EN ELIMINAR CRT".center(80, "-"))
+        print(traceback.format_exc())
+        return jsonify({"error": str(e), "trace": traceback.format_exc()}), 500
+
+# ========== LISTAR CRTs SIMPLE ==========
+
+
+@crt_bp.route('/simple', methods=['GET'])
+def listar_crts_simple():
+    try:
+        sql = text("SELECT c.numero_crt FROM crts c ORDER BY c.id DESC")
+        result = db.session.execute(sql).mappings().all()
+        crts = [{"numero_crt": row["numero_crt"]} for row in result]
+        print("✅ Listado simple CRTs:", crts[:5])
+        return jsonify(crts)
+    except Exception as e:
+        print("\nERROR EN LISTAR NÚMEROS CRT".center(80, "-"))
         print(traceback.format_exc())
         return jsonify({"error": str(e), "trace": traceback.format_exc()}), 500
 
@@ -865,21 +1230,17 @@ def generar_pdf_crt(crt_id):
         print(traceback.format_exc())
         return jsonify({"error": str(e), "trace": traceback.format_exc()}), 500
 
-# --- LISTAR CRTs SIMPLE ---
 
+@crt_bp.route('/<int:crt_id>/campo15', methods=['GET'])
+def obtener_campo15(crt_id):
+    """
+    Devuelve los items del Campo 15 (gastos) del CRT.
+    Estructura compatible con el frontend.
+    """
+    crt = CRT.query.options(joinedload(CRT.gastos)).filter_by(
+        id=crt_id).first_or_404()
+    return jsonify({"items": [to_dict_gasto(g) for g in crt.gastos]})
 
-@crt_bp.route('/simple', methods=['GET'])
-def listar_crts_simple():
-    try:
-        sql = text("SELECT c.numero_crt FROM crts c ORDER BY c.id DESC")
-        result = db.session.execute(sql).mappings().all()
-        crts = [{"numero_crt": row["numero_crt"]} for row in result]
-        print("✅ Listado simple CRTs:", crts[:5])
-        return jsonify(crts)
-    except Exception as e:
-        print("\nERROR EN LISTAR NÚMEROS CRT".center(80, "-"))
-        print(traceback.format_exc())
-        return jsonify({"error": str(e), "trace": traceback.format_exc()}), 500
 
 # Recuerda registrar el blueprint en tu app principal:
 # from app.routes.crt import crt_bp

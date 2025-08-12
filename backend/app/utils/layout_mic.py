@@ -1,371 +1,398 @@
+# -*- coding: utf-8 -*-
+"""
+MIC/DTA PDF Generator - Versión completa y robusta
+- Fuentes Unicode (DejaVuSans) con fallback automático
+- Helpers px→pt y coordenadas consistentes (solo trabajamos en pt dentro de dibujo)
+- Ajuste de texto con búsqueda binaria (Campo 38) + márgenes y reservas de título
+- Estilos cacheados y centralizados
+- saveState()/restoreState() para evitar fugas de estado
+- Limpieza segura de caracteres de control (sin comerse acentos)
+- Refactors de cajas/títulos
+"""
+
+import os
+import re
+from datetime import datetime
+
 from reportlab.pdfgen import canvas
 from reportlab.platypus import Paragraph, Frame
-from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.enums import TA_LEFT
+from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+from reportlab.pdfbase.ttfonts import TTFont
+from reportlab.pdfbase import pdfmetrics
 
 
-def draw_campo39(c, x, y, w, h, height_px, pt_per_px, mic_data=None):
+# =============================
+#        CONFIG / CONSTANTES
+# =============================
+
+# Relación px→pt usada en el layout original
+PT_PER_PX = 0.75
+
+# Offsets y márgenes estándar
+# distancia desde el borde superior de la caja para el título
+TITLE_OFFSET_PT = 24
+# distancia adicional para subtítulo desde el título
+SUBTITLE_OFFSET_PT = 16
+FIELD_PADDING_PT = 8               # padding interno general de cajas
+# altura reservada para título/subtítulo (para zonas de texto bajo títulos)
+FIELD_TITLE_RESERVED_PT = 60
+
+# Fuente por defecto (intentaremos Unicode primero)
+FONT_REGULAR = "DejaVuSans"
+FONT_BOLD = "DejaVuSans-Bold"
+FALLBACK_REGULAR = "Helvetica"
+FALLBACK_BOLD = "Helvetica-Bold"
+
+# Tamaños por defecto
+DEFAULT_FONT_SIZE = 12
+
+# Debug global (activar/desactivar prints)
+DEBUG = True
+
+
+# =============================
+#         UTILIDADES
+# =============================
+
+def px2pt(v):
+    return v * PT_PER_PX
+
+
+def log(msg):
+    if DEBUG:
+        print(msg)
+
+
+def safe_clean_text(text: str) -> str:
     """
-    ✅ ACTUALIZADO: Campo 39 con nombre del transportador y fecha
+    Limpieza universal: normaliza saltos de línea y remueve caracteres de control problemáticos
+    (excepto \n y \t). NO elimina acentos ni caracteres Unicode válidos.
     """
-    X = x * pt_per_px
-    Y = (height_px - y - h) * pt_per_px
-    W = w * pt_per_px
-    H = h * pt_per_px
-
-    styles = getSampleStyleSheet()
-    style_es = ParagraphStyle('es', parent=styles['Normal'],
-                              fontName='Helvetica-Bold', fontSize=11, leading=13, alignment=TA_LEFT)
-    style_pt = ParagraphStyle('pt', parent=styles['Normal'],
-                              fontName='Helvetica', fontSize=10, leading=12, alignment=TA_LEFT)
-    style_firma = ParagraphStyle('firma', parent=styles['Normal'],
-                                 fontName='Helvetica-Bold', fontSize=11, leading=13, alignment=TA_LEFT, spaceBefore=10)
-
-    # ✅ NUEVO: Estilo para el nombre del transportador
-    style_transportador = ParagraphStyle('transportador', parent=styles['Normal'],
-                                         fontName='Helvetica-Bold', fontSize=14, leading=16, alignment=TA_LEFT, spaceBefore=20)
-
-    txt_es = ("Declaramos que las informaciones presentadas en este Documento son expresión de verdad, "
-              "que los datos referentes a las mercaderías fueron transcriptos exactamente conforme a la "
-              "declaración del remitente, las cuales son de su exclusiva responsabilidad, y que esta operación "
-              "obedece a lo dispuesto en el Convenio sobre Transporte Internacional Terrestre de los países del Cono Sur.")
-    txt_pt = ("Declaramos que as informações prestadas neste Documento são a expressão de verdade que os dados referentes "
-              "as mercadorias foram transcritos exatamente conforme a declaração do remetente, os quais são de sua exclusiva "
-              "responsabilidade, e que esta operação obedece ao disposto no Convênio sobre Transporte Internacional Terrestre dos")
-    txt_firma = "39 Firma y sello del porteador / Assinatura e carimbo do transportador"
-
-    # ✅ NUEVO: Obtener nombre del transportador y fecha
-    nombre_transportador = ""
-    fecha_actual = ""
-
-    if mic_data:
-        # Intentar obtener el nombre del transportador desde varios campos posibles
-        nombre_transportador = (
-            mic_data.get('campo_1_transporte', '') or
-            mic_data.get('transportadora_nombre', '') or
-            mic_data.get('transportadora', '') or
-            "TRANSPORTADOR"
-        )
-
-        # Si el campo_1_transporte tiene múltiples líneas, tomar solo la primera (el nombre)
-        if '\n' in nombre_transportador:
-            nombre_transportador = nombre_transportador.split('\n')[0].strip()
-
-        # Obtener fecha
-        fecha_actual = mic_data.get('campo_6_fecha', '')
-        if not fecha_actual:
-            from datetime import datetime
-            fecha_actual = datetime.now().strftime('%d/%m/%Y')
-
-    print(f"🚛 Campo 39 - Transportador: '{nombre_transportador}'")
-    print(f"📅 Campo 39 - Fecha: '{fecha_actual}'")
-
-    # Crear párrafos
-    para_es = Paragraph(txt_es, style_es)
-    para_pt = Paragraph(txt_pt, style_pt)
-    para_firma = Paragraph(txt_firma, style_firma)
-
-    # ✅ NUEVO: Párrafo para el transportador
-    para_transportador = Paragraph(nombre_transportador, style_transportador)
-
-    # ✅ NUEVO: Texto para la fecha (se dibuja por separado)
-    txt_fecha = f"Data / Fecha: {fecha_actual}"
-
-    # Dibujar todos los párrafos en el frame
-    f = Frame(X+8, Y+8, W-16, H-16, showBoundary=0)
-    f.addFromList([para_es, para_pt, para_firma, para_transportador], c)
-
-    # ✅ NUEVO: Dibujar la fecha en la parte inferior del campo
-    c.setFont("Helvetica", 12)
-    fecha_x = X + 12
-    fecha_y = Y + 25  # Parte inferior del campo
-    c.drawString(fecha_x, fecha_y, txt_fecha)
+    if text is None:
+        return ""
+    t = text.replace('\r\n', '\n').replace('\r', '\n')
+    # Remover controles ASCII (mantiene \n y \t)
+    t = re.sub(r'[\x00-\x08\x0b\x0c\x0e-\x1f\x7f-\x9f]', '', t)
+    return t
 
 
-def draw_text_fit_area_dynamic(c, text, x, y, width, height, fontName="Helvetica", min_font=7, max_font=12, leading_ratio=1.15):
+def find_ttf_candidate_paths():
     """
-    ✅ FUNCIÓN CORREGIDA: Ajusta dinámicamente el tamaño de fuente para aprovechar el espacio disponible
-    RANGOS MÁS CONSERVADORES para evitar desbordamiento
-
-    Args:
-        c: Canvas de reportlab
-        text: Texto a dibujar
-        x, y: Coordenadas de inicio (esquina superior izquierda del área de texto)
-        width, height: Dimensiones del área disponible REAL
-        fontName: Nombre de la fuente
-        min_font: Tamaño mínimo de fuente (reducido a 7)
-        max_font: Tamaño máximo de fuente (reducido a 12)
-        leading_ratio: Ratio de espaciado entre líneas (reducido a 1.15)
+    Intenta descubrir rutas típicas de DejaVuSans en Linux/Mac/Windows.
     """
-    if not text:
-        return
+    candidates = [
+        # Linux
+        "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
+        "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",
+        # Windows (Microsoft Store Python no siempre ve Windows Fonts; probamos copias locales)
+        os.path.expanduser(
+            "~/AppData/Local/Microsoft/Windows/Fonts/DejaVuSans.ttf"),
+        os.path.expanduser(
+            "~/AppData/Local/Microsoft/Windows/Fonts/DejaVuSans-Bold.ttf"),
+        # Windows ruta global (si el usuario instaló fuentes TTF)
+        "C:\\Windows\\Fonts\\DejaVuSans.ttf",
+        "C:\\Windows\\Fonts\\DejaVuSans-Bold.ttf",
+        # Mac
+        "/Library/Fonts/DejaVuSans.ttf",
+        "/Library/Fonts/DejaVuSans-Bold.ttf",
+    ]
+    return candidates
 
-    # Limpieza de texto
-    import re
-    clean_text = text.replace('\r\n', '\n').replace('\r', '\n')
-    clean_text = re.sub(
-        r'[\x00-\x08\x0b\x0c\x0e-\x1f\x7f-\x9f]', '', clean_text)
 
-    print(f"🎯 CAMPO 38 DINÁMICO CORREGIDO:")
-    print(f"📏 Área disponible: {width:.1f} x {height:.1f} pts")
-    print(f"📝 Texto: {len(clean_text)} caracteres")
+def _fonts_registered() -> bool:
+    """Verifica si las fuentes actuales están registradas en reportlab."""
+    try:
+        regs = set(pdfmetrics.getRegisteredFontNames())
+        return (FONT_REGULAR in regs) and (FONT_BOLD in regs)
+    except Exception:
+        return False
 
-    # ✅ MÁRGENES MÁS GRANDES para evitar desbordamiento
-    margin_horizontal = 15  # Margen izquierdo/derecho
-    margin_vertical = 25    # Margen superior/inferior
 
-    effective_width = width - (margin_horizontal * 2)
-    effective_height = height - (margin_vertical * 2)
+def register_unicode_fonts():
+    """
+    Registra DejaVuSans (regular y bold). Si falla, deja Helvetica como fallback silencioso.
+    """
+    global FONT_REGULAR, FONT_BOLD
+    try:
+        # Si ya están registradas, no volver a registrar
+        already = FONT_REGULAR in pdfmetrics.getRegisteredFontNames(
+        ) and FONT_BOLD in pdfmetrics.getRegisteredFontNames()
+        if already:
+            log("ℹ️ Fuentes DejaVuSans ya registradas.")
+            return
 
-    print(
-        f"📐 Área efectiva (con márgenes): {effective_width:.1f} x {effective_height:.1f} pts")
+        # Intentar encontrar archivos
+        regs = find_ttf_candidate_paths()
+        reg_path = None
+        bold_path = None
+        for p in regs:
+            if os.path.exists(p):
+                if p.lower().endswith("dejavusans.ttf"):
+                    reg_path = p
+                elif p.lower().endswith("dejavusans-bold.ttf"):
+                    bold_path = p
 
-    # Intentar tamaños de fuente desde el máximo hacia el mínimo
-    best_font_size = min_font
-    best_lines = []
-
-    for font_size in range(int(max_font), int(min_font) - 1, -1):
-        print(f"🔍 Probando fuente tamaño {font_size}")
-
-        # Dividir texto en líneas que caben en el ancho efectivo
-        lines = []
-        manual_lines = clean_text.split('\n')
-
-        for manual_line in manual_lines:
-            if not manual_line.strip():
-                lines.append("")
-                continue
-
-            words = manual_line.split()
-            current_line = ""
-
-            for word in words:
-                test_line = current_line + " " + word if current_line else word
-                text_width = c.stringWidth(test_line, fontName, font_size)
-
-                if text_width <= effective_width:
-                    current_line = test_line
-                else:
-                    if current_line:
-                        lines.append(current_line)
-                    current_line = word
-
-            if current_line:
-                lines.append(current_line)
-
-        # Calcular altura total necesaria
-        line_height = font_size * leading_ratio
-        total_height = len(lines) * line_height
-
-        print(
-            f"   📋 {len(lines)} líneas, altura total: {total_height:.1f}pts (disponible: {effective_height:.1f}pts)")
-
-        # Si cabe todo el texto, esta es la mejor opción
-        if total_height <= effective_height:
-            best_font_size = font_size
-            best_lines = lines
-            print(f"   ✅ Fuente {font_size} CABE perfectamente")
-            break
+        if reg_path and bold_path:
+            pdfmetrics.registerFont(TTFont(FONT_REGULAR, reg_path))
+            pdfmetrics.registerFont(TTFont(FONT_BOLD, bold_path))
+            log(f"✅ Fuentes Unicode registradas: {reg_path}, {bold_path}")
         else:
-            print(
-                f"   ❌ Fuente {font_size} NO CABE (excede por {total_height - effective_height:.1f}pts)")
+            # Si no encontramos ambas, caer a Helvetica
+            FONT_REGULAR = FALLBACK_REGULAR
+            FONT_BOLD = FALLBACK_BOLD
+            log("⚠️ No se encontraron DejaVuSans TTF; usando Helvetica como fallback.")
+    except Exception as e:
+        FONT_REGULAR = FALLBACK_REGULAR
+        FONT_BOLD = FALLBACK_BOLD
+        log(
+            f"⚠️ No se pudieron registrar TTF Unicode ({e}); usando Helvetica.")
 
-    # Si ningún tamaño funciona, usar el mínimo y truncar
-    if not best_lines:
-        print(f"⚠️ Usando fuente mínima {min_font} y truncando texto")
-        best_font_size = min_font
 
-        # Recalcular con fuente mínima
+# Registrar fuentes al importar el módulo (evita 500 si se usa como librería)
+register_unicode_fonts()
+
+
+# =============================
+#         ESTILOS CACHE
+# =============================
+
+_STYLES = None
+
+
+def get_styles():
+    """
+    Cachea y devuelve estilos ParagraphStyle listos con fuentes Unicode (o fallback).
+    """
+    global _STYLES
+    if _STYLES is not None:
+        return _STYLES
+
+    ss = getSampleStyleSheet()
+    # Overwrite defaults to ensure Unicode-capable font
+    ss["Normal"].fontName = FONT_REGULAR
+    ss["Normal"].fontSize = 10
+    ss["Normal"].leading = 12
+
+    ss.add(ParagraphStyle(
+        'esBold', parent=ss['Normal'], fontName=FONT_BOLD, fontSize=11, leading=13, alignment=TA_LEFT))
+    ss.add(ParagraphStyle(
+        'es', parent=ss['Normal'], fontName=FONT_REGULAR, fontSize=10, leading=12, alignment=TA_LEFT))
+    ss.add(ParagraphStyle('firma', parent=ss['Normal'], fontName=FONT_BOLD,
+           fontSize=11, leading=13, alignment=TA_LEFT, spaceBefore=10))
+    ss.add(ParagraphStyle('transportador',
+           parent=ss['Normal'], fontName=FONT_BOLD, fontSize=14, leading=16, alignment=TA_LEFT, spaceBefore=20))
+
+    _STYLES = ss
+    return _STYLES
+
+
+# =============================
+#          DIBUJO BASE
+# =============================
+
+def rect_pt(c, x_px, y_px, w_px, h_px, height_px, line_width=1.0, show=True):
+    """
+    Dibuja un rectángulo usando coordenadas en px del layout original,
+    transformadas a pt. Devuelve (x_pt, y_pt, w_pt, h_pt).
+    """
+    x, y, w, h = px2pt(x_px), px2pt(
+        height_px - y_px - h_px), px2pt(w_px), px2pt(h_px)
+    if show:
+        c.saveState()
+        c.setLineWidth(line_width)
+        c.rect(x, y, w, h)
+        c.restoreState()
+    return x, y, w, h
+
+
+def draw_field_title(c, x_pt, y_pt, w_pt, h_pt, titulo, subtitulo, title_font=None, sub_font=None):
+    """
+    Dibuja título y subtítulo en la parte superior de una caja ya creada (en pt).
+    Defaults resueltos en tiempo de ejecución para evitar capturar fuentes no registradas.
+    """
+    if title_font is None:
+        title_font = FONT_BOLD
+    if sub_font is None:
+        sub_font = FONT_REGULAR
+
+    c.saveState()
+    try:
+        tx = x_pt + FIELD_PADDING_PT
+        ty = y_pt + h_pt - TITLE_OFFSET_PT
+        if titulo:
+            c.setFont(title_font, 13)
+            c.drawString(tx, ty, titulo)
+        if subtitulo:
+            c.setFont(sub_font, 11)
+            c.drawString(tx, ty - SUBTITLE_OFFSET_PT, subtitulo)
+    finally:
+        c.restoreState()
+    # devuelve coordenadas útiles por si se usan
+    return (x_pt + FIELD_PADDING_PT, y_pt + FIELD_PADDING_PT, w_pt - 2*FIELD_PADDING_PT, h_pt - 2*FIELD_PADDING_PT)
+
+
+# =============================
+#   AJUSTE DE TEXTO (CAMPO 38)
+# =============================
+
+def fit_text_box(c, text, x, y, w, h, font=None, min_font=8, max_font=14, leading_ratio=1.3, margin=12):
+    """
+    Ajusta texto a un rectángulo (pt) con búsqueda binaria de tamaño de fuente.
+    Respeta saltos de línea del usuario y hace wrap por palabras.
+    Dibuja el texto al final. Devuelve dict con info de renderizado.
+    """
+    if font is None:
+        font = FONT_REGULAR
+
+    text = safe_clean_text(text)
+    if not text:
+        return {'font_size_used': min_font, 'lines_drawn': 0, 'truncated': False, 'effective_area': f"{w:.1f}x{h:.1f}"}
+
+    eff_w = w - 2 * margin
+    eff_h = h - 2 * margin
+    if eff_w <= 0 or eff_h <= 0:
+        return {'font_size_used': min_font, 'lines_drawn': 0, 'truncated': True, 'effective_area': f"{w:.1f}x{h:.1f}"}
+
+    def wrap_for_size(sz):
         lines = []
+        for manu in text.split('\n'):
+            if not manu.strip():
+                lines.append("")
+                continue
+            words, cur = manu.split(), ""
+            for word in words:
+                test = (cur + " " + word) if cur else word
+                if c.stringWidth(test, font, sz) <= eff_w:
+                    cur = test
+                else:
+                    if cur:
+                        lines.append(cur)
+                    cur = word
+            if cur:
+                lines.append(cur)
+        return lines
+
+    lo, hi, best_sz, best_lines = int(
+        min_font), int(max_font), int(min_font), []
+    while lo <= hi:
+        mid = (lo + hi) // 2
+        lines = wrap_for_size(mid)
+        lh = mid * leading_ratio
+        total_h = lh * len(lines)
+        if total_h <= eff_h:
+            best_sz, best_lines = mid, lines
+            lo = mid + 1
+        else:
+            hi = mid - 1
+
+    c.saveState()
+    try:
+        c.setFont(font, best_sz)
+        lh = best_sz * leading_ratio
+        start_x = x + margin
+        start_y = y + h - margin - best_sz
+
+        max_lines = int(eff_h // lh) if lh > 0 else 0
+        drawn = best_lines[:max_lines]
+        truncated = len(best_lines) > max_lines
+
+        for i, ln in enumerate(drawn):
+            line_y = start_y - i * lh
+            if line_y < y + margin:
+                break
+            c.drawString(start_x, line_y, ln)
+
+        if truncated and drawn:
+            c.drawString(start_x, start_y - max_lines * lh, "...")
+
+        return {
+            'font_size_used': best_sz,
+            'lines_drawn': len(drawn),
+            'truncated': truncated,
+            'effective_area': f"{eff_w:.1f}x{eff_h:.1f}"
+        }
+    finally:
+        c.restoreState()
+
+
+# =============================
+#      MULTILÍNEA GENERALES
+# =============================
+
+def draw_multiline_text_simple(c, text, x, y, w, h, font_size=9, font=None):
+    """
+    Método simple con manejo explícito de \n (sin Frame).
+    Envuelve por palabras respetando el ancho.
+    Defaults resueltos en tiempo de ejecución.
+    """
+    if font is None:
+        font = FONT_REGULAR
+
+    clean_text = safe_clean_text(text)
+
+    c.saveState()
+    try:
+        c.setFont(font, font_size)
         manual_lines = clean_text.split('\n')
 
+        all_lines = []
+        max_width = w - 10  # márgenes laterales
         for manual_line in manual_lines:
             if not manual_line.strip():
-                lines.append("")
+                all_lines.append("")
                 continue
 
             words = manual_line.split()
             current_line = ""
 
             for word in words:
-                test_line = current_line + " " + word if current_line else word
-                text_width = c.stringWidth(test_line, fontName, best_font_size)
-
-                if text_width <= effective_width:
+                test_line = (current_line + " " +
+                             word) if current_line else word
+                if c.stringWidth(test_line, font, font_size) <= max_width:
                     current_line = test_line
                 else:
                     if current_line:
-                        lines.append(current_line)
+                        all_lines.append(current_line)
                     current_line = word
 
             if current_line:
-                lines.append(current_line)
+                all_lines.append(current_line)
 
-        # Truncar líneas que no caben
-        line_height = best_font_size * leading_ratio
-        max_lines = int(effective_height / line_height)
-        best_lines = lines[:max_lines]
+        line_height = font_size + 2
+        max_lines = int((h - 10) / line_height)
+        visible_lines = all_lines[:max_lines]
 
-        if len(lines) > max_lines:
-            print(
-                f"   ✂️ Truncando: {len(lines) - max_lines} líneas eliminadas")
-            # Agregar indicador de truncamiento
-            if best_lines:
-                last_line = best_lines[-1]
-                if len(last_line) > 10:
-                    best_lines[-1] = last_line[:-3] + "..."
+        start_y = y + h - 15
+        for i, line in enumerate(visible_lines):
+            line_y = start_y - (i * line_height)
+            c.drawString(x + 5, line_y, line)
 
-    # ✅ DIBUJAR con márgenes aplicados
-    c.setFont(fontName, best_font_size)
-    line_height = best_font_size * leading_ratio
-
-    # ✅ COORDENADAS CORREGIDAS: Empezar desde la parte superior del área efectiva
-    start_x = x + margin_horizontal
-    start_y = y + height - margin_vertical  # Desde arriba hacia abajo
-
-    print(f"🎨 DIBUJANDO con fuente {best_font_size}:")
-    print(f"📍 Inicio: x={start_x:.1f}, y={start_y:.1f}")
-
-    for i, line in enumerate(best_lines):
-        line_y = start_y - (i * line_height)
-
-        # ✅ VERIFICACIÓN: No dibujar fuera del área
-        if line_y < y:
-            print(f"   ⚠️ Línea {i+1} fuera del área, deteniéndose")
-            break
-
-        safe_line = str(line).encode('utf-8', errors='ignore').decode('utf-8')
-        c.drawString(start_x, line_y, safe_line)
-        print(
-            f"   📝 Línea {i+1}: '{safe_line[:40]}{'...' if len(safe_line) > 40 else ''}' en y={line_y:.1f}")
-
-    print(
-        f"✅ Campo 38 renderizado: {len(best_lines)} líneas con fuente {best_font_size}")
-
-    return {
-        'font_size_used': best_font_size,
-        'lines_drawn': len(best_lines),
-        'lines_total': len(clean_text.split('\n')),
-        'truncated': len(best_lines) < len(clean_text.split('\n')),
-        'effective_area': f"{effective_width:.1f}x{effective_height:.1f}"
-    }
+        if len(all_lines) > max_lines:
+            c.drawString(x + 5, start_y - (max_lines *
+                         line_height), "... (continúa)")
+    finally:
+        c.restoreState()
 
 
-def draw_multiline_text_simple(c, text, x, y, w, h, font_size=9, font="Helvetica"):
+def draw_multiline_text(c, text, x, y, w, h, font_size=13, font=None):
     """
-    ✅ MEJORADO: Método simple con mejor manejo de saltos de línea
+    Método híbrido:
+    - Si hay saltos de línea o texto muy largo, usa método simple (sin Frame)
+    - Caso contrario (texto corto), usa Paragraph/Frame para mejor calidad
+    Defaults resueltos en tiempo de ejecución.
     """
-    if not text:
-        text = ""
+    if font is None:
+        font = FONT_REGULAR
 
-    print(f"🔍 MÉTODO SIMPLE - Dibujando texto: {len(text)} caracteres")
-    print(f"📍 Coordenadas: x={x}, y={y}, w={w}, h={h}")
-    # Ver caracteres especiales
-    print(f"📝 Texto original: {repr(text[:100])}...")
-
-    # ✅ LIMPIEZA: Normalizar saltos de línea
-    # Reemplazar diferentes tipos de saltos de línea por \n estándar
-    clean_text = text.replace('\r\n', '\n').replace('\r', '\n')
-
-    # ✅ NUEVO: Eliminar caracteres de control que causan cuadros negros
-    import re
-    # Eliminar caracteres de control excepto \n y \t
-    clean_text = re.sub(
-        r'[\x00-\x08\x0b\x0c\x0e-\x1f\x7f-\x9f]', '', clean_text)
-
-    print(f"📝 Texto limpio: {repr(clean_text[:100])}...")
-
-    # Configurar fuente
-    c.setFont(font, font_size)
-
-    # ✅ MEJORADO: Procesar líneas manualmente (respetando \n del usuario)
-    manual_lines = clean_text.split('\n')
-
-    all_lines = []
-    max_width = w - 10  # Margen de 5px a cada lado
-
-    # Procesar cada línea manual del usuario
-    for manual_line in manual_lines:
-        if not manual_line.strip():  # Línea vacía
-            all_lines.append("")
-            continue
-
-        # Dividir la línea si es muy larga
-        words = manual_line.split()
-        current_line = ""
-
-        for word in words:
-            test_line = current_line + " " + word if current_line else word
-            text_width = c.stringWidth(test_line, font, font_size)
-
-            if text_width <= max_width:
-                current_line = test_line
-            else:
-                if current_line:
-                    all_lines.append(current_line)
-                current_line = word
-
-        if current_line:
-            all_lines.append(current_line)
-
-    # Calcular cuántas líneas caben en el alto disponible
-    line_height = font_size + 2
-    # -10 para margen superior/inferior
-    max_lines = int((h - 10) / line_height)
-
-    # Tomar solo las líneas que caben
-    visible_lines = all_lines[:max_lines]
-
-    print(
-        f"📝 Texto dividido en {len(all_lines)} líneas, mostrando {len(visible_lines)}")
-
-    # Dibujar las líneas
-    start_y = y + h - 15  # Empezar desde arriba del rectángulo
-
-    for i, line in enumerate(visible_lines):
-        line_y = start_y - (i * line_height)
-        # ✅ SEGURIDAD: Asegurar que no hay caracteres extraños antes de dibujar
-        safe_line = str(line).encode('utf-8', errors='ignore').decode('utf-8')
-        c.drawString(x + 5, line_y, safe_line)
-        print(f"📏 Línea {i+1}: '{safe_line}' en y={line_y}")
-
-    # Si hay más texto del que cabe, indicarlo
-    if len(all_lines) > max_lines:
-        c.drawString(x + 5, start_y - (max_lines *
-                     line_height), "... (continúa)")
-        print(
-            f"⚠️ Texto truncado: {len(all_lines) - max_lines} líneas no mostradas")
-
-    print(f"✅ Texto simple dibujado exitosamente: {len(visible_lines)} líneas")
-
-
-def draw_multiline_text(c, text, x, y, w, h, font_size=13, font="Helvetica"):
-    """
-    ✅ MÉTODO HÍBRIDO MEJORADO: Limpia caracteres de control antes de procesar
-    """
-    if not text:
-        text = ""
-
-    # ✅ LIMPIEZA UNIVERSAL: Aplicar a todos los textos
-    import re
-    # Normalizar saltos de línea
-    clean_text = text.replace('\r\n', '\n').replace('\r', '\n')
-    # Eliminar caracteres de control que causan cuadros negros
-    clean_text = re.sub(
-        r'[\x00-\x08\x0b\x0c\x0e-\x1f\x7f-\x9f]', '', clean_text)
-
-    # Para campo 12 y otros textos con saltos de línea manual, usar método simple
+    clean_text = safe_clean_text(text)
     if '\n' in clean_text or len(clean_text) > 500:
-        print(
-            f"🎯 Texto con saltos de línea o muy largo ({len(clean_text)} chars) - usando método simple")
+        log(f"🎯 Texto con saltos o largo ({len(clean_text)} chars) → método simple")
         draw_multiline_text_simple(
             c, clean_text, x, y, w, h, font_size=font_size, font=font)
         return
 
-    # Para textos cortos sin saltos de línea, usar el método original con Frame
-    print(
-        f"🔍 Texto corto sin saltos de línea ({len(clean_text)} chars) - usando método Frame")
-
+    log(f"🔍 Texto corto ({len(clean_text)} chars) → método Frame")
     style = ParagraphStyle(
         name='multi',
         fontName=font,
@@ -373,8 +400,6 @@ def draw_multiline_text(c, text, x, y, w, h, font_size=13, font="Helvetica"):
         leading=font_size + 2,
         alignment=TA_LEFT,
     )
-
-    # Procesa saltos de línea para HTML
     html_text = clean_text.replace('\n', '<br/>')
 
     try:
@@ -382,122 +407,157 @@ def draw_multiline_text(c, text, x, y, w, h, font_size=13, font="Helvetica"):
         frame = Frame(x, y, w, h, showBoundary=0, leftPadding=4,
                       rightPadding=4, topPadding=4, bottomPadding=4)
         frame.addFromList([para], c)
-        print(f"✅ Texto Frame dibujado exitosamente")
-
     except Exception as e:
-        print(f"❌ Error dibujando con Frame: {e} - usando método simple")
+        log(f"❌ Error en Paragraph/Frame: {e} → fallback simple")
         draw_multiline_text_simple(c, clean_text, x, y, w, h, font_size, font)
 
 
+# =============================
+#         CAMPO 39 (firma)
+# =============================
+
+def normalized_date(mic_data):
+    """
+    Devuelve fecha para Campo 39 desde mic_data si existe; si no, hoy.
+    """
+    for k in ('campo_6_fecha', 'fecha_emision', 'fecha'):
+        v = (mic_data or {}).get(k, '')
+        if v:
+            return v
+    return datetime.now().strftime('%d/%m/%Y')
+
+
+def draw_campo39(c, x_px, y_px, w_px, h_px, height_px, mic_data=None):
+    """
+    Campo 39: texto legal, línea de firma y transportador + fecha.
+    Usa estilos cacheados y Unicode.
+    """
+    styles = get_styles()
+    X, Y, W, H = px2pt(x_px), px2pt(
+        height_px - y_px - h_px), px2pt(w_px), px2pt(h_px)
+
+    # Rectángulo (no hay títulos aquí)
+    c.saveState()
+    try:
+        c.rect(X, Y, W, H)
+    finally:
+        c.restoreState()
+
+    # Textos legales
+    txt_es = ("Declaramos que las informaciones presentadas en este Documento son expresión de verdad, "
+              "que los datos referentes a las mercaderías fueron transcriptos exactamente conforme a la "
+              "declaración del remitente, las cuales son de su exclusiva responsabilidad, y que esta operación "
+              "obedece a lo dispuesto en el Convenio sobre Transporte Internacional Terrestre de los países del Cono Sur.")
+    txt_pt = ("Declaramos que as informações prestadas neste Documento são a expressão de verdade que os dados referentes "
+              "às mercadorias foram transcritos exatamente conforme a declaração do remetente, os quais são de sua exclusiva "
+              "responsabilidade, e que esta operação obedece ao disposto no Convênio sobre Transporte Internacional Terrestre.")
+    txt_firma = "39 Firma y sello del porteador / Assinatura e carimbo do transportador"
+
+    # Transportador y fecha
+    nombre_transportador = ""
+    if mic_data:
+        nombre_transportador = (
+            mic_data.get('campo_1_transporte', '') or
+            mic_data.get('transportadora_nombre', '') or
+            mic_data.get('transportadora', '') or
+            "TRANSPORTADOR"
+        )
+        if '\n' in nombre_transportador:
+            nombre_transportador = nombre_transportador.split('\n')[0].strip()
+    fecha_actual = normalized_date(mic_data)
+
+    if DEBUG:
+        log(f"🚛 Campo 39 - Transportador: '{nombre_transportador}'")
+        log(f"📅 Campo 39 - Fecha: '{fecha_actual}'")
+
+    # Crear párrafos y dibujar
+    para_es = Paragraph(txt_es, styles['es'])
+    para_pt = Paragraph(txt_pt, styles['es'])
+    para_firma = Paragraph(txt_firma, styles['firma'])
+    para_transportador = Paragraph(
+        nombre_transportador, styles['transportador'])
+
+    # Frame para el bloque completo (con padding interno)
+    c.saveState()
+    try:
+        f = Frame(X + FIELD_PADDING_PT, Y + FIELD_PADDING_PT, W - 2 *
+                  FIELD_PADDING_PT, H - 2*FIELD_PADDING_PT, showBoundary=0)
+        f.addFromList([para_es, para_pt, para_firma, para_transportador], c)
+    finally:
+        c.restoreState()
+
+    # Fecha en la parte inferior izquierda
+    c.saveState()
+    try:
+        c.setFont(FONT_REGULAR, 12)
+        c.drawString(X + FIELD_PADDING_PT + 4, Y + 25,
+                     f"Data / Fecha: {fecha_actual}")
+    finally:
+        c.restoreState()
+
+
+# =============================
+#   GENERADOR PRINCIPAL PDF
+# =============================
+
 def generar_micdta_pdf_con_datos(mic_data, filename="mic_{id}.pdf"):
-    """
-    ✅ MEJORADA: Función principal con debug completo de todos los datos
-    Y SOPORTE PARA DOCUMENTOS EN CAMPOS 1, 33, 34, 35
-    ✅ CAMPO 38 CON AJUSTE DINÁMICO DE FUENTE CORREGIDO
-    """
-    print("🔄 Iniciando generación de PDF MIC...")
-    print(f"📋 Datos recibidos: {len(mic_data)} campos")
+    # Garantizar registro por si el módulo se importó antes de tener las fuentes
+    register_unicode_fonts()
 
-    # ✅ DEBUG COMPLETO: Mostrar TODOS los datos recibidos
-    print("\n" + "="*50)
-    print("🔍 DATOS COMPLETOS RECIBIDOS:")
-    for key, value in mic_data.items():
-        if value:  # Solo mostrar campos que tienen datos
-            print(
-                f"  {key}: {str(value)[:100]}{'...' if len(str(value)) > 100 else ''}")
-    print("="*50 + "\n")
+    log("🔄 Iniciando generación de PDF MIC...")
+    log(f"📋 Campos recibidos: {len(mic_data or {})}")
 
-    # Debug específico para campo 38
-    campo_38_key = "campo_38_datos_campo11_crt"
-    if campo_38_key in mic_data and mic_data[campo_38_key]:
-        print(
-            f"✅ Campo 38 encontrado: {len(mic_data[campo_38_key])} caracteres")
-        print(
-            f"📝 Campo 38 (primeros 150 chars): {mic_data[campo_38_key][:150]}...")
-    else:
-        print("⚠️ Campo 38 no encontrado o vacío")
-        print(f"🔍 Claves disponibles: {list(mic_data.keys())}")
+    # Debug: mostrar campos no vacíos
+    if DEBUG and mic_data:
+        log("\n" + "="*50)
+        log("🔍 DATOS COMPLETOS RECIBIDOS (no vacíos):")
+        for key, value in mic_data.items():
+            if value:
+                s = str(value)
+                log(f"  {key}: {s[:100]}{'...' if len(s) > 100 else ''}")
+        log("="*50 + "\n")
 
-    # ✅ DEBUG ESPECÍFICO: Para datos del transportador (Campo 39)
-    transportador_keys = ['campo_1_transporte', 'transportadora_nombre',
-                          'transportadora', 'campo_9_datos_transporte']
-    print("\n🚛 DATOS DEL TRANSPORTADOR PARA CAMPO 39:")
-    for key in transportador_keys:
-        if key in mic_data:
-            value = mic_data[key]
-            print(f"  {key}: '{value}'")
-        else:
-            print(f"  {key}: NO ENCONTRADO")
-
-    fecha_keys = ['campo_6_fecha', 'fecha_emision', 'fecha']
-    print("\n📅 DATOS DE FECHA PARA CAMPO 39:")
-    for key in fecha_keys:
-        if key in mic_data:
-            value = mic_data[key]
-            print(f"  {key}: '{value}'")
-        else:
-            print(f"  {key}: NO ENCONTRADO")
-    print("\n")
-
-    # ✅ NUEVO: DEBUG ESPECÍFICO PARA CAMPOS CON DOCUMENTOS
-    campos_documentos = {
-        'campo_1_transporte': 'Transportador',
-        'campo_33_datos_campo1_crt': 'Remitente',
-        'campo_34_datos_campo4_crt': 'Destinatario',
-        'campo_35_datos_campo6_crt': 'Consignatario'
-    }
-
-    print("📄 CAMPOS CON DOCUMENTOS:")
-    for key, descripcion in campos_documentos.items():
-        if key in mic_data and mic_data[key]:
-            value = mic_data[key]
-            lines = value.split('\n')
-            print(f"  📋 {descripcion} ({key}): {len(lines)} líneas")
-            for i, line in enumerate(lines[:3], 1):  # Mostrar máximo 3 líneas
-                print(
-                    f"    Línea {i}: '{line[:50]}{'...' if len(line) > 50 else ''}'")
-            if len(lines) > 3:
-                print(f"    ... y {len(lines) - 3} líneas más")
-        else:
-            print(f"  ❌ {descripcion} ({key}): NO ENCONTRADO")
-    print()
-
+    # Resolución base
     width_px, height_px = 1700, 2800
-    pt_per_px = 0.75
-    width_pt, height_pt = width_px * pt_per_px, height_px * pt_per_px
+    width_pt, height_pt = px2pt(width_px), px2pt(height_px)
 
+    # Preparar canvas
     c = canvas.Canvas(filename, pagesize=(width_pt, height_pt))
     c.setStrokeColorRGB(0, 0, 0)
     c.setFillColorRGB(0, 0, 0)
 
-    # ENCABEZADO
+    # Encabezado
     x0, y0 = 55, 55
     rect_w, rect_h = 1616, 108.5
-    c.setLineWidth(2)
-    c.rect(x0 * pt_per_px, (height_px - y0 - rect_h) *
-           pt_per_px, rect_w * pt_per_px, rect_h * pt_per_px)
+    # Caja externa del encabezado
+    rect_pt(c, x0, y0, rect_w, rect_h, height_px, line_width=2)
+    # Caja MIC/DTA
     mic_x, mic_y = x0 + 24, y0 + 15
     mic_w, mic_h = 235, 70
-    c.rect(mic_x * pt_per_px, (height_px - mic_y - mic_h) *
-           pt_per_px, mic_w * pt_per_px, mic_h * pt_per_px)
-    c.setFont("Helvetica-Bold", 28)
-    c.drawCentredString((mic_x + mic_w / 2) * pt_per_px,
-                        (height_px - mic_y - mic_h / 2 - 12) * pt_per_px, "MIC/DTA")
-    title_x, title_y = x0 + 280, y0 + 36
-    c.setFont("Helvetica-Bold", 20)
-    c.drawString(title_x * pt_per_px, (height_px - title_y) * pt_per_px,
-                 "Manifiesto Internacional de Carga por Carretera / Declaración de Tránsito Aduanero")
-    c.setFont("Helvetica", 20)
-    c.drawString(title_x * pt_per_px, (height_px - title_y - 38) * pt_per_px,
-                 "Manifesto Internacional de Carga Rodoviária / Declaração de Trânsito")
+    mx, my, mw, mh = rect_pt(c, mic_x, mic_y, mic_w,
+                             mic_h, height_px, line_width=1)
 
+    c.saveState()
+    try:
+        c.setFont(FONT_BOLD, 28)
+        c.drawCentredString(mx + mw / 2, my + mh / 2 - 12, "MIC/DTA")
+        title_x, title_y = x0 + 280, y0 + 36
+        c.setFont(FONT_BOLD, 20)
+        c.drawString(px2pt(title_x), px2pt(height_px - title_y),
+                     "Manifiesto Internacional de Carga por Carretera / Declaración de Tránsito Aduanero")
+        c.setFont(FONT_REGULAR, 20)
+        c.drawString(px2pt(title_x), px2pt(height_px - title_y - 38),
+                     "Manifesto Internacional de Carga Rodoviária / Declaração de Trânsito")
+    finally:
+        c.restoreState()
+
+    # Definición de campos (layout original)
     campos = [
         (1,  55, 162, 863, 450, "1 Nombre y domicilio del porteador",
          "Nome e endereço do transportador", "campo_1_transporte"),
         (2,  55, 610, 861, 142, "2 Rol de contribuyente",
          "Cadastro geral de contribuintes", "campo_2_numero"),
-        (3, 916, 162, 389, 169, "3 Tránsito aduanero",
-         "Trânsito aduaneiro", None),
+        (3, 916, 162, 389, 169, "3 Tránsito aduanero", "Trânsito aduaneiro", None),
         (4, 1305, 162, 365, 167, "4 Nº", "", "campo_4_estado"),
         (5, 916, 330, 388, 115, "5 Hoja / Folha", "", "campo_5_hoja"),
         (6, 1305, 330, 365, 115, "6 Fecha de emisión",
@@ -570,147 +630,190 @@ def generar_micdta_pdf_con_datos(mic_data, filename="mic_{id}.pdf"):
          "Assinatura e carimbo de Alfândega de", None),
     ]
 
+    # Loop de campos
     for n, x, y, w, h, titulo, subtitulo, key in campos:
         if n == 39:
-            # ✅ ACTUALIZADO: Pasar mic_data al campo 39
-            draw_campo39(c, x, y, w, h, height_px, pt_per_px, mic_data)
+            # Campo 39 especial
+            draw_campo39(c, x, y, w, h, height_px, mic_data)
             continue
 
-        # Dibuja el rectángulo
-        c.rect(x * pt_per_px, (height_px - y - h) *
-               pt_per_px, w * pt_per_px, h * pt_per_px)
-        tx = (x + 8) * pt_per_px
-        ty = (height_px - y - 24) * pt_per_px
+        # Caja
+        x_pt, y_pt, w_pt, h_pt = rect_pt(
+            c, x, y, w, h, height_px, line_width=1)
 
-        # Títulos y subtítulos
-        c.setFont("Helvetica-Bold", 13)
-        c.drawString(tx, ty, titulo)
-        if subtitulo:
-            c.setFont("Helvetica", 11)
-            c.drawString(tx, ty - 16, subtitulo)
+        # Títulos (si hay)
+        tx_pt, ty_pt, tw_pt, th_pt = draw_field_title(
+            c, x_pt, y_pt, w_pt, h_pt, titulo, subtitulo)
 
-        # ✅ ESPECIAL: Campo 38 con ajuste dinámico de fuente CORREGIDO
+        # Campo 38: ajuste dinámico de fuente con reserva de título
         if n == 38:
-            print(f"🎯 Procesando Campo 38 (n={n}) - AJUSTE DINÁMICO CORREGIDO")
-            print(f"📍 Coordenadas: x={x}, y={y}, w={w}, h={h}")
-            print(f"🔑 Key: {key}")
+            log(f"🎯 PROCESANDO CAMPO 38 (ajuste dinámico)")
+            valor = (mic_data or {}).get(key, "")
+            # zona de texto: respetar espacio para título+subtítulo
+            fit = fit_text_box(
+                c,
+                valor,
+                x=x_pt,
+                y=y_pt + FIELD_TITLE_RESERVED_PT,     # bajar inicio de texto
+                w=w_pt,
+                h=h_pt - FIELD_TITLE_RESERVED_PT,      # descontar reserva
+                font=FONT_REGULAR,
+                min_font=8,
+                max_font=14,
+                leading_ratio=1.3,
+                margin=12
+            )
+            log(f"✅ Campo 38 → fuente {fit['font_size_used']}, líneas {fit['lines_drawn']}, truncado={fit['truncated']}")
+            continue
 
-            if key and mic_data.get(key):
-                valor = mic_data[key]
-                print(f"✅ Campo 38 tiene datos: {len(valor)} caracteres")
-                print(f"📝 Primeros 100 chars: {valor[:100]}...")
+            # Campos multilínea con documentos (1, 9, 33, 34, 35)
+        if n in [1, 9, 33, 34, 35] and key and (mic_data or {}).get(key):
+            log(f"🖼️ Campo multilínea {n} (FORZADO método simple)")
 
-                # ✅ COORDENADAS CORREGIDAS PARA CAMPO 38
-                x_frame = x * pt_per_px
-                y_frame = (height_px - y - h) * pt_per_px
-                w_frame = w * pt_per_px
-                h_frame = h * pt_per_px
+            # Área interna segura para texto (debajo de título)
+            x_frame = x_pt + FIELD_PADDING_PT
+            y_frame = y_pt + FIELD_PADDING_PT
+            w_frame = w_pt - 2 * FIELD_PADDING_PT
+            h_frame = h_pt - 2 * FIELD_PADDING_PT - 30  # margen extra para no pisar títulos
 
-                # ✅ ÁREA DE TEXTO (descontando título)
-                text_area_h = h_frame - 40  # Descontar espacio del título
-
-                print(f"🖼️ Campo 38 - Usando ajuste dinámico CORREGIDO")
-                print(
-                    f"   📏 Rectángulo completo: x={x_frame:.1f}, y={y_frame:.1f}, w={w_frame:.1f}, h={h_frame:.1f}")
-                print(f"   📝 Área de texto: h={text_area_h:.1f}")
-
-                # ✅ LLAMAR A LA FUNCIÓN DINÁMICA CORREGIDA
-                resultado = draw_text_fit_area_dynamic(
-                    c, valor,
-                    x=x_frame, y=y_frame, width=w_frame, height=text_area_h,
-                    fontName="Helvetica", min_font=7, max_font=12, leading_ratio=1.15
-                )
-
-                print(f"🎨 Resultado Campo 38 CORREGIDO:")
-                print(f"   📏 Fuente usada: {resultado['font_size_used']}")
-                print(f"   📋 Líneas dibujadas: {resultado['lines_drawn']}")
-                print(f"   📊 Líneas totales: {resultado['lines_total']}")
-                print(f"   📐 Área efectiva: {resultado['effective_area']}")
-                print(f"   ✂️ Truncado: {resultado['truncated']}")
-
+            # 🔤 Tamaños específicos solicitados:
+            #  - Campo 1: 16 pt
+            #  - Campo 9: 15 pt
+            #  - Otros multilínea (33,34,35): 10 pt
+            if n == 1:
+                font_size_multiline = 16
+            elif n == 9:
+                font_size_multiline = 15
             else:
-                print(
-                    f"❌ Campo 38 sin datos. Valor: {mic_data.get(key, 'KEY_NOT_FOUND')}")
+                font_size_multiline = 10
 
-        # ✅ ESPECIAL: Debug para campos con documentos
-        elif n in [1, 33, 34, 35]:
-            campo_nombre = {1: 'Transportador', 33: 'Remitente',
-                            34: 'Destinatario', 35: 'Consignatario'}[n]
-            print(f"🎯 Procesando Campo {n} ({campo_nombre}) con documentos")
-            if key and mic_data.get(key):
-                valor = mic_data[key]
-                lines = valor.split('\n')
-                print(f"✅ Campo {n} tiene {len(lines)} líneas de datos")
-                for i, line in enumerate(lines[:2], 1):
-                    print(
-                        f"   Línea {i}: '{line[:50]}{'...' if len(line) > 50 else ''}'")
+            log(f"   ➜ Usando font_size={font_size_multiline}pt en campo {n}")
 
-        # ✅ MULTILÍNEA para campos 1, 9, 33, 34, 35 (EXCLUYENDO 38)
-        if n in [1, 9, 33, 34, 35] and key and mic_data.get(key):
-            x_frame = (x + 8) * pt_per_px
-            y_frame = (height_px - y - h + 8 - 30) * pt_per_px
-            w_frame = (w - 16) * pt_per_px
-            h_frame = (h - 32) * pt_per_px
+            # Usamos SIEMPRE el método simple para respetar el tamaño fijo
+            draw_multiline_text_simple(
+                c,
+                mic_data[key],
+                x_frame,
+                y_frame,
+                w_frame,
+                h_frame,
+                font_size=font_size_multiline,
+                font=FONT_REGULAR
+            )
+            continue
 
-            print(
-                f"🖼️ Dibujando campo multilínea {n} con frame: x={x_frame}, y={y_frame}, w={w_frame}, h={h_frame}")
+        # Campo 12: lógica de 2 líneas si hay salto
+        if n == 12 and key and (mic_data or {}).get(key):
+            val = str(mic_data[key])
+            lines = val.split('\n')
+            c.saveState()
+            try:
+                if len(lines) >= 1:
+                    c.setFont(FONT_REGULAR, 12)
+                    c.drawString(tx_pt, y_pt + h_pt - TITLE_OFFSET_PT -
+                                 SUBTITLE_OFFSET_PT - 34, lines[0][:80])
+                if len(lines) >= 2 and lines[1].strip():
+                    c.setFont(FONT_REGULAR, 11)
+                    c.drawString(tx_pt, y_pt + h_pt - TITLE_OFFSET_PT -
+                                 SUBTITLE_OFFSET_PT - 50, lines[1][:80])
+            finally:
+                c.restoreState()
+            continue
 
-            # ✅ Para campos 1, 9, 33, 34, 35 usar método ORIGINAL Frame/Paragraph
-            print(
-                f"🎯 CAMPO {n} - Usando método ORIGINAL Frame/Paragraph para MÁS LÍNEAS")
-            draw_multiline_text(
-                c, mic_data[key], x_frame, y_frame, w_frame, h_frame, font_size=10)
-
-        # --- PARA CAMPOS NORMALES (incluyendo el 12 con lógica especial) ---
-        elif key and mic_data.get(key):
-            # ✅ ESPECIAL: Para campo 12, dibujar dos líneas si contiene \n
-            if n == 12 and '\n' in str(mic_data[key]):
-                lines = str(mic_data[key]).split('\n')[:2]  # Máximo 2 líneas
-                c.setFont("Helvetica", 12)
-                print(
-                    f"🔧 Campo 12 (dos líneas): Línea 1: '{lines[0]}', Línea 2: '{lines[1] if len(lines) > 1 else ''}'")
-
-                # Dibujar primera línea (marca/modelo)
-                c.drawString(tx, ty - 34, lines[0][:80])
-
-                # Dibujar segunda línea (chasis) si existe
-                if len(lines) > 1 and lines[1].strip():
-                    # Fuente ligeramente más pequeña para chasis
-                    c.setFont("Helvetica", 11)
-                    c.drawString(tx, ty - 50, lines[1][:80])
-            else:
-                # Campos normales (una sola línea)
-                c.setFont("Helvetica", 14)
-                valor = str(mic_data[key]).replace(
-                    '\n', ' ').replace('\r', ' ')
-
-                # Para campo 12 simple, usar fuente más pequeña si es muy largo
-                if n == 12:
-                    if len(valor) > 50:
-                        c.setFont("Helvetica", 11)
-                    print(
-                        f"🔧 Campo 12 (simple): '{valor[:50]}{'...' if len(valor) > 50 else ''}'")
-
-                c.drawString(tx, ty - 34, valor[:200])
+        # Campos normales (una línea)
+        if key and (mic_data or {}).get(key):
+            valor = str(mic_data[key]).replace('\n', ' ').replace('\r', ' ')
+            c.saveState()
+            try:
+                size = 14
+                if n == 12 and len(valor) > 50:
+                    size = 11
+                c.setFont(FONT_REGULAR, size)
+                c.drawString(tx_pt, y_pt + h_pt - TITLE_OFFSET_PT -
+                             SUBTITLE_OFFSET_PT - 34, valor[:200])
+            finally:
+                c.restoreState()
 
     # Rectángulo grande externo
-    c.rect(55 * pt_per_px, (height_px - 55 - 2672.75) *
-           pt_per_px, 1616.75 * pt_per_px, 2672.75 * pt_per_px)
+    rect_pt(c, 55, 55, 1616.75, 2672.75, height_px, line_width=1)
 
     c.save()
-    print(f"✅ PDF generado exitosamente: {filename}")
+    log(f"✅ PDF generado exitosamente: {filename}")
 
-    # ✅ RESUMEN FINAL
-    print("🎯 RESUMEN DE CAMPOS CON DOCUMENTOS:")
-    for key, descripcion in campos_documentos.items():
-        if key in mic_data and mic_data[key]:
-            lines_count = len(mic_data[key].split('\n'))
-            print(f"   📋 {descripcion}: {lines_count} líneas")
-        else:
-            print(f"   ❌ {descripcion}: Sin datos")
+    # Resumen final (opcional)
+    if DEBUG:
+        campos_documentos = {
+            'campo_1_transporte': 'Transportador',
+            'campo_33_datos_campo1_crt': 'Remitente',
+            'campo_34_datos_campo4_crt': 'Destinatario',
+            'campo_35_datos_campo6_crt': 'Consignatario'
+        }
+        log("🎯 RESUMEN DE CAMPOS CON DOCUMENTOS:")
+        for key, descripcion in campos_documentos.items():
+            val = (mic_data or {}).get(key)
+            if val:
+                lines_count = len(safe_clean_text(val).split('\n'))
+                log(f"   📋 {descripcion}: {lines_count} líneas")
+            else:
+                log(f"   ❌ {descripcion}: Sin datos")
 
-    print("🎯 RESUMEN - MÉTODO DE RENDERIZADO:")
-    print("   📋 Campos 1,9,33,34,35: Frame/Paragraph (MÁS LÍNEAS) ✅")
-    print("   📦 Campo 38: Ajuste dinámico de fuente CORREGIDO ✅")
-    print("   📄 Otros campos: Una línea normal")
-    print("   🔍 Debug completo: ACTIVADO ✅")
+        log("🎯 RESUMEN - MÉTODO DE RENDERIZADO:")
+        log("   📋 Campos 1, 9, 33, 34, 35 → Híbrido (Frame/simple) ✅")
+        log("   📦 Campo 38 → Ajuste dinámico (búsqueda binaria) ✅")
+        log("   📄 Otros campos → 1 línea")
+        log("   🔍 Debug completo: ACTIVADO ✅")
+
+
+# =============================
+#          PRUEBA LOCAL
+# =============================
+
+def test_campo38():
+    """
+    Prueba de Campo 38 con texto largo y verificación de generación de PDF.
+    """
+    log("🧪 INICIANDO PRUEBA DEL CAMPO 38 (versión completa)")
+    test_data = {
+        'campo_38_datos_campo11_crt': (
+            "1572 CAJAS QUE DICEN CONTENER: CARNE RESFRIADA DE BOVINO SEM OSSO "
+            "15 CAJAS DE CONTRA FILE (BIFES) (STEAK CHORIZO) (ESTANCIA 92); 42 CAJAS DE CONTRA FILE "
+            "(BIFES) (STEAK CHORIZO) (ESTANCIA 92); 42 CAJAS DE CONTRA FILE (BIFES) (STEAK CHORIZO) "
+            "(ESTANCIA 92); 158 CAJAS DE BIFE ANCHO CON HUESO (COSTELA JANELA) (ESTANCIA 92); "
+            "42 CAJAS DE PICANHA (TAPA DE CUADRIL) (ESTANCIA 92); 42 CAJAS DE LOMO (FILE MIGNON) "
+            "(ESTANCIA 92); 126 CAJAS DE EYE OF ROUND (PECETO) (ESTANCIA 92); 84 CAJAS DE ASADO DE TIRA "
+            "(COSTELA JANELA) (ESTANCIA 92); 84 CAJAS DE EYE OF ROUND (PECETO) (ESTANCIA 92) ..."
+        ),
+        'campo_1_transporte': 'EMPRESA TRANSPORTADORA TEST\nRUA TESTE 123\nCIUDAD - PAÍS',
+        'campo_6_fecha': '02/08/2025'
+    }
+    out = "test_campo38_corregido.pdf"
+    generar_micdta_pdf_con_datos(test_data, out)
+    if os.path.exists(out):
+        log(f"✅ PRUEBA EXITOSA: generado {out}")
+    else:
+        log("❌ PRUEBA FALLÓ: no se encontró el PDF")
+
+
+# =============================
+#        PUNTO DE ENTRADA
+# =============================
+
+if __name__ == "__main__":
+    # 1) Registrar fuentes Unicode (DejaVuSans) con fallback automático
+    register_unicode_fonts()
+
+    log("📋 CÓDIGO COMPLETO MIC/DTA PDF - Versión robusta")
+    log("🎯 Highlights:")
+    log("   ✅ Campo 38 con ajuste dinámico (búsqueda binaria) y márgenes")
+    log("   ✅ Fuentes Unicode (DejaVuSans) para acentos/ñ/ç")
+    log("   ✅ Helpers px→pt y coordenadas consistentes")
+    log("   ✅ saveState()/restoreState() para aislar estilos")
+    log("   ✅ Estilos cacheados y refactors de cajas/títulos")
+    log("   ✅ Debug detallado activable")
+
+    # 2) Ejecutar prueba opcional:
+    # test_campo38()
+
+    # Si querés generar con tus datos reales:
+    # mic_data = {...}
+    # generar_micdta_pdf_con_datos(mic_data, "mic_real.pdf")
