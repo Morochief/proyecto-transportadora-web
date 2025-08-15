@@ -433,8 +433,8 @@ def duplicar_crt(crt_id):
 
         db.session.commit()
 
-        print(
-            f"✅ CRT duplicado: {original_crt.numero_crt} -> {siguiente_numero}")
+        # print(
+        #   f"✅ CRT duplicado: {original_crt.numero_crt} -> {siguiente_numero}")
 
         return jsonify({
             "message": "CRT duplicado exitosamente",
@@ -558,33 +558,31 @@ def crear_crt():
 # ========== ✅ EDITAR CRT MEJORADO ==========
 
 
+# ========== SOLUCIÓN 1: MEJORAR DETECCIÓN DE CAMBIOS ==========
+
 @crt_bp.route('/<int:crt_id>', methods=['PUT'])
 def editar_crt(crt_id):
     """
-    ✅ MEJORADO: Editar CRT con validaciones de estado y permisos
+    ✅ MEJORADO: Editar CRT con detección de cambios reales mejorada
     """
     try:
         crt = CRT.query.options(joinedload(CRT.gastos)).filter_by(
             id=crt_id).first_or_404()
         data = request.json
 
-        # ✅ Validaciones de estado
+        # ✅ Validaciones de estado (mantener igual)
         if crt.estado in ["FINALIZADO"]:
             return jsonify({
                 "error": "No se puede editar un CRT finalizado",
                 "estado_actual": crt.estado
             }), 403
 
-        # ✅ Validaciones adicionales según el estado
         if crt.estado == "EN_TRANSITO" and not data.get("permitir_edicion_en_transito"):
             return jsonify({
                 "error": "CRT en tránsito. ¿Está seguro que desea editarlo?",
                 "requiere_confirmacion": True,
                 "estado_actual": crt.estado
             }), 409
-
-        # ✅ Agregar log de cambios
-        cambios_realizados = []
 
         # Procesar campos numéricos
         NUMERIC_FIELDS = [
@@ -594,22 +592,63 @@ def editar_crt(crt_id):
         ]
         data = limpiar_numericos(data, NUMERIC_FIELDS)
 
-        # Detectar cambios en campos principales
-        campos_importantes = {
-            'numero_crt': 'Número CRT',
-            'estado': 'Estado',
-            'remitente_id': 'Remitente',
-            'destinatario_id': 'Destinatario',
-            'transportadora_id': 'Transportadora'
-        }
+        # ✅ MEJORAR: Detectar cambios REALES solamente
+        cambios_realizados = []
 
-        for campo, nombre in campos_importantes.items():
-            if data.get(campo) and getattr(crt, campo) != data[campo]:
-                valor_anterior = getattr(crt, campo)
-                cambios_realizados.append(
-                    f"{nombre}: {valor_anterior} → {data[campo]}")
+        def detectar_cambio_real(campo_db, valor_nuevo, nombre_campo):
+            """Detecta si hay un cambio real entre el valor de BD y el nuevo"""
+            # Convertir ambos valores a string para comparación consistente
+            valor_db = str(campo_db) if campo_db is not None else ""
+            valor_nuevo_str = str(
+                valor_nuevo) if valor_nuevo is not None else ""
 
-        # Aplicar cambios
+            # Para IDs numéricos, convertir a int para comparación
+            if campo_db.__class__.__name__ in ['int', 'Integer'] or '_id' in str(campo_db):
+                try:
+                    valor_db_int = int(campo_db) if campo_db else None
+                    valor_nuevo_int = int(valor_nuevo) if valor_nuevo else None
+                    return valor_db_int != valor_nuevo_int
+                except (ValueError, TypeError):
+                    pass
+
+            # Para otros campos, comparación de strings
+            return valor_db.strip() != valor_nuevo_str.strip()
+
+        # ✅ EXCLUIR CREACIÓN DE BORRADORES
+        es_creacion_borrador = (
+            crt.estado == "BORRADOR" and
+            not crt.numero_crt and
+            not crt.remitente_id and
+            not crt.destinatario_id
+        )
+
+        # ✅ NO AUDITAR SI ES CREACIÓN DE BORRADOR
+        if es_creacion_borrador:
+            print(
+                f"🔇 Omitiendo auditoría: creación de borrador para CRT {crt_id}")
+        else:
+            # Detectar cambios importantes SOLAMENTE si hay cambio real
+            campos_importantes = {
+                'numero_crt': 'Número CRT',
+                'estado': 'Estado',
+                'remitente_id': 'Remitente',
+                'destinatario_id': 'Destinatario',
+                'transportadora_id': 'Transportadora',
+                'valor_mercaderia': 'Valor Mercadería',
+                'peso_bruto': 'Peso Bruto'
+            }
+
+            for campo, nombre in campos_importantes.items():
+                if campo in data:
+                    valor_anterior = getattr(crt, campo, None)
+                    valor_nuevo = data[campo]
+
+                    # ✅ SOLO REGISTRAR SI HAY CAMBIO REAL
+                    if detectar_cambio_real(valor_anterior, valor_nuevo, campo):
+                        cambios_realizados.append(
+                            f"{nombre}: {valor_anterior} → {valor_nuevo}")
+
+        # Aplicar cambios (mantener igual)
         crt.numero_crt = data.get("numero_crt", crt.numero_crt)
         crt.estado = data.get("estado", crt.estado)
         crt.fecha_emision = datetime.strptime(data.get(
@@ -647,11 +686,14 @@ def editar_crt(crt_id):
         crt.valor_reembolso = data.get("valor_reembolso", crt.valor_reembolso)
         crt.transporte_sucesivos = data.get(
             "transporte_sucesivos", crt.transporte_sucesivos)
+
+        # ✅ PRESERVAR OBSERVACIONES ORIGINALES
+        observaciones_originales = crt.observaciones
         crt.observaciones = data.get("observaciones", crt.observaciones)
         crt.fecha_firma = datetime.strptime(data.get(
             "fecha_firma"), "%Y-%m-%d") if data.get("fecha_firma") else crt.fecha_firma
 
-        # Actualizar gastos si se proporcionan
+        # Actualizar gastos si se proporcionan (mantener igual)
         if "gastos" in data:
             for g in crt.gastos:
                 db.session.delete(g)
@@ -668,23 +710,26 @@ def editar_crt(crt_id):
                 )
                 db.session.add(g)
 
-        # ✅ Agregar timestamp de última modificación en observaciones
-        if cambios_realizados:
+        # ✅ SOLO AGREGAR LOG SI HAY CAMBIOS REALES Y SIGNIFICATIVOS
+        if cambios_realizados and not es_creacion_borrador:
             timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
             log_cambios = f"\n--- Editado {timestamp} ---\nCambios: {', '.join(cambios_realizados)}"
-            crt.observaciones = (crt.observaciones or "") + log_cambios
+            crt.observaciones = (observaciones_originales or "") + log_cambios
+
+            print(
+                f"✅ CRT {crt.numero_crt} editado - Cambios registrados: {', '.join(cambios_realizados)}")
+        else:
+            print(
+                f"🔇 CRT {crt.numero_crt} editado - Sin cambios significativos para auditar")
 
         db.session.commit()
-
-        print(f"✅ CRT {crt.numero_crt} editado exitosamente")
-        if cambios_realizados:
-            print(f"   Cambios: {', '.join(cambios_realizados)}")
 
         return jsonify({
             "message": "CRT actualizado exitosamente",
             "id": crt.id,
             "cambios_realizados": cambios_realizados,
-            "nuevo_estado": crt.estado
+            "nuevo_estado": crt.estado,
+            "auditado": len(cambios_realizados) > 0 and not es_creacion_borrador
         })
 
     except Exception as e:
@@ -731,15 +776,50 @@ def listar_crts_simple():
 # ========== PDF CRT ==========
 
 
+# ========== PDF CRT CORREGIDO CON JOINEDLOAD ==========
+
 @crt_bp.route('/<int:crt_id>/pdf', methods=['POST'])
 def generar_pdf_crt(crt_id):
     try:
-        crt = CRT.query.get_or_404(crt_id)
+        # ✅ CARGAR CRT CON TODAS LAS RELACIONES
+        crt = CRT.query.options(
+            joinedload(CRT.remitente).joinedload(
+                Remitente.ciudad).joinedload(Ciudad.pais),
+            joinedload(CRT.transportadora).joinedload(
+                Transportadora.ciudad).joinedload(Ciudad.pais),
+            joinedload(CRT.destinatario).joinedload(
+                Remitente.ciudad).joinedload(Ciudad.pais),
+            joinedload(CRT.consignatario).joinedload(
+                Remitente.ciudad).joinedload(Ciudad.pais),
+            joinedload(CRT.notificar_a).joinedload(
+                Remitente.ciudad).joinedload(Ciudad.pais),
+            joinedload(CRT.moneda),
+            joinedload(CRT.gastos).joinedload(CRT_Gasto.moneda_remitente),
+            joinedload(CRT.gastos).joinedload(CRT_Gasto.moneda_destinatario),
+            joinedload(CRT.ciudad_emision),
+            joinedload(CRT.pais_emision)
+        ).get_or_404(crt_id)
+
+        # ✅ AHORA SÍ TENEMOS TODOS LOS DATOS CARGADOS
         remitente = crt.remitente
         transportadora = crt.transportadora
         destinatario = crt.destinatario
         consignatario = crt.consignatario
         notificar_a = crt.notificar_a
+
+        # ✅ DEBUG: Verificar que los datos estén cargados
+        print(f"🔍 Generando PDF CRT {crt.numero_crt}")
+        print(
+            f"   Remitente: {remitente.nombre if remitente else 'NO ENCONTRADO'}")
+        print(
+            f"   Transportadora: {transportadora.nombre if transportadora else 'NO ENCONTRADO'}")
+        print(
+            f"   Destinatario: {destinatario.nombre if destinatario else 'NO ENCONTRADO'}")
+        print(
+            f"   Consignatario: {consignatario.nombre if consignatario else 'NO ENCONTRADO'}")
+        print(
+            f"   Notificar a: {notificar_a.nombre if notificar_a else 'NO ENCONTRADO'}")
+        print(f"   Gastos: {len(crt.gastos)} items")
 
         output = BytesIO()
         c = canvas.Canvas(output, pagesize=A4)
@@ -806,9 +886,473 @@ def generar_pdf_crt(crt_id):
             except Exception:
                 return str(num) if num not in [None, "None"] else ""
 
+        # ✅ VERIFICACIÓN ADICIONAL DE DATOS ANTES DE USAR
+        def safe_get_attr(obj, attr, default=""):
+            """Función segura para obtener atributos con fallback"""
+            if obj is None:
+                return default
+            return getattr(obj, attr, default) or default
+
         max_width = 250
         max_width_trans = 250
         x_trans = 300
+
+        # =============== CAMPO 1: REMITENTE ===============
+        if remitente:
+            x_rem = 35
+            y_rem = 842 - 87 - 12
+
+            c.setFont("Helvetica-Bold", 7.98)
+            c.drawString(x_rem, y_rem, safe_get_attr(remitente, 'nombre'))
+
+            direccion_lines = wrap_text_multiline(
+                safe_get_attr(remitente, 'direccion'), "Helvetica", 6, max_width)
+            c.setFont("Helvetica", 6)
+            for linea_dir in direccion_lines:
+                y_rem -= 9
+                c.drawString(x_rem, y_rem, linea_dir)
+
+            y_rem -= 9
+            ciudad = safe_get_attr(
+                remitente.ciudad, 'nombre') if remitente.ciudad else ""
+            pais = safe_get_attr(
+                remitente.ciudad.pais, 'nombre') if remitente.ciudad and remitente.ciudad.pais else ""
+            c.drawString(x_rem, y_rem, f"{ciudad} - {pais}")
+
+            y_rem -= 9
+            tipo_doc = safe_get_attr(remitente, 'tipo_documento', 'RUC')
+            num_doc = safe_get_attr(remitente, 'numero_documento')
+            c.drawString(x_rem, y_rem, f"{tipo_doc}: {num_doc}")
+
+        # =============== CAMPO 3: TRANSPORTADORA ===============
+        if transportadora:
+            y_trans = 842 - 105 - 12
+            c.setFont("Helvetica-Bold", 9)
+            nombre = safe_get_attr(transportadora, 'nombre').strip()
+            w_nombre = stringWidth(nombre, "Helvetica-Bold", 9)
+            c.drawString(x_trans + (max_width_trans -
+                         w_nombre) / 2, y_trans, nombre)
+            c.setFont("Helvetica", 7)
+
+            # Dirección (solo si existe y no es vacío o espacios)
+            direccion = safe_get_attr(transportadora, 'direccion').strip()
+            if direccion:
+                y_trans -= 10
+                w_dir = stringWidth(direccion, "Helvetica", 7)
+                c.drawString(x_trans + (max_width_trans -
+                             w_dir) / 2, y_trans, direccion)
+
+            # Tipo y número de documento (solo si ambos existen y no son espacios)
+            tipo_doc_trans = safe_get_attr(
+                transportadora, 'tipo_documento').strip()
+            num_doc_trans = safe_get_attr(
+                transportadora, 'numero_documento').strip()
+            if tipo_doc_trans and num_doc_trans:
+                y_trans -= 10
+                doc_line = f"{tipo_doc_trans}: {num_doc_trans}"
+                w_doc = stringWidth(doc_line, "Helvetica", 7)
+                c.drawString(x_trans + (max_width_trans -
+                             w_doc) / 2, y_trans, doc_line)
+
+            # Teléfono (solo si existe, no es vacío, ni solo espacios)
+            telefono = safe_get_attr(transportadora, 'telefono').strip()
+            if telefono:
+                y_trans -= 10
+                tel = f"Tel: {telefono}"
+                w_tel = stringWidth(tel, "Helvetica", 7)
+                c.drawString(
+                    x_trans + (max_width_trans - w_tel) / 2, y_trans, tel)
+
+            # Ciudad y país (solo si al menos uno existe, no espacios)
+            ciudad_trans = safe_get_attr(
+                transportadora.ciudad, 'nombre') if transportadora.ciudad else ""
+            pais_trans = safe_get_attr(
+                transportadora.ciudad.pais, 'nombre') if transportadora.ciudad and transportadora.ciudad.pais else ""
+            if ciudad_trans or pais_trans:
+                loc = f"{ciudad_trans} - {pais_trans}".strip(" -")
+                y_trans -= 10
+                w_loc = stringWidth(loc, "Helvetica", 7)
+                c.drawString(
+                    x_trans + (max_width_trans - w_loc) / 2, y_trans, loc)
+
+        # =============== CAMPO 4: DESTINATARIO ===============
+        if destinatario:
+            x_dest = 35
+            y_dest = 842 - 147 - 12
+
+            c.setFont("Helvetica-Bold", 7.98)
+            c.drawString(x_dest, y_dest, safe_get_attr(destinatario, 'nombre'))
+
+            direccion_dest_lines = wrap_text_multiline(
+                safe_get_attr(destinatario, 'direccion'), "Helvetica", 6, max_width)
+            c.setFont("Helvetica", 6)
+            for linea_dir in direccion_dest_lines:
+                y_dest -= 9
+                c.drawString(x_dest, y_dest, linea_dir)
+
+            y_dest -= 9
+            ciudad_dest = safe_get_attr(
+                destinatario.ciudad, 'nombre') if destinatario.ciudad else ""
+            pais_dest = safe_get_attr(
+                destinatario.ciudad.pais, 'nombre') if destinatario.ciudad and destinatario.ciudad.pais else ""
+            c.drawString(x_dest, y_dest, f"{ciudad_dest} - {pais_dest}")
+
+            y_dest -= 9
+            tipo_doc_dest = safe_get_attr(
+                destinatario, 'tipo_documento', 'RUC')
+            num_doc_dest = safe_get_attr(destinatario, 'numero_documento')
+            c.drawString(x_dest, y_dest, f"{tipo_doc_dest}: {num_doc_dest}")
+
+        # =============== CAMPO 6: CONSIGNATARIO ===============
+        if consignatario:
+            x_cons = 35
+            y_cons = 842 - 206 - 12
+
+            c.setFont("Helvetica-Bold", 7.98)
+            c.drawString(x_cons, y_cons, safe_get_attr(
+                consignatario, 'nombre'))
+
+            direccion_cons_lines = wrap_text_multiline(
+                safe_get_attr(consignatario, 'direccion'), "Helvetica", 6, max_width)
+            c.setFont("Helvetica", 6)
+            for linea_dir in direccion_cons_lines:
+                y_cons -= 9
+                c.drawString(x_cons, y_cons, linea_dir)
+
+            y_cons -= 9
+            ciudad_cons = safe_get_attr(
+                consignatario.ciudad, 'nombre') if consignatario.ciudad else ""
+            pais_cons = safe_get_attr(
+                consignatario.ciudad.pais, 'nombre') if consignatario.ciudad and consignatario.ciudad.pais else ""
+            c.drawString(x_cons, y_cons, f"{ciudad_cons} - {pais_cons}")
+
+            y_cons -= 9
+            tipo_doc_cons = safe_get_attr(
+                consignatario, 'tipo_documento', 'RUC')
+            num_doc_cons = safe_get_attr(consignatario, 'numero_documento')
+            c.drawString(x_cons, y_cons, f"{tipo_doc_cons}: {num_doc_cons}")
+
+        # =============== CAMPO 9: NOTIFICAR A ===============
+        if notificar_a:
+            x_notif = 35
+            y_notif = 842 - 267 - 12
+
+            c.setFont("Helvetica-Bold", 7.98)
+            c.drawString(x_notif, y_notif, safe_get_attr(
+                notificar_a, 'nombre'))
+
+            direccion_notif_lines = wrap_text_multiline(
+                safe_get_attr(notificar_a, 'direccion'), "Helvetica", 6, max_width)
+            c.setFont("Helvetica", 6)
+            for linea_dir in direccion_notif_lines:
+                y_notif -= 9
+                c.drawString(x_notif, y_notif, linea_dir)
+
+            y_notif -= 9
+            ciudad_notif = safe_get_attr(
+                notificar_a.ciudad, 'nombre') if notificar_a.ciudad else ""
+            pais_notif = safe_get_attr(
+                notificar_a.ciudad.pais, 'nombre') if notificar_a.ciudad and notificar_a.ciudad.pais else ""
+            c.drawString(x_notif, y_notif, f"{ciudad_notif} - {pais_notif}")
+
+            y_notif -= 9
+            tipo_doc_notif = safe_get_attr(
+                notificar_a, 'tipo_documento', 'RUC')
+            num_doc_notif = safe_get_attr(notificar_a, 'numero_documento')
+            c.drawString(x_notif, y_notif,
+                         f"{tipo_doc_notif}: {num_doc_notif}")
+
+        # ========== Campo 2: Número CRT ==========
+        x_num_crt = 400
+        y_num_crt_ill = 92
+        y_num_crt_pdf = 842 - y_num_crt_ill
+        c.setFont("Helvetica-Bold", 10)
+        c.drawString(x_num_crt, y_num_crt_pdf, str(crt.numero_crt))
+
+        # ========== Campo 5 ==========
+        x_emision = 300
+        y_emision = 842 - 168 - 20
+        texto_emision = "ASUNCIÓN - PARAGUAY"
+        c.setFont("Helvetica", 8)
+        w_emision = stringWidth(texto_emision, "Helvetica", 8)
+        c.drawString(x_emision + (max_width_trans - w_emision) /
+                     2, y_emision, texto_emision)
+
+        # ========== Campo 7 ==========
+        x_campo7 = 300
+        y_campo7 = y_emision - 50
+        ciudad7 = safe_get_attr(
+            remitente.ciudad, 'nombre') if remitente and remitente.ciudad else ""
+        pais7 = safe_get_attr(
+            remitente.ciudad.pais, 'nombre') if remitente and remitente.ciudad and remitente.ciudad.pais else ""
+        fecha7 = crt.fecha_emision.strftime(
+            '%d-%m-%Y') if crt.fecha_emision else ""
+        texto_campo7 = f"{ciudad7.upper()} - {pais7.upper()}-{fecha7}"
+        c.setFont("Helvetica", 8)
+        w_campo7 = stringWidth(texto_campo7, "Helvetica", 8)
+        c.drawString(x_campo7 + (max_width_trans - w_campo7) /
+                     2, y_campo7, texto_campo7)
+
+        # ========== Campo 8 ==========
+        x_campo8 = 300
+        y_campo8 = y_campo7 - 37
+        ciudad_dest_8 = safe_get_attr(
+            destinatario.ciudad, 'nombre') if destinatario and destinatario.ciudad else ""
+        pais_dest_8 = safe_get_attr(
+            destinatario.ciudad.pais, 'nombre') if destinatario and destinatario.ciudad and destinatario.ciudad.pais else ""
+        texto_campo8 = f"{ciudad_dest_8} - {pais_dest_8}"
+        c.setFont("Helvetica", 8)
+        w_campo8 = stringWidth(texto_campo8, "Helvetica", 8)
+        c.drawString(x_campo8 + (max_width_trans - w_campo8) /
+                     2, y_campo8, texto_campo8)
+
+        # ========== Campo 10 ==========
+        x_campo10 = 300
+        y_campo10 = y_campo8 - 37
+        texto_campo10 = safe_get_attr(crt, "transporte_sucesivos")
+        c.setFont("Helvetica", 7)
+        campo10_lines = wrap_text_multiline(
+            texto_campo10, "Helvetica", 7, max_width_trans)
+        for linea in campo10_lines:
+            w_line = stringWidth(linea, "Helvetica", 7)
+            c.drawString(x_campo10 + (max_width_trans -
+                         w_line) / 2, y_campo10, linea)
+            y_campo10 -= 10
+
+        # ========== CAMPO 11: DETALLES DE MERCADERÍA ==========
+        x11 = 34
+        y11 = 498
+        width11 = 375
+        height11 = 100
+        texto_campo11 = safe_get_attr(crt, 'detalles_mercaderia')
+
+        draw_text_fit_area(
+            c, texto_campo11,
+            x=x11, y=y11, width=width11, height=height11,
+            fontName="Helvetica", min_font=4.80, max_font=7.50, leading_ratio=1.13
+        )
+
+        # ========== CAMPO 15: COSTOS ==========
+        y_start = 370
+        row_height = 14
+        y_min = 250
+
+        x_tramo = 38
+        max_tramo_width = 140 - x_tramo - 5
+        x_remitente = 180
+        x_moneda = 210
+        x_destinatario = 280
+
+        moneda_codigo = (
+            safe_get_attr(crt.moneda, "codigo") if crt.moneda and hasattr(crt.moneda, "codigo")
+            else (safe_get_attr(crt.moneda, "nombre") if crt.moneda else "")
+        )
+        gastos = crt.gastos or []
+        y_row = y_start
+        max_rows = int((y_start - y_min) // row_height)
+        gastos_visibles = gastos[:max_rows]
+
+        c.setFont("Helvetica", 8)
+        for gasto in gastos_visibles:
+            tramo_text = safe_get_attr(gasto, 'tramo')
+            draw_text_fit_area(
+                c, tramo_text, x=x_tramo, y=y_row, width=max_tramo_width,
+                height=row_height - 1, fontName="Helvetica", min_font=5, max_font=8, leading_ratio=1.13
+            )
+            valor_remitente = format_number(
+                gasto.valor_remitente, 2) if gasto.valor_remitente not in [None, "None", ""] else ""
+            valor_destinatario = format_number(
+                gasto.valor_destinatario, 2) if gasto.valor_destinatario not in [None, "None", ""] else ""
+            c.setFont("Helvetica", 8)
+            c.drawRightString(x_remitente, y_row, valor_remitente)
+            c.drawString(x_moneda, y_row, moneda_codigo)
+            c.drawRightString(x_destinatario, y_row, valor_destinatario)
+            y_row -= row_height
+
+        y_total = 308
+        total_remitente = sum(float(g.valor_remitente or 0)
+                              for g in gastos_visibles if g.valor_remitente not in [None, "None", ""])
+        total_destinatario = sum(float(g.valor_destinatario or 0)
+                                 for g in gastos_visibles if g.valor_destinatario not in [None, "None", ""])
+        c.setFont("Helvetica-Bold", 8)
+        if total_remitente:
+            c.drawRightString(x_remitente, y_total,
+                              format_number(total_remitente, 2))
+            c.drawString(x_moneda, y_total, moneda_codigo)
+        if total_destinatario:
+            c.drawRightString(x_destinatario, y_total,
+                              format_number(total_destinatario, 2))
+            c.drawString(x_moneda, y_total, moneda_codigo)
+
+        # ========== CAMPO 12: Peso bruto y neto ==========
+        x12_valor = 500
+        y12_pb = 505
+        y12_pn = 490
+
+        c.setFont("Helvetica", 10)
+        peso_bruto = format_number(crt.peso_bruto)
+        peso_neto = format_number(crt.peso_neto)
+        c.drawString(x12_valor, y12_pb, peso_bruto)
+        c.drawString(x12_valor, y12_pn, peso_neto)
+
+        # ========== CAMPO 13: Volumen ==========
+        x13 = 465
+        y13 = 472
+        volumen = format_number(crt.volumen, decimals=5)
+        c.setFont("Helvetica", 9)
+        c.drawString(x13, y13, volumen)
+
+        # ========== CAMPO 14: Incoterm, Moneda y Valor ==========
+        x14 = 415
+        y14 = 450
+        incoterm = safe_get_attr(crt, 'incoterm')
+        valor_incoterm = format_number(crt.valor_incoterm or 0, decimals=2)
+        c.setFont("Helvetica", 10)
+        c.drawString(x14, y14, incoterm)
+        c.drawString(x14 + 30, y14, moneda_codigo)
+        c.drawRightString(550, y14, valor_incoterm)
+
+        c.setFont("Helvetica", 9)
+        nombre_moneda = safe_get_attr(
+            crt.moneda, 'nombre') if crt.moneda else ""
+        c.drawString(x14, y14 - 25, nombre_moneda.upper())
+
+        # Segundo Incoterm junto a la palabra "INCOTERM"
+        x_incoterm = 475
+        y_incoterm = y14 - 39
+        c.setFont("Helvetica", 10)
+        c.drawString(x_incoterm, y_incoterm, incoterm)
+
+        # ========== CAMPO 16: Declaración del valor ==========
+        x16 = 450
+        y16 = 842 - 442 - 8
+        c.setFont("Helvetica-Bold", 8)
+        c.drawString(x16, y16, format_number(
+            crt.declaracion_mercaderia, decimals=2))
+
+        # ========== CAMPO 17: Documentos Anexos ==========
+        x_factura = 465
+        y_factura = 371
+        x_despacho = 465
+        y_despacho = 357
+        c.setFont("Helvetica-Bold", 9)
+        c.drawString(x_factura, y_factura, safe_get_attr(
+            crt, 'factura_exportacion'))
+        c.drawString(x_despacho, y_despacho,
+                     safe_get_attr(crt, 'nro_despacho'))
+
+        # ========== CAMPO 18: Formalidades Aduana ==========
+        x18 = 305
+        y18 = 235
+        width18 = 410
+        height18 = 54
+        texto_campo18 = safe_get_attr(crt, 'formalidades_aduana')
+        draw_text_fit_area(
+            c, texto_campo18, x=x18, y=y18 + height18, width=width18,
+            height=height18, fontName="Helvetica", min_font=5.0, max_font=8.5, leading_ratio=1.13
+        )
+
+        # ========== CAMPO 19 ==========
+        x_moneda_19 = 110
+        x_valor_19 = 220
+        y_19 = 288
+        valor_flete_externo = ""
+        if gastos:
+            primer_gasto = gastos[0]
+            if primer_gasto.valor_remitente not in [None, "None", ""]:
+                valor_flete_externo = format_number(
+                    primer_gasto.valor_remitente, 2)
+            elif primer_gasto.valor_destinatario not in [None, "None", ""]:
+                valor_flete_externo = format_number(
+                    primer_gasto.valor_destinatario, 2)
+        codigo_moneda_19 = safe_get_attr(crt.moneda, "codigo") if crt.moneda and hasattr(
+            crt.moneda, "codigo") else (safe_get_attr(crt.moneda, "nombre") if crt.moneda else "")
+        c.setFont("Helvetica", 8)
+        c.drawString(x_moneda_19, y_19, codigo_moneda_19)
+        c.drawRightString(x_valor_19, y_19, valor_flete_externo)
+
+        # ========== CAMPO 20 ==========
+        x_moneda_20 = x_moneda_19
+        x_valor_20 = x_valor_19
+        y_20 = y_19 - 22
+        valor_reembolso = ""
+        if hasattr(crt, "valor_reembolso") and crt.valor_reembolso not in [None, "None", ""]:
+            valor_reembolso = format_number(crt.valor_reembolso, 2)
+        c.setFont("Helvetica", 8)
+        c.drawString(x_moneda_20, y_20, codigo_moneda_19)
+        if valor_reembolso:
+            c.drawRightString(x_valor_20, y_20, valor_reembolso)
+
+        # ========== CAMPO 21: REMITENTE ==========
+        x21_nombre = 38
+        y21_nombre = 230
+        x21_fecha = 100
+        y21_fecha = 193
+        remitente_nombre = safe_get_attr(
+            remitente, 'nombre') if remitente else ""
+        fecha_emision = crt.fecha_emision.strftime(
+            '%d/%m/%Y') if crt.fecha_emision else ""
+        c.setFont("Helvetica-Bold", 9)
+        c.drawString(x21_nombre, y21_nombre, remitente_nombre)
+        c.setFont("Helvetica", 8)
+        c.drawString(x21_fecha, y21_fecha, fecha_emision)
+
+        # ========== CAMPO 23: TRANSPORTADORA ==========
+        x23_nombre = 38
+        y23_nombre = 130
+        x23_fecha = 100
+        y23_fecha = 87
+        transportadora_nombre = safe_get_attr(
+            transportadora, 'nombre') if transportadora else ""
+        c.setFont("Helvetica-Bold", 9)
+        c.drawString(x23_nombre, y23_nombre, transportadora_nombre)
+        c.setFont("Helvetica", 8)
+        c.drawString(x23_fecha, y23_fecha, fecha_emision)
+
+        # ========== CAMPO 24: DESTINATARIO ==========
+        x24_nombre = 305
+        y24_nombre = 152
+        x24_fecha = 380
+        y24_fecha = 87
+        destinatario_nombre = safe_get_attr(
+            destinatario, 'nombre') if destinatario else ""
+        c.setFont("Helvetica-Bold", 9)
+        c.drawString(x24_nombre, y24_nombre, destinatario_nombre)
+        c.setFont("Helvetica", 8)
+        c.drawString(x24_fecha, y24_fecha, fecha_emision)
+
+        # ========== CAMPO 22: Declaraciones y observaciones ==========
+        x22 = 305
+        y22 = 243
+        width22 = 260
+        height22 = 60
+        texto_campo22 = safe_get_attr(crt, 'observaciones')
+        draw_text_fit_area(
+            c, texto_campo22, x=x22, y=y22, width=width22, height=height22,
+            fontName="Helvetica", min_font=5.0, max_font=8.0, leading_ratio=1.13
+        )
+
+        # Guarda y responde
+        c.save()
+        output.seek(0)
+
+        print(f"✅ PDF CRT {crt.numero_crt} generado exitosamente")
+
+        return send_file(
+            output,
+            mimetype="application/pdf",
+            as_attachment=True,
+            download_name=f"CRT_{crt.numero_crt}.pdf"
+        )
+
+    except Exception as e:
+        print(f"\n❌ ERROR EN GENERAR PDF CRT {crt_id}".center(80, "-"))
+        print(f"Error: {str(e)}")
+        print(traceback.format_exc())
+        return jsonify({
+            "error": f"Error generando PDF: {str(e)}",
+            "trace": traceback.format_exc()
+        }), 500
 
         # =============== CAMPO 1: REMITENTE ===============
         x_rem = 35
@@ -1240,6 +1784,153 @@ def obtener_campo15(crt_id):
     crt = CRT.query.options(joinedload(CRT.gastos)).filter_by(
         id=crt_id).first_or_404()
     return jsonify({"items": [to_dict_gasto(g) for g in crt.gastos]})
+
+# ========== ✅ NUEVOS ENDPOINTS PARA DATOS AUXILIARES ==========
+
+
+@crt_bp.route('/data/transportadoras', methods=['GET'])
+def obtener_transportadoras():
+    """
+    ✅ NUEVO: Obtener lista de transportadoras para filtros y formularios
+    """
+    try:
+        transportadoras = Transportadora.query.options(
+            joinedload(Transportadora.ciudad).joinedload(Ciudad.pais)
+        ).order_by(Transportadora.nombre).all()
+
+        items = []
+        for t in transportadoras:
+            items.append({
+                "id": t.id,
+                "nombre": t.nombre,
+                "direccion": t.direccion or "",
+                "tipo_documento": t.tipo_documento or "",
+                "numero_documento": t.numero_documento or "",
+                "telefono": getattr(t, 'telefono', '') or "",
+                "ciudad": t.ciudad.nombre if t.ciudad else "",
+                "pais": t.ciudad.pais.nombre if t.ciudad and t.ciudad.pais else ""
+            })
+
+        return jsonify({
+            "items": items,
+            "total": len(items)
+        })
+
+    except Exception as e:
+        print(f"❌ Error obteniendo transportadoras: {e}")
+        return jsonify({"error": str(e)}), 500
+
+
+@crt_bp.route('/data/entidades', methods=['GET'])
+def obtener_entidades():
+    """
+    ✅ NUEVO: Obtener lista de entidades (remitentes/destinatarios) para formularios
+    """
+    try:
+        entidades = Remitente.query.options(
+            joinedload(Remitente.ciudad).joinedload(Ciudad.pais)
+        ).order_by(Remitente.nombre).all()
+
+        items = []
+        for e in entidades:
+            items.append({
+                "id": e.id,
+                "nombre": e.nombre,
+                "direccion": e.direccion or "",
+                "tipo_documento": e.tipo_documento or "",
+                "numero_documento": e.numero_documento or "",
+                "ciudad": e.ciudad.nombre if e.ciudad else "",
+                "pais": e.ciudad.pais.nombre if e.ciudad and e.ciudad.pais else ""
+            })
+
+        return jsonify({
+            "items": items,
+            "total": len(items)
+        })
+
+    except Exception as e:
+        print(f"❌ Error obteniendo entidades: {e}")
+        return jsonify({"error": str(e)}), 500
+
+
+@crt_bp.route('/data/monedas', methods=['GET'])
+def obtener_monedas():
+    """
+    ✅ NUEVO: Obtener lista de monedas para formularios
+    """
+    try:
+        monedas = Moneda.query.order_by(Moneda.nombre).all()
+
+        items = []
+        for m in monedas:
+            items.append({
+                "id": m.id,
+                "nombre": m.nombre,
+                "codigo": getattr(m, 'codigo', m.nombre[:3].upper()) if hasattr(m, 'codigo') else m.nombre[:3].upper()
+            })
+
+        return jsonify({
+            "items": items,
+            "total": len(items)
+        })
+
+    except Exception as e:
+        print(f"❌ Error obteniendo monedas: {e}")
+        return jsonify({"error": str(e)}), 500
+
+
+@crt_bp.route('/data/ciudades', methods=['GET'])
+def obtener_ciudades():
+    """
+    ✅ NUEVO: Obtener lista de ciudades con países
+    """
+    try:
+        ciudades = Ciudad.query.options(
+            joinedload(Ciudad.pais)
+        ).order_by(Ciudad.nombre).all()
+
+        items = []
+        for c in ciudades:
+            items.append({
+                "id": c.id,
+                "nombre": c.nombre,
+                "pais_id": c.pais_id,
+                "pais": c.pais.nombre if c.pais else ""
+            })
+
+        return jsonify({
+            "items": items,
+            "total": len(items)
+        })
+
+    except Exception as e:
+        print(f"❌ Error obteniendo ciudades: {e}")
+        return jsonify({"error": str(e)}), 500
+
+
+@crt_bp.route('/data/paises', methods=['GET'])
+def obtener_paises():
+    """
+    ✅ NUEVO: Obtener lista de países
+    """
+    try:
+        paises = Pais.query.order_by(Pais.nombre).all()
+
+        items = []
+        for p in paises:
+            items.append({
+                "id": p.id,
+                "nombre": p.nombre
+            })
+
+        return jsonify({
+            "items": items,
+            "total": len(items)
+        })
+
+    except Exception as e:
+        print(f"❌ Error obteniendo países: {e}")
+        return jsonify({"error": str(e)}), 500
 
 
 # Recuerda registrar el blueprint en tu app principal:

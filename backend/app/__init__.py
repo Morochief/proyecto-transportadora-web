@@ -28,6 +28,7 @@ def create_app():
         from .routes.parametros import parametros_bp
         from app.routes.crt import crt_bp
         from app.routes.mic import mic_bp
+        from app.routes.mic_guardados import mic_guardados_bp
 
         # ✅ Se registran solo los módulos necesarios
         app.register_blueprint(paises_bp)
@@ -41,6 +42,7 @@ def create_app():
         app.register_blueprint(parametros_bp)
         app.register_blueprint(crt_bp)
         app.register_blueprint(mic_bp)
+        app.register_blueprint(mic_guardados_bp)
 
     # 🚀 CORRIGE HEADERS DE CORS DESPUÉS DE CADA RESPUESTA
     @app.after_request
