@@ -36,7 +36,6 @@ function CRT() {
   const [selectedTransportadora, setSelectedTransportadora] = useState(null);
   const [monedaTouched, setMonedaTouched] = useState(false);
   const [formErrors, setFormErrors] = useState({});
-  const [formTouched, setFormTouched] = useState({});
   const navigate = useNavigate();
 
   const optCiudadPais = (ciudades, paises) =>
