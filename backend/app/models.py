@@ -58,7 +58,8 @@ class Transportadora(db.Model):
     __tablename__ = 'transportadoras'
     id = db.Column(db.Integer, primary_key=True)
     codigo = db.Column(db.String(30), nullable=False)
-    codigo_interno = db.Column(db.String(30))
+    honorarios = db.Column(db.Numeric(18, 2))
+    moneda_honorarios_id = db.Column(db.Integer, db.ForeignKey('monedas.id'))
     nombre = db.Column(db.String(100), nullable=False)
     direccion = db.Column(db.String(120))
     ciudad_id = db.Column(db.Integer, db.ForeignKey('ciudades.id'))
@@ -69,6 +70,7 @@ class Transportadora(db.Model):
         'Honorario', backref='transportadora', lazy=True)
     movimientos = db.relationship(
         'Movimiento', backref='transportadora', lazy=True)
+    moneda_honorarios = db.relationship('Moneda', foreign_keys=[moneda_honorarios_id])
 
 
 class Honorario(db.Model):

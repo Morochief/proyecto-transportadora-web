@@ -66,12 +66,6 @@ const EnhancedTable = ({ columns, data, onEdit, onDelete }) => {
                             <span className="font-medium">{item[column.field]}</span>
                           </div>
                         )}
-                        {column.field === 'codigo_interno' && (
-                          <div className="flex items-center space-x-2">
-                            <FileText className="w-4 h-4 text-gray-400" />
-                            <span className="font-mono text-sm">{item[column.field] || '-'}</span>
-                          </div>
-                        )}
                         {column.field === 'nombre' && (
                           <div className="flex items-center space-x-2">
                             <Truck className="w-4 h-4 text-gray-400" />
@@ -108,7 +102,7 @@ const EnhancedTable = ({ columns, data, onEdit, onDelete }) => {
                             <span className="font-mono text-sm">{item[column.field] || '-'}</span>
                           </div>
                         )}
-                        {!['codigo', 'codigo_interno', 'nombre', 'direccion', 'tipo_documento', 'numero_documento', 'telefono'].includes(column.field) && item[column.field]}
+                        {!['codigo', 'nombre', 'direccion', 'tipo_documento', 'numero_documento', 'telefono'].includes(column.field) && item[column.field]}
                       </>
                     )}
                   </td>
@@ -245,7 +239,8 @@ const EnhancedFormModal = ({ open, onClose, onSubmit, initialValues, fields, tit
                 
                 {/* Iconos contextuales */}
                 {field.name === 'codigo' && <FileText className="absolute right-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />}
-                {field.name === 'codigo_interno' && <FileText className="absolute right-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />}
+                {field.name === 'honorarios' && <DollarSign className="absolute right-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />}
+                {field.name === 'moneda_honorarios_id' && <DollarSign className="absolute right-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />}
                 {field.name === 'nombre' && <Truck className="absolute right-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />}
                 {field.name === 'direccion' && <MapPin className="absolute right-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />}
                 {field.name === 'ciudad_id' && <Building2 className="absolute right-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />}
@@ -356,6 +351,7 @@ const HonorariosModal = ({ open, onClose, transportadora, honorarios }) => {
 function Transportadoras() {
   const [transportadoras, setTransportadoras] = useState([]);
   const [ciudades, setCiudades] = useState([]);
+  const [monedas, setMonedas] = useState([]);
   const [modalOpen, setModalOpen] = useState(false);
   const [editTrans, setEditTrans] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -366,7 +362,17 @@ function Transportadoras() {
 
   const formFields = [
     { name: "codigo", label: "Código", required: true },
-    { name: "codigo_interno", label: "Código Interno", required: false },
+    { name: "honorarios", label: "Honorarios", required: false, type: "number", step: "0.01", placeholder: "0.00" },
+    {
+      name: "moneda_honorarios_id",
+      label: "Moneda de Honorarios",
+      required: false,
+      type: "select",
+      options: [
+        { value: "", label: "---Seleccionar Moneda---" },
+        ...monedas.map((m) => ({ value: m.id, label: `${m.simbolo} - ${m.nombre}` })),
+      ],
+    },
     { name: "nombre", label: "Nombre", required: true },
     { name: "direccion", label: "Dirección", required: false },
     {
@@ -383,6 +389,7 @@ function Transportadoras() {
 
   useEffect(() => {
     fetchCiudades();
+    fetchMonedas();
     fetchTransportadoras();
   }, []);
 
@@ -395,6 +402,15 @@ function Transportadoras() {
     } catch (error) {
       setIsLoading(false);
       console.error('Error fetching ciudades:', error);
+    }
+  };
+
+  const fetchMonedas = async () => {
+    try {
+      const res = await api.get("/monedas/");
+      setMonedas(res.data);
+    } catch (error) {
+      console.error('Error fetching monedas:', error);
     }
   };
 
@@ -562,7 +578,28 @@ function Transportadoras() {
           <EnhancedTable
             columns={[
               { field: "codigo", label: "Código" },
-              { field: "codigo_interno", label: "Código Interno" },
+              {
+                field: "honorarios",
+                label: "Honorarios",
+                render: (h, row) => {
+                  if (row.honorarios && row.moneda_honorarios) {
+                    return (
+                      <div className="flex items-center space-x-2">
+                        <DollarSign className="w-4 h-4 text-green-600" />
+                        <span className="font-medium text-green-700">
+                          {parseFloat(row.honorarios).toLocaleString('es-ES', { minimumFractionDigits: 2 })} {row.moneda_honorarios.simbolo}
+                        </span>
+                      </div>
+                    );
+                  }
+                  return (
+                    <div className="flex items-center space-x-2">
+                      <DollarSign className="w-4 h-4 text-gray-400" />
+                      <span className="text-gray-500">Sin honorarios</span>
+                    </div>
+                  );
+                }
+              },
               { field: "nombre", label: "Nombre" },
               { field: "direccion", label: "Dirección" },
               {
@@ -585,18 +622,16 @@ function Transportadoras() {
               { field: "numero_documento", label: "Número Documento" },
               { field: "telefono", label: "Teléfono" },
               {
-                field: "honorarios",
-                label: "Honorarios",
+                field: "honorarios_registrados",
+                label: "Historial Honorarios",
                 render: (h, row) => {
-                  // Usar contador dinámico basado en los honorarios reales del sistema
                   return (
                     <button
                       onClick={() => openHonorariosModal(row)}
-                      className="flex items-center space-x-2 text-green-600 hover:text-green-700 hover:bg-green-50 px-3 py-1 rounded-lg transition-all duration-300"
+                      className="flex items-center space-x-2 text-blue-600 hover:text-blue-700 hover:bg-blue-50 px-3 py-1 rounded-lg transition-all duration-300"
                     >
-                      <DollarSign className="w-4 h-4" />
-                      <span className="font-medium">Ver honorarios</span>
                       <Eye className="w-4 h-4" />
+                      <span className="font-medium">Ver historial</span>
                     </button>
                   );
                 }
