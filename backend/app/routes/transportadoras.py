@@ -1,6 +1,7 @@
 from flask import Blueprint, request, jsonify
 from app.models import Transportadora, Ciudad
 from app import db
+from sqlalchemy.orm import joinedload
 
 transportadoras_bp = Blueprint('transportadoras', __name__, url_prefix='/api/transportadoras')
 
@@ -17,31 +18,37 @@ def listar_transportadoras():
             db.or_(
                 Transportadora.nombre.ilike(search),
                 Transportadora.codigo.ilike(search),
-                Transportadora.codigo_interno.ilike(search),
                 Transportadora.direccion.ilike(search)
             )
         )
-    transportadoras = query.order_by(Transportadora.id.desc()).paginate(page=page, per_page=per_page)
+    transportadoras = query.options(joinedload(Transportadora.moneda_honorarios)).order_by(Transportadora.id.desc()).paginate(page=page, per_page=per_page)
     return jsonify({
         "items": [
             {
                 "id": t.id,
                 "codigo": t.codigo,
-                "codigo_interno": t.codigo_interno,
+                "honorarios": float(t.honorarios) if t.honorarios else None,
+                "moneda_honorarios_id": t.moneda_honorarios_id,
+                "moneda_honorarios": {
+                    "id": t.moneda_honorarios.id,
+                    "codigo": t.moneda_honorarios.codigo,
+                    "nombre": t.moneda_honorarios.nombre,
+                    "simbolo": t.moneda_honorarios.simbolo
+                } if t.moneda_honorarios else None,
                 "nombre": t.nombre,
                 "direccion": t.direccion,
                 "ciudad_id": t.ciudad_id,
                 "tipo_documento": t.tipo_documento,
                 "numero_documento": t.numero_documento,
                 "telefono": t.telefono,
-                # "honorarios" ahora es una lista de honorarios registrados para esa transportadora
-                "honorarios": [
+                # Historial de honorarios registrados
+                "honorarios_registrados": [
                     {
                         "id": h.id,
                         "descripcion": h.descripcion,
                         "monto": float(h.monto),
                         "fecha": h.fecha.isoformat() if h.fecha else None,
-                        "moneda_id": getattr(h, "moneda_id", None)  # Si existe el campo en tu modelo
+                        "moneda_id": h.moneda_id
                     } for h in t.honorarios_registrados
                 ]
             }
@@ -63,14 +70,14 @@ def crear_transportadora():
         return jsonify({"error": "Ciudad no encontrada"}), 404
     transportadora = Transportadora(
         codigo=data['codigo'],
-        codigo_interno=data.get('codigo_interno'),
+        honorarios=data.get('honorarios'),
+        moneda_honorarios_id=data.get('moneda_honorarios_id'),
         nombre=data['nombre'],
         direccion=data.get('direccion'),
         ciudad_id=data['ciudad_id'],
         tipo_documento=data.get('tipo_documento'),
         numero_documento=data.get('numero_documento'),
         telefono=data.get('telefono')
-        # ⚠️ Ya no se crea con "honorarios", sino que los honorarios van en su propia tabla (Honorario)
     )
     db.session.add(transportadora)
     db.session.commit()
@@ -82,7 +89,8 @@ def modificar_transportadora(id):
     transportadora = Transportadora.query.get_or_404(id)
     data = request.json
     transportadora.codigo = data.get('codigo', transportadora.codigo)
-    transportadora.codigo_interno = data.get('codigo_interno', transportadora.codigo_interno)
+    transportadora.honorarios = data.get('honorarios', transportadora.honorarios)
+    transportadora.moneda_honorarios_id = data.get('moneda_honorarios_id', transportadora.moneda_honorarios_id)
     transportadora.nombre = data.get('nombre', transportadora.nombre)
     transportadora.direccion = data.get('direccion', transportadora.direccion)
     if data.get('ciudad_id'):
