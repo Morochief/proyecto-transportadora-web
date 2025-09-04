@@ -278,21 +278,20 @@ const EnhancedFormModal = ({ open, onClose, onSubmit, initialValues, fields, tit
               </label>
               <div className="relative">
                 {field.type === 'select' ? (
-                  <select
-                    value={formData[field.name] || ""}
-                    onChange={(e) => handleChange(field.name, e.target.value)}
-                    required={field.required}
-                    className={`w-full px-4 py-3 border rounded-xl transition-all duration-300 focus:ring-2 focus:ring-purple-500 focus:border-transparent bg-white hover:border-purple-300 ${
-                      errors[field.name] ? 'border-red-300' : 'border-gray-200'
-                    }`}
-                  >
-                    <option value="">---Seleccionar Ciudad---</option>
-                    {field.options?.map((option) => (
-                      <option key={option.value} value={option.value}>
-                        {option.label}
-                      </option>
-                    ))}
-                  </select>
+                   <select
+                     value={formData[field.name] || ""}
+                     onChange={(e) => handleChange(field.name, e.target.value)}
+                     required={field.required}
+                     className={`w-full px-4 py-3 border rounded-xl transition-all duration-300 focus:ring-2 focus:ring-purple-500 focus:border-transparent bg-white hover:border-purple-300 ${
+                       errors[field.name] ? 'border-red-300' : 'border-gray-200'
+                     }`}
+                   >
+                     {field.options?.map((option) => (
+                       <option key={option.value} value={option.value}>
+                         {option.label}
+                       </option>
+                     ))}
+                   </select>
                 ) : (
                   <input
                     type={field.type || "text"}
@@ -374,8 +373,20 @@ function Remitentes() {
       name: "tipo_documento",
       label: "Tipo de Documento",
       required: true,
-      type: "text",
-      placeholder: "Ej: RUC, CNPJ, RUT",
+      type: "select",
+      options: [
+        { value: "", label: "---Seleccionar Tipo de Documento---" },
+        { value: "RUC", label: "RUC (Registro Único de Contribuyentes)" },
+        { value: "CNPJ", label: "CNPJ (Cadastro Nacional da Pessoa Jurídica)" },
+        { value: "RUT", label: "RUT (Rol Único Tributario)" },
+        { value: "CUIT", label: "CUIT (Código Único de Identificación Tributaria)" },
+        { value: "CUIL", label: "CUIL (Código Único de Identificación Laboral)" },
+        { value: "CPF", label: "CPF (Cadastro de Pessoas Físicas)" },
+        { value: "CI", label: "CI (Cédula de Identidad)" },
+        { value: "DNI", label: "DNI (Documento Nacional de Identidad)" },
+        { value: "PASAPORTE", label: "Pasaporte" },
+        { value: "OTRO", label: "Otro" },
+      ],
     },
     {
       name: "numero_documento",
@@ -479,8 +490,12 @@ function Remitentes() {
       alert("Debes seleccionar una ciudad.");
       return;
     }
-    if (!data.tipo_documento || !data.numero_documento) {
-      alert("Debes cargar tipo y número de documento.");
+    if (!data.tipo_documento) {
+      alert("Debes seleccionar un tipo de documento.");
+      return;
+    }
+    if (!data.numero_documento) {
+      alert("Debes ingresar el número de documento.");
       return;
     }
     
