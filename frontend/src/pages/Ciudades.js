@@ -415,8 +415,8 @@ function Ciudades() {
   // Cargar países desde la API
   const fetchPaises = async () => {
     try {
-      const response = await apiCall('/crts/data/paises');
-      setPaises(response.items || []);
+      const response = await apiCall('/paises/');
+      setPaises(response);
     } catch (error) {
       console.error('Error fetching países:', error);
       showNotification('Error al cargar países: ' + error.message, 'error');
@@ -435,9 +435,9 @@ function Ciudades() {
   const fetchCiudades = async () => {
     setIsLoading(true);
     try {
-      const response = await apiCall('/crts/data/ciudades');
-      setCiudades(response.items || []);
-      showNotification(`${response.items?.length || 0} ciudades cargadas exitosamente`, 'success');
+      const response = await apiCall('/ciudades/');
+      setCiudades(response);
+      showNotification(`${response?.length || 0} ciudades cargadas exitosamente`, 'success');
     } catch (error) {
       console.error('Error fetching ciudades:', error);
       showNotification('Error al cargar ciudades: ' + error.message, 'error');
@@ -502,11 +502,11 @@ function Ciudades() {
         showNotification('Ciudad actualizada exitosamente', 'success');
       } else {
         // Crear nueva ciudad
-        const response = await apiCall('/ciudades', 'POST', data);
-        const newCiudad = { 
-          ...data, 
-          id: response.id || Date.now(), 
-          pais: paisSelected?.nombre || '' 
+        const response = await apiCall('/ciudades/', 'POST', data);
+        const newCiudad = {
+          ...data,
+          id: response.id || Date.now(),
+          pais: paisSelected?.nombre || ''
         };
         setCiudades(prev => [...prev, newCiudad]);
         showNotification('Ciudad creada exitosamente', 'success');
