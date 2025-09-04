@@ -154,18 +154,16 @@ const ModalMICCompleto = ({
                 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Campo 3 - Tipo Transporte
+                    Campo 3 - Tránsito aduanero
                   </label>
                   <select
                     value={formData.campo_3_transporte}
                     onChange={(e) => handleInputChange('campo_3_transporte', e.target.value)}
                     className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
                   >
-                    <option value="">Seleccionar tipo</option>
-                    <option value="TERRESTRE">TERRESTRE</option>
-                    <option value="MARÍTIMO">MARÍTIMO</option>
-                    <option value="AÉREO">AÉREO</option>
-                    <option value="MULTIMODAL">MULTIMODAL</option>
+                    <option value="">Seleccionar opción</option>
+                    <option value="SI">SI</option>
+                    <option value="NO">NO</option>
                   </select>
                 </div>
                 
