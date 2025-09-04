@@ -68,6 +68,7 @@ class Transportadora(db.Model):
     tipo_documento = db.Column(db.String(30))
     numero_documento = db.Column(db.String(40))
     telefono = db.Column(db.String(100))
+    rol_contribuyente = db.Column(db.String(50), nullable=True)
     honorarios_registrados = db.relationship(
         'Honorario', backref='transportadora', lazy=True)
     movimientos = db.relationship(

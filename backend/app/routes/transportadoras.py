@@ -41,6 +41,7 @@ def listar_transportadoras():
                 "tipo_documento": t.tipo_documento,
                 "numero_documento": t.numero_documento,
                 "telefono": t.telefono,
+                "rol_contribuyente": t.rol_contribuyente,
                 # Historial de honorarios registrados
                 "honorarios_registrados": [
                     {
@@ -77,7 +78,8 @@ def crear_transportadora():
         ciudad_id=data['ciudad_id'],
         tipo_documento=data.get('tipo_documento'),
         numero_documento=data.get('numero_documento'),
-        telefono=data.get('telefono')
+        telefono=data.get('telefono'),
+        rol_contribuyente=data.get('rol_contribuyente')
     )
     db.session.add(transportadora)
     db.session.commit()
@@ -101,6 +103,7 @@ def modificar_transportadora(id):
     transportadora.tipo_documento = data.get('tipo_documento', transportadora.tipo_documento)
     transportadora.numero_documento = data.get('numero_documento', transportadora.numero_documento)
     transportadora.telefono = data.get('telefono', transportadora.telefono)
+    transportadora.rol_contribuyente = data.get('rol_contribuyente', transportadora.rol_contribuyente)
     db.session.commit()
     return jsonify({"message": "Transportadora modificada"})
 

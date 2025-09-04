@@ -267,6 +267,7 @@ const EnhancedFormModal = ({ open, onClose, onSubmit, initialValues, fields, tit
                 {field.name === 'tipo_documento' && <CreditCard className="absolute right-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />}
                 {field.name === 'numero_documento' && <FileText className="absolute right-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />}
                 {field.name === 'telefono' && <Phone className="absolute right-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />}
+                {field.name === 'rol_contribuyente' && <CreditCard className="absolute right-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />}
               </div>
               {errors[field.name] && (
                 <p className="text-red-500 text-sm">{errors[field.name]}</p>
@@ -423,6 +424,7 @@ function Transportadoras() {
     },
     { name: "numero_documento", label: "Número de Documento", required: false },
     { name: "telefono", label: "Teléfono", required: false },
+    { name: "rol_contribuyente", label: "Rol del Contribuyente", required: false },
   ];
 
   useEffect(() => {
@@ -659,6 +661,7 @@ function Transportadoras() {
               { field: "tipo_documento", label: "Tipo Documento" },
               { field: "numero_documento", label: "Número Documento" },
               { field: "telefono", label: "Teléfono" },
+              { field: "rol_contribuyente", label: "Rol del Contribuyente" },
               {
                 field: "honorarios_registrados",
                 label: "Historial Honorarios",
