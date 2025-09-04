@@ -235,7 +235,6 @@ const EnhancedFormModal = ({ open, onClose, onSubmit, initialValues, fields, tit
                       errors[field.name] ? 'border-red-300' : 'border-gray-200'
                     }`}
                   >
-                    <option value="">---Seleccionar Ciudad---</option>
                     {field.options?.map((option) => (
                       <option key={option.value} value={option.value}>
                         {option.label}
