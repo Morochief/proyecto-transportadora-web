@@ -69,6 +69,7 @@ def to_dict_crt(crt):
         "remitente": crt.remitente.nombre if crt.remitente else "",
         "transportadora_id": crt.transportadora_id,
         "transportadora": crt.transportadora.nombre if crt.transportadora else "",
+        "transportadora_rol_contribuyente": crt.transportadora.rol_contribuyente if crt.transportadora else "",
         "destinatario_id": crt.destinatario_id,
         "destinatario": crt.destinatario.nombre if crt.destinatario else "",
         "consignatario_id": crt.consignatario_id,
