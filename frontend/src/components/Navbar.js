@@ -102,10 +102,6 @@ function Navbar() {
       >
         <FaMoneyCheckAlt /> Honorarios
       </Link>
-      // En el menú de navegación
-      <Link to="/mics-guardados" className="nav-link">
-        📋 MICs Guardados
-      </Link>
       <span
         onClick={handleLogout}
         className="ml-auto cursor-pointer hover:text-red-300"

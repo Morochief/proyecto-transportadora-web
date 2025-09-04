@@ -44,7 +44,7 @@ function FormModal({ open, onClose, onSubmit, initialValues, fields, title }) {
                   name={field.name}
                   value={formData[field.name] || ""}
                   onChange={handleChange}
-                  required={field.required}
+                  required={field.required ? true : undefined}
                   className="w-full border rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
                 >
                   <option value="">
@@ -63,7 +63,7 @@ function FormModal({ open, onClose, onSubmit, initialValues, fields, title }) {
                   name={field.name}
                   value={formData[field.name] || ""}
                   onChange={handleChange}
-                  required={field.required}
+                  required={field.required ? true : undefined}
                   className="w-full border rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
                 />
               )}

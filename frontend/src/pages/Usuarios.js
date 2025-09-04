@@ -9,12 +9,12 @@ function Usuarios() {
   const [modalOpen, setModalOpen] = useState(false);
   const [editUser, setEditUser] = useState(null);
   const [formFields] = useState([
-    { name: "nombre_completo", label: "Nombre Completo", required: true },
-    { name: "usuario", label: "Usuario", required: true },
-    { name: "email", label: "Email", required: false },
-    { name: "telefono", label: "Teléfono", required: false },
-    { name: "rol", label: "Rol", required: false },
-    { name: "estado", label: "Estado", required: false },
+    { name: "nombre_completo", label: "Nombre Completo", type: "text", required: true },
+    { name: "usuario", label: "Usuario", type: "text", required: true },
+    { name: "email", label: "Email", type: "email", required: false },
+    { name: "telefono", label: "Teléfono", type: "tel", required: false },
+    { name: "rol", label: "Rol", type: "text", required: false },
+    { name: "estado", label: "Estado", type: "text", required: false },
     { name: "clave", label: "Contraseña", type: "password", required: false },
   ]);
   const [page, setPage] = useState(1);
