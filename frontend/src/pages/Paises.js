@@ -339,20 +339,8 @@ function Paises() {
   const [notification, setNotification] = useState(null);
 
   const formFields = [
-    ...(editPais
-      ? [
-          {
-            name: "codigo",
-            label: "Código",
-            readOnly: true,
-            type: "text",
-          },
-        ]
-      : []),
+    { name: "codigo", label: "Código ISO (2 letras)", required: true, maxLength: 2 },
     { name: "nombre", label: "Nombre del País", required: true },
-    ...(!editPais
-      ? [{ name: "codigo", label: "Código ISO (2 letras)", required: true, maxLength: 2 }]
-      : []),
   ];
 
   // Función para mostrar notificaciones
@@ -392,9 +380,9 @@ function Paises() {
   const fetchPaises = async () => {
     setIsLoading(true);
     try {
-      const response = await apiCall('/crts/data/paises');
-      setPaises(response.items || []);
-      showNotification(`${response.items?.length || 0} países cargados exitosamente`, 'success');
+      const response = await apiCall('/paises/');
+      setPaises(response);
+      showNotification(`${response?.length || 0} países cargados exitosamente`, 'success');
     } catch (error) {
       console.error('Error fetching países:', error);
       showNotification('Error al cargar países: ' + error.message, 'error');
@@ -448,7 +436,7 @@ function Paises() {
         showNotification('País actualizado exitosamente', 'success');
       } else {
         // Crear nuevo país
-        const response = await apiCall('/paises', 'POST', data);
+        const response = await apiCall('/paises/', 'POST', data);
         const newPais = { ...data, id: response.id || Date.now() };
         setPaises(prev => [...prev, newPais]);
         showNotification('País creado exitosamente', 'success');

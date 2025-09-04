@@ -88,6 +88,9 @@ function CRT() {
     fecha_firma: "",
     gastos: [],
     local_responsabilidad: "",
+    firma_remitente_id: null,
+    firma_transportador_id: null,
+    firma_destinatario_id: null,
   });
 
   const [gastoActual, setGastoActual] = useState({
@@ -408,23 +411,10 @@ RUTAS QUE NO FUNCIONAN (las que estábamos usando):
               const lugarAuto = `${ciudad.nombre.toUpperCase()} - ${pais.nombre.toUpperCase()}`;
               console.log("📍 Lugar generado:", lugarAuto);
 
-              // Actualizar formulario solo si está vacío o es igual
+              // Actualizar formulario siempre cuando cambie el destinatario
               setForm((prevForm) => {
-                const shouldUpdate =
-                  !prevForm.lugar_entrega ||
-                  prevForm.lugar_entrega === "" ||
-                  prevForm.lugar_entrega === lugarAuto;
-
-                console.log("🔄 ¿Actualizar lugar_entrega?", shouldUpdate);
-                console.log("- Valor actual:", prevForm.lugar_entrega);
-
-                if (shouldUpdate) {
-                  console.log("🎉 ✅ AUTOCOMPLETANDO CAMPO 8 CON:", lugarAuto);
-                  return { ...prevForm, lugar_entrega: lugarAuto };
-                } else {
-                  console.log("⏭️ No se actualiza (campo ya tiene valor)");
-                  return prevForm;
-                }
+                console.log("🎉 ✅ AUTOCOMPLETANDO CAMPO 8 CON:", lugarAuto);
+                return { ...prevForm, lugar_entrega: lugarAuto };
               });
             } else {
               console.log(
@@ -563,10 +553,9 @@ Si ves algún error o mensaje ❌, compártelo conmigo.
       { key: 'lugar_entrega', label: 'Lugar de entrega' },
       { key: 'detalles_mercaderia', label: 'Detalles de mercadería' },
       { key: 'peso_bruto', label: 'Peso bruto' },
-      { key: 'volumen', label: 'Volumen' },
+      { key: 'peso_neto', label: 'Peso neto' },
       { key: 'incoterm', label: 'Incoterm' },
       { key: 'valor_incoterm', label: 'Valor incoterm' },
-      { key: 'moneda_id', label: 'Moneda' },
       { key: 'declaracion_mercaderia', label: 'Declaración de mercadería' },
       { key: 'factura_exportacion', label: 'Factura de exportación' },
       { key: 'observaciones', label: 'Observaciones' }
@@ -578,9 +567,25 @@ Si ves algún error o mensaje ❌, compártelo conmigo.
       }
     });
 
+    // Special validation for currency (monedaGasto)
+    if (!monedaGasto || !monedaGasto.value) {
+      errors.moneda_id = 'Moneda es obligatorio';
+    }
+
     // Special validation for ciudad7 (field 7)
     if (!ciudad7) {
       errors.ciudad7 = 'Ciudad y fecha de responsabilidad es obligatorio';
+    }
+
+    // Special validation for signature fields
+    if (!form.firma_remitente_id) {
+      errors.firma_remitente_id = 'Firma del remitente es obligatorio';
+    }
+    if (!form.firma_transportador_id) {
+      errors.firma_transportador_id = 'Firma del transportador es obligatorio';
+    }
+    if (!form.firma_destinatario_id) {
+      errors.firma_destinatario_id = 'Firma del destinatario es obligatorio';
     }
 
     setFormErrors(errors);
@@ -654,6 +659,25 @@ Si ves algún error o mensaje ❌, compártelo conmigo.
       }));
     }
   }, [form.gastos]);
+
+  // Autocompletado de firmas
+  useEffect(() => {
+    if (form.remitente_id && !form.firma_remitente_id) {
+      setForm((f) => ({ ...f, firma_remitente_id: form.remitente_id }));
+    }
+  }, [form.remitente_id]);
+
+  useEffect(() => {
+    if (form.transportadora_id && !form.firma_transportador_id) {
+      setForm((f) => ({ ...f, firma_transportador_id: form.transportadora_id }));
+    }
+  }, [form.transportadora_id]);
+
+  useEffect(() => {
+    if (form.destinatario_id && !form.firma_destinatario_id) {
+      setForm((f) => ({ ...f, firma_destinatario_id: form.destinatario_id }));
+    }
+  }, [form.destinatario_id]);
 
   const handleValorIncotermChange = (e) => {
     let val = e.target.value.replace(/[^\d,]/g, "");
@@ -764,6 +788,13 @@ Si ves algún error o mensaje ❌, compártelo conmigo.
   const handleCiudad7 = (option) => setCiudad7(option);
   const handleFecha7 = (e) => setFecha7(e.target.value);
 
+  const handleFirmaRemitente = (option) =>
+    setForm((f) => ({ ...f, firma_remitente_id: option ? option.value : null }));
+  const handleFirmaTransportador = (option) =>
+    setForm((f) => ({ ...f, firma_transportador_id: option ? option.value : null }));
+  const handleFirmaDestinatario = (option) =>
+    setForm((f) => ({ ...f, firma_destinatario_id: option ? option.value : null }));
+
   const handleLugarEntregaSelect = (option) => {
     setForm((f) => ({
       ...f,
@@ -792,6 +823,9 @@ Si ves algún error o mensaje ❌, compártelo conmigo.
           moneda: monedaCodigo,
         })),
         moneda_id: monedaGasto ? monedaGasto.value : null,
+        firma_remitente_id: form.firma_remitente_id,
+        firma_transportador_id: form.firma_transportador_id,
+        firma_destinatario_id: form.firma_destinatario_id,
       });
       alert("CRT emitido correctamente");
       setForm((f) => ({ ...f, gastos: [] }));
@@ -1126,7 +1160,7 @@ Si ves algún error o mensaje ❌, compártelo conmigo.
                       value={form.peso_neto}
                       onChange={handlePesoInput}
                       onBlur={handlePesoBlur}
-                      className="block rounded border px-2 py-1 w-[120px] text-right"
+                      className={getFieldClass("peso_neto", "block rounded border px-2 py-1 w-[120px] text-right")}
                       inputMode="decimal"
                       placeholder="0,000"
                     />
@@ -1137,12 +1171,17 @@ Si ves algún error o mensaje ❌, compártelo conmigo.
                     {getFieldError('peso_bruto')}
                   </span>
                 )}
+                {getFieldError('peso_neto') && (
+                  <span className="text-xs text-red-500 font-bold block mt-1">
+                    {getFieldError('peso_neto')}
+                  </span>
+                )}
               </label>
             </div>
             <div>
               <label className="block">
                 <span className="font-bold text-xs text-blue-900">
-                  13. Volume em m³ *
+                  13. Volume em m³
                 </span>
                 <br />
                 <span className="font-bold text-xs text-blue-700">
@@ -1154,15 +1193,10 @@ Si ves algún error o mensaje ❌, compártelo conmigo.
                   value={form.volumen}
                   onChange={handleVolumenInput}
                   onBlur={handleVolumenBlur}
-                  className={getFieldClass("volumen", "block w-full rounded border px-2 py-1 text-right")}
+                  className="block w-full rounded border px-2 py-1 text-right"
                   placeholder="0,00000"
                   inputMode="decimal"
                 />
-                {getFieldError('volumen') && (
-                  <span className="text-xs text-red-500 font-bold block mt-1">
-                    {getFieldError('volumen')}
-                  </span>
-                )}
               </label>
             </div>
             <div className="md:col-span-2">
@@ -1475,40 +1509,64 @@ Si ves algún error o mensaje ❌, compártelo conmigo.
                   className="block w-full rounded border px-2 py-1"
                 />
               </label>
-              <div className="border p-2 rounded-lg bg-blue-50 mt-4">
-                <div className="font-bold text-xs text-blue-900">
-                  21. Nombre y firma del remitente
-                </div>
-                <div className="text-sm font-semibold">
-                  {form.remitente_id ? (
-                    remitentes.find((r) => r.id === form.remitente_id)
-                      ?.nombre || "Seleccione remitente"
-                  ) : (
-                    <span className="italic text-gray-400">Sin remitente</span>
-                  )}
-                </div>
+              <label className="block">
+                <span className="font-bold text-xs text-blue-900">
+                  21. Nombre y firma del remitente *
+                </span>
+                <br />
+                <span className="font-bold text-xs text-blue-700">
+                  Nombre y firma del remitente
+                </span>
+                <Select
+                  options={opt(remitentes)}
+                  value={
+                    opt(remitentes).find(
+                      (x) => x.value === form.firma_remitente_id
+                    ) || null
+                  }
+                  onChange={handleFirmaRemitente}
+                  placeholder="Seleccione firma del remitente"
+                  isClearable
+                  className={getFieldError('firma_remitente_id') ? 'border-red-500' : ''}
+                />
+                {getFieldError('firma_remitente_id') && (
+                  <span className="text-xs text-red-500 font-bold block mt-1">
+                    {getFieldError('firma_remitente_id')}
+                  </span>
+                )}
                 <div className="text-xs text-gray-500 mt-1">
                   Fecha: {fecha7 ? formatoFecha(fecha7) : "--/--/----"}
                 </div>
-              </div>
-              <div className="border p-2 rounded-lg bg-blue-50 mt-4">
-                <div className="font-bold text-xs text-blue-900">
-                  23. Nombre y firma del transportador
-                </div>
-                <div className="text-sm font-semibold">
-                  {form.transportadora_id ? (
-                    transportadoras.find((t) => t.id === form.transportadora_id)
-                      ?.nombre || "Seleccione transportadora"
-                  ) : (
-                    <span className="italic text-gray-400">
-                      Sin transportadora
-                    </span>
-                  )}
-                </div>
+              </label>
+              <label className="block">
+                <span className="font-bold text-xs text-blue-900">
+                  23. Nombre y firma del transportador *
+                </span>
+                <br />
+                <span className="font-bold text-xs text-blue-700">
+                  Nombre y firma del transportador
+                </span>
+                <Select
+                  options={opt(transportadoras)}
+                  value={
+                    opt(transportadoras).find(
+                      (x) => x.value === form.firma_transportador_id
+                    ) || null
+                  }
+                  onChange={handleFirmaTransportador}
+                  placeholder="Seleccione firma del transportador"
+                  isClearable
+                  className={getFieldError('firma_transportador_id') ? 'border-red-500' : ''}
+                />
+                {getFieldError('firma_transportador_id') && (
+                  <span className="text-xs text-red-500 font-bold block mt-1">
+                    {getFieldError('firma_transportador_id')}
+                  </span>
+                )}
                 <div className="text-xs text-gray-500 mt-1">
                   Fecha: {fecha7 ? formatoFecha(fecha7) : "--/--/----"}
                 </div>
-              </div>
+              </label>
             </div>
             <div>
               <label className="block">
@@ -1532,24 +1590,35 @@ Si ves algún error o mensaje ❌, compártelo conmigo.
                   </span>
                 )}
               </label>
-              <div className="border p-2 rounded-lg bg-blue-50 mt-4">
-                <div className="font-bold text-xs text-blue-900">
-                  24. Nombre y firma del destinatario
-                </div>
-                <div className="text-sm font-semibold">
-                  {form.destinatario_id ? (
-                    remitentes.find((r) => r.id === form.destinatario_id)
-                      ?.nombre || "Seleccione destinatario"
-                  ) : (
-                    <span className="italic text-gray-400">
-                      Sin destinatario
-                    </span>
-                  )}
-                </div>
+              <label className="block">
+                <span className="font-bold text-xs text-blue-900">
+                  24. Nombre y firma del destinatario *
+                </span>
+                <br />
+                <span className="font-bold text-xs text-blue-700">
+                  Nombre y firma del destinatario
+                </span>
+                <Select
+                  options={opt(remitentes)}
+                  value={
+                    opt(remitentes).find(
+                      (x) => x.value === form.firma_destinatario_id
+                    ) || null
+                  }
+                  onChange={handleFirmaDestinatario}
+                  placeholder="Seleccione firma del destinatario"
+                  isClearable
+                  className={getFieldError('firma_destinatario_id') ? 'border-red-500' : ''}
+                />
+                {getFieldError('firma_destinatario_id') && (
+                  <span className="text-xs text-red-500 font-bold block mt-1">
+                    {getFieldError('firma_destinatario_id')}
+                  </span>
+                )}
                 <div className="text-xs text-gray-500 mt-1">
                   Fecha: {fecha7 ? formatoFecha(fecha7) : "--/--/----"}
                 </div>
-              </div>
+              </label>
             </div>
           </div>
           <div className="flex flex-col md:flex-row gap-4 justify-end mt-8">
