@@ -108,19 +108,40 @@ const EnhancedTable = ({ columns, data, onEdit, onDelete }) => {
                   </td>
                 ))}
                 <td className="px-6 py-4">
-                  <div className="flex justify-center space-x-2 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-                    <button
-                      onClick={() => onEdit(item)}
-                      className="p-2 text-orange-600 hover:bg-orange-100 rounded-lg transition-all duration-300 hover:scale-110"
-                    >
-                      <Edit3 className="w-4 h-4" />
-                    </button>
-                    <button
-                      onClick={() => onDelete(item.id)}
-                      className="p-2 text-red-600 hover:bg-red-100 rounded-lg transition-all duration-300 hover:scale-110"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
+                  <div className="flex justify-center space-x-2">
+                    {/* Desktop: hover to show, Mobile: always visible */}
+                    <div className="hidden md:flex opacity-0 group-hover:opacity-100 transition-opacity duration-300 space-x-2">
+                      <button
+                        onClick={() => onEdit(item)}
+                        className="p-2 text-orange-600 hover:bg-orange-100 rounded-lg transition-all duration-300 hover:scale-110"
+                        title="Editar transportadora"
+                      >
+                        <Edit3 className="w-4 h-4" />
+                      </button>
+                      <button
+                        onClick={() => onDelete(item.id)}
+                        className="p-2 text-red-600 hover:bg-red-100 rounded-lg transition-all duration-300 hover:scale-110"
+                        title="Eliminar transportadora"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
+
+                    {/* Mobile: always visible with text */}
+                    <div className="flex md:hidden space-x-1">
+                      <button
+                        onClick={() => onEdit(item)}
+                        className="px-3 py-1 text-xs bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-all duration-300"
+                      >
+                        Editar
+                      </button>
+                      <button
+                        onClick={() => onDelete(item.id)}
+                        className="px-3 py-1 text-xs bg-red-600 text-white rounded-lg hover:bg-red-700 transition-all duration-300"
+                      >
+                        Eliminar
+                      </button>
+                    </div>
                   </div>
                 </td>
               </tr>
