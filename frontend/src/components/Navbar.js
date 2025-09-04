@@ -102,30 +102,6 @@ function Navbar() {
       >
         <FaMoneyCheckAlt /> Honorarios
       </Link>
-      <Link
-        to="/movimientos"
-        className={`${activeClass(
-          "/movimientos"
-        )} flex items-center gap-1 hover:text-yellow-300`}
-      >
-        <FaFileAlt /> Movimientos
-      </Link>
-      <Link
-        to="/reportes"
-        className={`${activeClass(
-          "/reportes"
-        )} flex items-center gap-1 hover:text-yellow-300`}
-      >
-        <FaFileAlt /> Reportes
-      </Link>
-      <Link
-        to="/parametros"
-        className={`${activeClass(
-          "/parametros"
-        )} flex items-center gap-1 hover:text-yellow-300`}
-      >
-        <FaCogs /> Parámetros
-      </Link>
       // En el menú de navegación
       <Link to="/mics-guardados" className="nav-link">
         📋 MICs Guardados

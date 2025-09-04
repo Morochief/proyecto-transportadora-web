@@ -23,9 +23,6 @@ def create_app():
         from .routes.transportadoras import transportadoras_bp
         from .routes.monedas import monedas_bp
         from .routes.honorarios import honorarios_bp
-        from .routes.movimientos import movimientos_bp
-        from .routes.reportes import reportes_bp
-        from .routes.parametros import parametros_bp
         from app.routes.crt import crt_bp
         from app.routes.mic import mic_bp
         from app.routes.mic_guardados import mic_guardados_bp
@@ -37,9 +34,6 @@ def create_app():
         app.register_blueprint(transportadoras_bp)
         app.register_blueprint(monedas_bp)
         app.register_blueprint(honorarios_bp)
-        app.register_blueprint(movimientos_bp)
-        app.register_blueprint(reportes_bp)
-        app.register_blueprint(parametros_bp)
         app.register_blueprint(crt_bp)
         app.register_blueprint(mic_bp)
         app.register_blueprint(mic_guardados_bp)

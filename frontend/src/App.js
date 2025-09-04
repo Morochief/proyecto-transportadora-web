@@ -15,9 +15,6 @@ import Remitentes from "./pages/Remitentes";
 import Transportadoras from "./pages/Transportadoras";
 import Monedas from "./pages/Monedas";
 import Honorarios from "./pages/Honorarios";
-import Movimientos from "./pages/Movimientos";
-import Reportes from "./pages/Reportes";
-import Parametros from "./pages/Parametros";
 import CRT from "./pages/CRT";
 import ListarCRT from "./pages/ListarCRT";
 
@@ -111,36 +108,6 @@ function App() {
             <PrivateRoute>
               <Layout>
                 <Honorarios />
-              </Layout>
-            </PrivateRoute>
-          }
-        />
-        <Route
-          path="/movimientos"
-          element={
-            <PrivateRoute>
-              <Layout>
-                <Movimientos />
-              </Layout>
-            </PrivateRoute>
-          }
-        />
-        <Route
-          path="/reportes"
-          element={
-            <PrivateRoute>
-              <Layout>
-                <Reportes />
-              </Layout>
-            </PrivateRoute>
-          }
-        />
-        <Route
-          path="/parametros"
-          element={
-            <PrivateRoute>
-              <Layout>
-                <Parametros />
               </Layout>
             </PrivateRoute>
           }
