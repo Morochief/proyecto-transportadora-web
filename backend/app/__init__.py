@@ -128,12 +128,12 @@ def create_app():
     app.debug = True
 
     # ✅ NUEVO: Log de inicialización
-    print("🚀 Sistema Logístico CRT/MIC inicializado")
-    print("✅ Endpoints disponibles:")
+    print("Sistema Logistico CRT/MIC inicializado")
+    print("Endpoints disponibles:")
     print("   - /api/crts (CRUD CRTs)")
     print("   - /api/crts/paginated (Lista con filtros)")  # ✅ NUEVO
     print("   - /api/crts/estados (Estados disponibles)")   # ✅ NUEVO
-    print("   - /api/mic (Generación MIC)")
+    print("   - /api/mic (Generacion MIC)")
     print("   - /api/health (Salud del sistema)")           # ✅ NUEVO
 
     return app

@@ -35,6 +35,8 @@ function CRT() {
   const [monedaGasto, setMonedaGasto] = useState(null);
   const [selectedTransportadora, setSelectedTransportadora] = useState(null);
   const [monedaTouched, setMonedaTouched] = useState(false);
+  const [formErrors, setFormErrors] = useState({});
+  const [formTouched, setFormTouched] = useState({});
   const navigate = useNavigate();
 
   const optCiudadPais = (ciudades, paises) =>
@@ -54,24 +56,6 @@ function CRT() {
   const opt = (arr, label = "nombre") =>
     arr.map((x) => ({ ...x, value: x.id, label: x[label] }));
 
-  const getDefaultLugarEmision = (ciudades, paises) => {
-    const ciudad = ciudades.find((c) => c.nombre.toUpperCase() === "ASUNCION");
-    if (ciudad) {
-      const pais = paises.find(
-        (p) => p.id === ciudad.pais_id && p.nombre.toUpperCase() === "PARAGUAY"
-      );
-      if (pais) {
-        return {
-          value: ciudad.id,
-          label: `${ciudad.nombre.toUpperCase()} - ${pais.nombre.toUpperCase()}`,
-          ciudad: ciudad.nombre,
-          pais: pais.nombre,
-          pais_id: pais.id,
-        };
-      }
-    }
-    return null;
-  };
 
   const [form, setForm] = useState({
     numero_crt: "",
@@ -132,28 +116,377 @@ function CRT() {
     }
   }, [monedas, monedaGasto]);
 
-  useEffect(() => {
-    api.get("/remitentes/").then((r) => setRemitentes(r.data.items || r.data));
-    api
-      .get("/transportadoras/")
-      .then((r) => setTransportadoras(r.data.items || r.data));
-    api.get("/ciudades/").then((r) => setCiudades(r.data));
-    api.get("/paises/").then((r) => setPaises(r.data));
-    api.get("/monedas/").then((r) => setMonedas(r.data));
-  }, []);
+  // ========== REEMPLAZAR EL useEffect DE CARGA DE DATOS ==========
+  // ===============================================
+  // 🎯 MANTENER TU api.js ORIGINAL - CORREGIR RUTAS
+  // ===============================================
+
+  // Tu api.js está bien: baseURL: "http://localhost:5000/api"
+  // El problema son las rutas en el nuevo código
+
+  // ❌ CÓDIGO INCORRECTO (que agregamos):
+  // api.get("/api/paises/") → http://localhost:5000/api/api/paises/
+
+  // ✅ CÓDIGO CORRECTO (para tu configuración):
+  // api.get("/paises/") → http://localhost:5000/api/paises/
 
   useEffect(() => {
-    if (ciudades.length && paises.length) {
-      const def = getDefaultLugarEmision(ciudades, paises);
-      if (def) {
-        setForm((f) => ({
-          ...f,
-          ciudad_emision_id: def.value,
-          pais_emision_id: def.pais_id,
-        }));
+    console.log("🔍 Cargando datos iniciales - RUTAS CORREGIDAS...");
+
+    const loadAllData = async () => {
+      try {
+        // ✅ PAÍSES - SIN /api/ porque ya está en baseURL
+        console.log("📡 Cargando países desde /paises/...");
+        const paisesRes = await api.get("/paises/"); // ← Quitamos /api/
+        console.log(
+          "✅ Países cargados:",
+          paisesRes.data.length,
+          paisesRes.data
+        );
+        setPaises(paisesRes.data);
+
+        // ✅ CIUDADES - SIN /api/ porque ya está en baseURL
+        console.log("📡 Cargando ciudades desde /ciudades/...");
+        const ciudadesRes = await api.get("/ciudades/"); // ← Quitamos /api/
+        console.log(
+          "✅ Ciudades cargadas:",
+          ciudadesRes.data.length,
+          ciudadesRes.data
+        );
+        setCiudades(ciudadesRes.data);
+
+        // ✅ REMITENTES - SIN /api/ porque ya está en baseURL
+        console.log("📡 Cargando remitentes desde /remitentes/...");
+        const remitentesRes = await api.get("/remitentes/"); // ← Quitamos /api/
+        console.log(
+          "✅ Remitentes cargados:",
+          remitentesRes.data.items?.length || remitentesRes.data.length
+        );
+        console.log(
+          "📋 Estructura remitentes:",
+          remitentesRes.data.items?.[0] || remitentesRes.data[0]
+        );
+        setRemitentes(remitentesRes.data.items || remitentesRes.data);
+
+        // ✅ TRANSPORTADORAS - Usar ruta correcta con /api/
+        console.log("📡 Cargando transportadoras...");
+        try {
+          const transportadorasRes = await api.get("/transportadoras/");
+          console.log(
+            "✅ Transportadoras cargadas:",
+            transportadorasRes.data.items?.length ||
+              transportadorasRes.data.length
+          );
+          setTransportadoras(
+            transportadorasRes.data.items || transportadorasRes.data
+          );
+        } catch (error) {
+          console.log("❌ Error en transportadoras:", error);
+          // Fallback: intentar con URL absoluta
+          try {
+            const response = await fetch(
+              "http://localhost:5000/api/transportadoras/"
+            );
+            const data = await response.json();
+            setTransportadoras(data.items || data);
+            console.log("✅ Transportadoras cargadas con fetch fallback");
+          } catch (fetchError) {
+            console.log("❌ Fallback también falló:", fetchError);
+            setTransportadoras([]);
+          }
+        }
+
+        // ✅ MONEDAS - Usar ruta correcta con /api/
+        console.log("📡 Cargando monedas...");
+        try {
+          const monedasRes = await api.get("/monedas/");
+          console.log("✅ Monedas cargadas:", monedasRes.data.length);
+          setMonedas(monedasRes.data);
+        } catch (error) {
+          console.log("❌ Error en monedas:", error);
+          // Fallback: intentar con URL absoluta
+          try {
+            const response = await fetch("http://localhost:5000/api/monedas/");
+            const data = await response.json();
+            setMonedas(data);
+            console.log("✅ Monedas cargadas con fetch fallback");
+          } catch (fetchError) {
+            console.log("❌ Fallback monedas falló:", fetchError);
+            // Fallback final con datos básicos
+            const monedasBackup = [
+              { id: 1, codigo: "USD", nombre: "Dólar Americano" },
+              { id: 2, codigo: "PYG", nombre: "Guaraní Paraguayo" },
+            ];
+            setMonedas(monedasBackup);
+            console.log("✅ Monedas cargadas desde backup:", monedasBackup);
+          }
+        }
+      } catch (error) {
+        console.error("❌ Error general en carga de datos:", error);
+        console.error("🔍 Detalles del error:", {
+          url: error.config?.url,
+          status: error.response?.status,
+          statusText: error.response?.statusText,
+          data: error.response?.data,
+        });
+      }
+    };
+
+    loadAllData();
+  }, []);
+
+  // ===============================================
+  // 🔍 COMPARACIÓN DE RUTAS:
+  // ===============================================
+
+  /*
+TU CONFIGURACIÓN ACTUAL:
+- baseURL: "http://localhost:5000/api" 
+
+RUTAS QUE FUNCIONAN:
+✅ api.get("/paises/") → http://localhost:5000/api/paises/
+✅ api.get("/ciudades/") → http://localhost:5000/api/ciudades/
+✅ api.get("/remitentes/") → http://localhost:5000/api/remitentes/
+✅ api.get("/transportadoras/") → http://localhost:5000/api/transportadoras/
+✅ api.get("/monedas/") → http://localhost:5000/api/monedas/
+
+RUTAS QUE NO FUNCIONAN (las que estábamos usando):
+❌ api.get("/api/paises/") → http://localhost:5000/api/api/paises/
+❌ api.get("/api/ciudades/") → http://localhost:5000/api/api/ciudades/
+❌ api.get("/api/remitentes/") → http://localhost:5000/api/api/remitentes/
+❌ api.get("../transportadoras/") → http://localhost:5000/transportadoras/
+❌ api.get("../monedas/") → http://localhost:5000/monedas/
+*/
+
+  // ===============================================
+  // 📝 INSTRUCCIONES:
+  // ===============================================
+
+  /*
+1. ✅ REEMPLAZA solo el useEffect de carga de datos con el código de arriba
+2. ✅ MANTÉN todo lo demás igual (tu api.js, otros useEffects, etc.)
+3. ✅ RECARGA la página
+4. ✅ DEBERÍAS VER en la consola:
+   - "✅ Países cargados: 3 [array]"
+   - "✅ Ciudades cargadas: 16 [array]" 
+   - "✅ Remitentes cargados: [número] [array]"
+   - "🎉 === TODOS LOS DATOS CARGADOS ==="
+   - "🎯 ✅ PERFECTO: Autocompletado debería funcionar"
+
+5. ✅ SELECCIONA un destinatario y verifica que se autocomplete el campo 8
+*/
+
+  // ===============================================
+  // 🎯 ESTO RESPETA TU CONFIGURACIÓN ORIGINAL
+  // ===============================================
+
+  // - No cambiamos tu api.js
+  // - No cambiamos tu estructura de rutas
+  // - Solo corregimos las llamadas para que coincidan con tu configuración
+  // - Agregamos fallbacks por si algún endpoint tiene problemas
+
+  // ===============================================
+  // 🔍 DEBUG ESPECÍFICO PARA TUS DATOS
+  // ===============================================
+
+  
+
+  useEffect(() => {
+    if (paises.length > 0 && ciudades.length > 0 && remitentes.length > 0) {
+      console.log("🎉 === TODOS LOS DATOS CARGADOS ===");
+
+      // Verificar que coincidan con tu BD
+      console.log("🌍 PAÍSES CARGADOS EN FRONTEND:");
+      paises.forEach((p) => {
+        console.log(
+          `  ID: ${p.id} | Nombre: ${p.nombre} | Código: ${p.codigo}`
+        );
+      });
+
+      console.log("🏙️ PRIMERAS 5 CIUDADES:");
+      ciudades.slice(0, 5).forEach((c) => {
+        const pais = paises.find((p) => p.id === c.pais_id);
+        console.log(
+          `  ${c.nombre} (ID: ${c.id}) → ${
+            pais ? pais.nombre : "PAÍS NO ENCONTRADO"
+          } (pais_id: ${c.pais_id})`
+        );
+      });
+
+      console.log("👥 PRIMEROS 3 REMITENTES:");
+      remitentes.slice(0, 3).forEach((r) => {
+        const ciudad = ciudades.find((c) => c.id === r.ciudad_id);
+        console.log(
+          `  ${r.nombre} → ciudad_id: ${r.ciudad_id} (${
+            ciudad ? ciudad.nombre : "CIUDAD NO ENCONTRADA"
+          })`
+        );
+      });
+
+      // Verificar específicamente si ASUNCION existe
+      const asuncion = ciudades.find((c) =>
+        c.nombre.toUpperCase().includes("ASUNCION")
+      );
+      if (asuncion) {
+        console.log("✅ ASUNCIÓN encontrada:", asuncion);
+        const paraguay = paises.find((p) => p.id === asuncion.pais_id);
+        console.log("✅ Paraguay encontrado:", paraguay);
+      } else {
+        console.log("❌ ASUNCIÓN no encontrada en las ciudades");
+      }
+
+      // Verificar relaciones válidas
+      const ciudadesConPaisValido = ciudades.filter((c) =>
+        paises.some((p) => p.id === c.pais_id)
+      );
+      console.log(
+        `🔗 Ciudades con país válido: ${ciudadesConPaisValido.length}/${ciudades.length}`
+      );
+
+      const remitentesConCiudadValida = remitentes.filter(
+        (r) => r.ciudad_id && ciudades.some((c) => c.id === r.ciudad_id)
+      );
+      console.log(
+        `🔗 Remitentes con ciudad válida: ${remitentesConCiudadValida.length}/${remitentes.length}`
+      );
+
+      if (
+        ciudadesConPaisValido.length === ciudades.length &&
+        remitentesConCiudadValida.length > 0
+      ) {
+        console.log("🎯 ✅ PERFECTO: Autocompletado debería funcionar");
+      } else {
+        console.log("🚨 PROBLEMA: Revisa las relaciones");
       }
     }
-  }, [ciudades, paises]);
+  }, [paises, ciudades, remitentes]);
+
+  // ===============================================
+  // 🎯 AUTOCOMPLETADO CAMPO 8 - VERSIÓN FINAL
+  // ===============================================
+
+  useEffect(() => {
+    console.log("🎯 === AUTOCOMPLETADO CAMPO 8 - EJECUTANDO ===");
+
+    // Log de condiciones
+    console.log("Condiciones para autocompletado:");
+    console.log("- destinatario_id:", form.destinatario_id);
+    console.log("- remitentes disponibles:", remitentes.length);
+    console.log("- ciudades disponibles:", ciudades.length);
+    console.log("- países disponibles:", paises.length);
+
+    if (
+      form.destinatario_id &&
+      remitentes.length > 0 &&
+      ciudades.length > 0 &&
+      paises.length > 0
+    ) {
+      console.log("✅ Condiciones cumplidas, buscando destinatario...");
+
+      // Buscar destinatario
+      const destinatario = remitentes.find(
+        (r) => r.id === form.destinatario_id
+      );
+      console.log("🔍 Destinatario encontrado:", destinatario);
+
+      if (destinatario) {
+        if (destinatario.ciudad_id) {
+          console.log("🔍 Buscando ciudad con ID:", destinatario.ciudad_id);
+
+          // Buscar ciudad
+          const ciudad = ciudades.find((c) => c.id === destinatario.ciudad_id);
+          console.log("🏙️ Ciudad encontrada:", ciudad);
+
+          if (ciudad) {
+            console.log("🔍 Buscando país con ID:", ciudad.pais_id);
+
+            // Buscar país
+            const pais = paises.find((p) => p.id === ciudad.pais_id);
+            console.log("🌍 País encontrado:", pais);
+
+            if (pais) {
+              // Generar lugar autocompletado
+              const lugarAuto = `${ciudad.nombre.toUpperCase()} - ${pais.nombre.toUpperCase()}`;
+              console.log("📍 Lugar generado:", lugarAuto);
+
+              // Actualizar formulario solo si está vacío o es igual
+              setForm((prevForm) => {
+                const shouldUpdate =
+                  !prevForm.lugar_entrega ||
+                  prevForm.lugar_entrega === "" ||
+                  prevForm.lugar_entrega === lugarAuto;
+
+                console.log("🔄 ¿Actualizar lugar_entrega?", shouldUpdate);
+                console.log("- Valor actual:", prevForm.lugar_entrega);
+
+                if (shouldUpdate) {
+                  console.log("🎉 ✅ AUTOCOMPLETANDO CAMPO 8 CON:", lugarAuto);
+                  return { ...prevForm, lugar_entrega: lugarAuto };
+                } else {
+                  console.log("⏭️ No se actualiza (campo ya tiene valor)");
+                  return prevForm;
+                }
+              });
+            } else {
+              console.log(
+                "❌ País no encontrado para pais_id:",
+                ciudad.pais_id
+              );
+              console.log(
+                "Países disponibles:",
+                paises.map((p) => ({ id: p.id, nombre: p.nombre }))
+              );
+            }
+          } else {
+            console.log(
+              "❌ Ciudad no encontrada para ciudad_id:",
+              destinatario.ciudad_id
+            );
+            console.log(
+              "Ciudades disponibles:",
+              ciudades.map((c) => ({ id: c.id, nombre: c.nombre }))
+            );
+          }
+        } else {
+          console.log("❌ Destinatario sin ciudad_id:", destinatario);
+        }
+      } else {
+        console.log(
+          "❌ Destinatario no encontrado con ID:",
+          form.destinatario_id
+        );
+        console.log(
+          "Remitentes disponibles:",
+          remitentes.map((r) => ({ id: r.id, nombre: r.nombre }))
+        );
+      }
+    } else {
+      console.log("⏳ Esperando datos completos...");
+    }
+  }, [form.destinatario_id, remitentes, ciudades, paises]);
+
+  // ===============================================
+  // 📝 INSTRUCCIONES PARA PROBAR:
+  // ===============================================
+
+  /*
+1. ✅ Reemplaza tus useEffects con el código de arriba
+2. ✅ Abre la consola del navegador (F12)
+3. ✅ Recarga la página
+4. ✅ Busca estos mensajes:
+   - "🎉 === TODOS LOS DATOS CARGADOS ==="
+   - "🎯 ✅ PERFECTO: Autocompletado debería funcionar"
+   - "✅ ASUNCIÓN encontrada"
+   - "✅ Paraguay encontrado"
+
+5. ✅ Selecciona un destinatario
+6. ✅ Busca el mensaje:
+   - "🎉 ✅ AUTOCOMPLETANDO CAMPO 8 CON: [ciudad] - [país]"
+
+7. ✅ Verifica que el campo 8 se llene automáticamente
+
+Si ves algún error o mensaje ❌, compártelo conmigo.
+*/
 
   useEffect(() => {
     if (
@@ -191,37 +524,6 @@ function CRT() {
     }
   }, [ciudad7, fecha7]);
 
-  useEffect(() => {
-    if (
-      form.destinatario_id &&
-      remitentes.length &&
-      ciudades.length &&
-      paises.length
-    ) {
-      const destinatario = remitentes.find(
-        (r) => r.id === form.destinatario_id
-      );
-      if (destinatario && destinatario.ciudad_id) {
-        const ciudad = ciudades.find((c) => c.id === destinatario.ciudad_id);
-        const pais = paises.find((p) => ciudad && ciudad.pais_id === p.id);
-        const lugarAuto =
-          ciudad && pais
-            ? `${ciudad.nombre.toUpperCase()} - ${pais.nombre.toUpperCase()}`
-            : "";
-        setForm((f) => {
-          if (
-            !f.lugar_entrega ||
-            f.lugar_entrega === "" ||
-            f.lugar_entrega === lugarAuto
-          ) {
-            return { ...f, lugar_entrega: lugarAuto };
-          }
-          return f;
-        });
-      }
-    }
-  }, [form.destinatario_id, remitentes, ciudades, paises]);
-
   const handleValorGastoInput = (e, campo) => {
     let v = e.target.value
       .replace(/[^\d.,]/g, "")
@@ -247,6 +549,54 @@ function CRT() {
   const handleMonedaGasto = (option) => {
     setMonedaGasto(option);
     setMonedaTouched(true);
+  };
+
+  // Validation function
+  const validateForm = () => {
+    const errors = {};
+    const requiredFields = [
+      { key: 'remitente_id', label: 'Remitente' },
+      { key: 'destinatario_id', label: 'Destinatario' },
+      { key: 'consignatario_id', label: 'Consignatario' },
+      { key: 'notificar_a_id', label: 'Notificar a' },
+      { key: 'transportadora_id', label: 'Transportadora' },
+      { key: 'ciudad_emision_id', label: 'Ciudad de emisión' },
+      { key: 'lugar_entrega', label: 'Lugar de entrega' },
+      { key: 'detalles_mercaderia', label: 'Detalles de mercadería' },
+      { key: 'peso_bruto', label: 'Peso bruto' },
+      { key: 'volumen', label: 'Volumen' },
+      { key: 'incoterm', label: 'Incoterm' },
+      { key: 'valor_incoterm', label: 'Valor incoterm' },
+      { key: 'moneda_id', label: 'Moneda' },
+      { key: 'declaracion_mercaderia', label: 'Declaración de mercadería' },
+      { key: 'factura_exportacion', label: 'Factura de exportación' },
+      { key: 'observaciones', label: 'Observaciones' }
+    ];
+
+    requiredFields.forEach(field => {
+      if (!form[field.key] || form[field.key] === '') {
+        errors[field.key] = `${field.label} es obligatorio`;
+      }
+    });
+
+    // Special validation for ciudad7 (field 7)
+    if (!ciudad7) {
+      errors.ciudad7 = 'Ciudad y fecha de responsabilidad es obligatorio';
+    }
+
+    setFormErrors(errors);
+    return Object.keys(errors).length === 0;
+  };
+
+  // Helper function to get field error
+  const getFieldError = (fieldName) => {
+    return formErrors[fieldName];
+  };
+
+  // Helper function to get field class with validation
+  const getFieldClass = (fieldName, baseClass = "block w-full rounded border px-2 py-1") => {
+    const hasError = formErrors[fieldName];
+    return hasError ? `${baseClass} border-red-500` : baseClass;
   };
 
   const handleAddGasto = () => {
@@ -308,7 +658,7 @@ function CRT() {
 
   const handleValorIncotermChange = (e) => {
     let val = e.target.value.replace(/[^\d,]/g, "");
-    val = val.replace(/(,)(?=.*\,)/g, "");
+    val = val.replace(/(,)(?=.*,)/g, "");
     setForm((f) => ({ ...f, valor_incoterm: val }));
   };
   const handleValorIncotermBlur = (e) => {
@@ -322,7 +672,7 @@ function CRT() {
 
   const handlePesoInput = (e) => {
     let v = e.target.value.replace(/[^\d,]/g, "");
-    v = v.replace(/(,)(?=.*\,)/g, "");
+    v = v.replace(/(,)(?=.*,)/g, "");
     setForm((f) => ({ ...f, [e.target.name]: v }));
   };
   const handlePesoBlur = (e) => {
@@ -336,7 +686,7 @@ function CRT() {
 
   const handleVolumenInput = (e) => {
     let v = e.target.value.replace(/[^\d,]/g, "");
-    v = v.replace(/(,)(?=.*\,)/g, "");
+    v = v.replace(/(,)(?=.*,)/g, "");
     setForm((f) => ({ ...f, volumen: v }));
   };
   const handleVolumenBlur = (e) => {
@@ -350,7 +700,7 @@ function CRT() {
 
   const handleDeclaracionInput = (e) => {
     let v = e.target.value.replace(/[^\d,]/g, "");
-    v = v.replace(/(,)(?=.*\,)/g, "");
+    v = v.replace(/(,)(?=.*,)/g, "");
     setForm((f) => ({ ...f, declaracion_mercaderia: v }));
   };
   const handleDeclaracionBlur = (e) => {
@@ -426,7 +776,15 @@ function CRT() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setMonedaTouched(true);
+
+    // Validate form
+    if (!validateForm()) {
+      alert("Por favor complete todos los campos obligatorios marcados con *");
+      return;
+    }
+
     if (monedaObligatoria) return;
+
     try {
       await api.post("/crts/", {
         ...form,
@@ -439,6 +797,7 @@ function CRT() {
       alert("CRT emitido correctamente");
       setForm((f) => ({ ...f, gastos: [] }));
       setMonedaTouched(false);
+      setFormErrors({});
     } catch (e) {
       alert("Error al emitir CRT: " + (e.response?.data?.error || e.message));
     }
@@ -458,7 +817,7 @@ function CRT() {
             <div className="md:col-span-2 flex flex-col gap-2">
               <label className="block">
                 <span className="font-bold text-xs text-blue-900">
-                  1. Nome e endereço do remetente
+                  1. Nome e endereço do remetente *
                 </span>
                 <br />
                 <span className="font-bold text-xs text-blue-700">
@@ -474,11 +833,17 @@ function CRT() {
                   onChange={handleRemitente}
                   placeholder="Seleccione una opción"
                   isClearable
+                  className={getFieldError('remitente_id') ? 'border-red-500' : ''}
                 />
+                {getFieldError('remitente_id') && (
+                  <span className="text-xs text-red-500 font-bold block mt-1">
+                    {getFieldError('remitente_id')}
+                  </span>
+                )}
               </label>
               <label className="block">
                 <span className="font-bold text-xs text-blue-900">
-                  4. Nome e endereço do destinatário
+                  4. Nome e endereço do destinatário *
                 </span>
                 <br />
                 <span className="font-bold text-xs text-blue-700">
@@ -494,11 +859,17 @@ function CRT() {
                   onChange={handleDestinatario}
                   placeholder="Seleccione una opción"
                   isClearable
+                  className={getFieldError('destinatario_id') ? 'border-red-500' : ''}
                 />
+                {getFieldError('destinatario_id') && (
+                  <span className="text-xs text-red-500 font-bold block mt-1">
+                    {getFieldError('destinatario_id')}
+                  </span>
+                )}
               </label>
               <label className="block">
                 <span className="font-bold text-xs text-blue-900">
-                  6. Nome e endereço do consignatário
+                  6. Nome e endereço do consignatário *
                 </span>
                 <br />
                 <span className="font-bold text-xs text-blue-700">
@@ -514,11 +885,17 @@ function CRT() {
                   onChange={handleConsignatario}
                   placeholder="Seleccione una opción"
                   isClearable
+                  className={getFieldError('consignatario_id') ? 'border-red-500' : ''}
                 />
+                {getFieldError('consignatario_id') && (
+                  <span className="text-xs text-red-500 font-bold block mt-1">
+                    {getFieldError('consignatario_id')}
+                  </span>
+                )}
               </label>
               <label className="block">
                 <span className="font-bold text-xs text-blue-900">
-                  9. Notificar a:
+                  9. Notificar a: *
                 </span>
                 <br />
                 <span className="font-bold text-xs text-blue-700">
@@ -534,12 +911,18 @@ function CRT() {
                   onChange={handleNotificarA}
                   placeholder="Seleccione una opción"
                   isClearable
+                  className={getFieldError('notificar_a_id') ? 'border-red-500' : ''}
                 />
+                {getFieldError('notificar_a_id') && (
+                  <span className="text-xs text-red-500 font-bold block mt-1">
+                    {getFieldError('notificar_a_id')}
+                  </span>
+                )}
               </label>
               <label className="block h-full">
                 <span className="font-bold text-xs text-blue-900">
                   11. Quantidade e categoria de volumes, marcas e números, tipos
-                  de mercadorias, contêineres e acessórios
+                  de mercadorias, contêineres e acessórios *
                 </span>
                 <br />
                 <span className="font-bold text-xs text-blue-700">
@@ -550,10 +933,15 @@ function CRT() {
                   name="detalles_mercaderia"
                   value={form.detalles_mercaderia}
                   onChange={handleInput}
-                  className="block w-full rounded border px-2 py-1"
+                  className={getFieldClass("detalles_mercaderia", "block w-full rounded border px-2 py-1")}
                   rows={7}
                   style={{ minHeight: "110px" }}
                 />
+                {getFieldError('detalles_mercaderia') && (
+                  <span className="text-xs text-red-500 font-bold block mt-1">
+                    {getFieldError('detalles_mercaderia')}
+                  </span>
+                )}
               </label>
             </div>
             <div className="md:col-span-2 flex flex-col gap-2">
@@ -573,7 +961,7 @@ function CRT() {
               </label>
               <label className="block">
                 <span className="font-bold text-xs text-blue-900">
-                  3. Nome e endereço do transportador
+                  3. Nome e endereço do transportador *
                 </span>
                 <br />
                 <span className="font-bold text-xs text-blue-700">
@@ -593,11 +981,17 @@ function CRT() {
                   placeholder="Seleccione una opción"
                   isClearable
                   isSearchable
+                  className={getFieldError('transportadora_id') ? 'border-red-500' : ''}
                 />
+                {getFieldError('transportadora_id') && (
+                  <span className="text-xs text-red-500 font-bold block mt-1">
+                    {getFieldError('transportadora_id')}
+                  </span>
+                )}
               </label>
               <label className="block">
                 <span className="font-bold text-xs text-blue-900">
-                  5. Local e país de emissão
+                  5. Local e país de emissão *
                 </span>
                 <br />
                 <span className="font-bold text-xs text-blue-700">
@@ -614,12 +1008,18 @@ function CRT() {
                   placeholder="Seleccione una opción"
                   isClearable
                   isSearchable
+                  className={getFieldError('ciudad_emision_id') ? 'border-red-500' : ''}
                 />
+                {getFieldError('ciudad_emision_id') && (
+                  <span className="text-xs text-red-500 font-bold block mt-1">
+                    {getFieldError('ciudad_emision_id')}
+                  </span>
+                )}
               </label>
               <label className="block">
                 <span className="font-bold text-xs text-blue-900">
                   7. Local, país e data que o transportador se responsabiliza
-                  pela mercadoria
+                  pela mercadoria *
                 </span>
                 <br />
                 <span className="font-bold text-xs text-blue-700">
@@ -634,7 +1034,7 @@ function CRT() {
                     placeholder="Ciudad y País"
                     isClearable
                     isSearchable
-                    className="flex-1"
+                    className={`flex-1 ${getFieldError('ciudad7') ? 'border-red-500' : ''}`}
                   />
                   <input
                     type="date"
@@ -643,10 +1043,15 @@ function CRT() {
                     className="rounded border px-2 py-1 w-[140px]"
                   />
                 </div>
+                {getFieldError('ciudad7') && (
+                  <span className="text-xs text-red-500 font-bold block mt-1">
+                    {getFieldError('ciudad7')}
+                  </span>
+                )}
               </label>
               <label className="block">
                 <span className="font-bold text-xs text-blue-900">
-                  8. Localidade, país e prazo de entrega
+                  8. Localidade, país e prazo de entrega *
                 </span>
                 <br />
                 <span className="font-bold text-xs text-blue-700">
@@ -663,7 +1068,13 @@ function CRT() {
                   placeholder="Seleccione una opción"
                   isClearable
                   isSearchable
+                  className={getFieldError('lugar_entrega') ? 'border-red-500' : ''}
                 />
+                {getFieldError('lugar_entrega') && (
+                  <span className="text-xs text-red-500 font-bold block mt-1">
+                    {getFieldError('lugar_entrega')}
+                  </span>
+                )}
               </label>
               <label className="block">
                 <span className="font-bold text-xs text-blue-900">
@@ -688,7 +1099,7 @@ function CRT() {
             <div>
               <label className="block">
                 <span className="font-bold text-xs text-blue-900">
-                  12 Peso Bruto em Kg. / Peso Bruto en Kg.
+                  12 Peso Bruto em Kg. / Peso Bruto en Kg. *
                 </span>
                 <div className="flex gap-2 mt-1">
                   <div className="flex flex-col">
@@ -701,7 +1112,7 @@ function CRT() {
                       value={form.peso_bruto}
                       onChange={handlePesoInput}
                       onBlur={handlePesoBlur}
-                      className="block rounded border px-2 py-1 w-[120px] text-right"
+                      className={getFieldClass("peso_bruto", "block rounded border px-2 py-1 w-[120px] text-right")}
                       inputMode="decimal"
                       placeholder="0,000"
                     />
@@ -722,12 +1133,17 @@ function CRT() {
                     />
                   </div>
                 </div>
+                {getFieldError('peso_bruto') && (
+                  <span className="text-xs text-red-500 font-bold block mt-1">
+                    {getFieldError('peso_bruto')}
+                  </span>
+                )}
               </label>
             </div>
             <div>
               <label className="block">
                 <span className="font-bold text-xs text-blue-900">
-                  13. Volume em m³
+                  13. Volume em m³ *
                 </span>
                 <br />
                 <span className="font-bold text-xs text-blue-700">
@@ -739,10 +1155,15 @@ function CRT() {
                   value={form.volumen}
                   onChange={handleVolumenInput}
                   onBlur={handleVolumenBlur}
-                  className="block w-full rounded border px-2 py-1 text-right"
+                  className={getFieldClass("volumen", "block w-full rounded border px-2 py-1 text-right")}
                   placeholder="0,00000"
                   inputMode="decimal"
                 />
+                {getFieldError('volumen') && (
+                  <span className="text-xs text-red-500 font-bold block mt-1">
+                    {getFieldError('volumen')}
+                  </span>
+                )}
               </label>
             </div>
             <div className="md:col-span-2">
@@ -752,7 +1173,7 @@ function CRT() {
               <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
                 <div>
                   <label className="text-xs font-semibold text-blue-800">
-                    Tipo
+                    Tipo *
                   </label>
                   <Select
                     options={INCOTERMS}
@@ -763,11 +1184,17 @@ function CRT() {
                     onChange={handleIncoterm}
                     placeholder="Tipo"
                     isClearable
+                    className={getFieldError('incoterm') ? 'border-red-500' : ''}
                   />
+                  {getFieldError('incoterm') && (
+                    <span className="text-xs text-red-500 font-bold block mt-1">
+                      {getFieldError('incoterm')}
+                    </span>
+                  )}
                 </div>
                 <div>
                   <label className="text-xs font-semibold text-blue-800">
-                    Valor:
+                    Valor: *
                   </label>
                   <input
                     type="text"
@@ -776,13 +1203,18 @@ function CRT() {
                     onChange={handleValorIncotermChange}
                     onBlur={handleValorIncotermBlur}
                     placeholder="0,00"
-                    className="block w-full rounded border px-2 py-1 text-right"
+                    className={getFieldClass("valor_incoterm", "block w-full rounded border px-2 py-1 text-right")}
                     inputMode="decimal"
                   />
+                  {getFieldError('valor_incoterm') && (
+                    <span className="text-xs text-red-500 font-bold block mt-1">
+                      {getFieldError('valor_incoterm')}
+                    </span>
+                  )}
                 </div>
                 <div>
                   <label className="text-xs font-semibold text-blue-800">
-                    Seleccione la moneda:
+                    Seleccione la moneda: *
                   </label>
                   <Select
                     options={opt(monedas)}
@@ -792,7 +1224,7 @@ function CRT() {
                     isClearable
                     className={
                       "w-full " +
-                      (monedaTouched && monedaObligatoria
+                      (getFieldError('moneda_id') || (monedaTouched && monedaObligatoria)
                         ? "border-red-500 border-2"
                         : "")
                     }
@@ -801,9 +1233,9 @@ function CRT() {
                     }
                     getOptionValue={(opt) => opt.value}
                   />
-                  {monedaTouched && monedaObligatoria && (
+                  {(getFieldError('moneda_id') || (monedaTouched && monedaObligatoria)) && (
                     <span className="text-xs text-red-500 font-bold block mt-1">
-                      Moneda obligatoria
+                      {getFieldError('moneda_id') || 'Moneda obligatoria'}
                     </span>
                   )}
                 </div>
@@ -937,7 +1369,7 @@ function CRT() {
             <div className="flex flex-col gap-2 w-full md:w-80">
               <label className="block">
                 <span className="font-bold text-xs text-blue-900">
-                  16. Declaração do valor das mercadorias
+                  16. Declaração do valor das mercadorias *
                 </span>
                 <br />
                 <span className="font-bold text-xs text-blue-700">
@@ -949,14 +1381,19 @@ function CRT() {
                   value={form.declaracion_mercaderia}
                   onChange={handleDeclaracionInput}
                   onBlur={handleDeclaracionBlur}
-                  className="block w-full rounded border px-2 py-1 text-right"
+                  className={getFieldClass("declaracion_mercaderia", "block w-full rounded border px-2 py-1 text-right")}
                   placeholder="0,00"
                   inputMode="decimal"
                 />
+                {getFieldError('declaracion_mercaderia') && (
+                  <span className="text-xs text-red-500 font-bold block mt-1">
+                    {getFieldError('declaracion_mercaderia')}
+                  </span>
+                )}
               </label>
               <label className="block">
                 <span className="font-bold text-xs text-blue-900">
-                  17. Documentos Anexos
+                  17. Documentos Anexos *
                 </span>
                 <br />
                 <span className="font-bold text-xs text-blue-700">
@@ -968,8 +1405,13 @@ function CRT() {
                   value={form.factura_exportacion}
                   onChange={handleInput}
                   placeholder="Factura de Exportación Nº"
-                  className="block w-full rounded border px-2 py-1 mb-1"
+                  className={getFieldClass("factura_exportacion", "block w-full rounded border px-2 py-1 mb-1")}
                 />
+                {getFieldError('factura_exportacion') && (
+                  <span className="text-xs text-red-500 font-bold block mt-1">
+                    {getFieldError('factura_exportacion')}
+                  </span>
+                )}
                 <input
                   type="text"
                   name="nro_despacho"
@@ -1072,7 +1514,7 @@ function CRT() {
             <div>
               <label className="block">
                 <span className="font-bold text-xs text-blue-900">
-                  22. Declarações e observações
+                  22. Declarações e observações *
                 </span>
                 <br />
                 <span className="font-bold text-xs text-blue-700">
@@ -1082,9 +1524,14 @@ function CRT() {
                   name="observaciones"
                   value={form.observaciones}
                   onChange={handleInput}
-                  className="block w-full rounded border px-2 py-1 mb-1"
+                  className={getFieldClass("observaciones", "block w-full rounded border px-2 py-1 mb-1")}
                   rows={2}
                 />
+                {getFieldError('observaciones') && (
+                  <span className="text-xs text-red-500 font-bold block mt-1">
+                    {getFieldError('observaciones')}
+                  </span>
+                )}
               </label>
               <div className="border p-2 rounded-lg bg-blue-50 mt-4">
                 <div className="font-bold text-xs text-blue-900">
