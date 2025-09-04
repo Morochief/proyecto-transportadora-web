@@ -665,19 +665,19 @@ Si ves algún error o mensaje ❌, compártelo conmigo.
     if (form.remitente_id && !form.firma_remitente_id) {
       setForm((f) => ({ ...f, firma_remitente_id: form.remitente_id }));
     }
-  }, [form.remitente_id]);
+  }, [form.remitente_id, form.firma_remitente_id]);
 
   useEffect(() => {
     if (form.transportadora_id && !form.firma_transportador_id) {
       setForm((f) => ({ ...f, firma_transportador_id: form.transportadora_id }));
     }
-  }, [form.transportadora_id]);
+  }, [form.transportadora_id, form.firma_transportador_id]);
 
   useEffect(() => {
     if (form.destinatario_id && !form.firma_destinatario_id) {
       setForm((f) => ({ ...f, firma_destinatario_id: form.destinatario_id }));
     }
-  }, [form.destinatario_id]);
+  }, [form.destinatario_id, form.firma_destinatario_id]);
 
   const handleValorIncotermChange = (e) => {
     let val = e.target.value.replace(/[^\d,]/g, "");
