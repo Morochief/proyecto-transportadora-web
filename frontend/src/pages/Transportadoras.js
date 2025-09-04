@@ -390,7 +390,7 @@ function Transportadoras() {
       required: false,
       type: "select",
       options: [
-        { value: "", label: "---Seleccionar Moneda---" },
+        { value: "", label: "---Seleccionar Moneda de Honorarios---" },
         ...monedas.map((m) => ({ value: m.id, label: `${m.simbolo} - ${m.nombre}` })),
       ],
     },
