@@ -54,7 +54,7 @@ const ModalMICCompleto = ({
     if (isOpen && crt) {
       setFormData(prev => ({
         ...prev,
-        campo_2_numero: crt.transportadora?.rol_contribuyente || '',
+        campo_2_numero: crt.transportadora_rol_contribuyente || '',
         campo_8_destino: crt.lugar_entrega || '',
         campo_25_moneda: crt.moneda || '',
         campo_27_valor_campo16: crt.declaracion_mercaderia || '',
