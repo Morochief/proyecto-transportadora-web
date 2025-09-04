@@ -28,6 +28,8 @@ class Usuario(db.Model):
     clave_hash = db.Column(db.String(256), nullable=False)
     rol = db.Column(db.String(20), nullable=False, default='operador')
     estado = db.Column(db.String(15), nullable=False, default='activo')
+    email = db.Column(db.String(100), unique=True, nullable=True)
+    telefono = db.Column(db.String(20), nullable=True)
     creado_en = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
     movimientos = db.relationship('Movimiento', backref='usuario', lazy=True)
     reportes = db.relationship('Reporte', backref='usuario', lazy=True)

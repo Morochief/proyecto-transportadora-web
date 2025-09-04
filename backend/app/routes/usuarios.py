@@ -20,6 +20,8 @@ def listar_usuarios():
                 "usuario": u.usuario,
                 "rol": u.rol,
                 "estado": u.estado,
+                "email": u.email,
+                "telefono": u.telefono,
                 "creado_en": u.creado_en.strftime('%Y-%m-%d %H:%M')
             }
             for u in usuarios.items
@@ -40,7 +42,9 @@ def crear_usuario():
         usuario=data['usuario'],
         clave_hash=hash_password(data['clave']),
         rol=data.get('rol', 'operador'),
-        estado=data.get('estado', 'activo')
+        estado=data.get('estado', 'activo'),
+        email=data.get('email'),
+        telefono=data.get('telefono')
     )
     try:
         db.session.add(usuario)
@@ -58,6 +62,8 @@ def modificar_usuario(id):
     usuario.nombre_completo = data.get('nombre_completo', usuario.nombre_completo)
     usuario.rol = data.get('rol', usuario.rol)
     usuario.estado = data.get('estado', usuario.estado)
+    usuario.email = data.get('email', usuario.email)
+    usuario.telefono = data.get('telefono', usuario.telefono)
     if data.get('clave'):
         usuario.clave_hash = hash_password(data['clave'])
     db.session.commit()

@@ -11,6 +11,8 @@ function Usuarios() {
   const [formFields] = useState([
     { name: "nombre_completo", label: "Nombre Completo", required: true },
     { name: "usuario", label: "Usuario", required: true },
+    { name: "email", label: "Email", required: false },
+    { name: "telefono", label: "Teléfono", required: false },
     { name: "rol", label: "Rol", required: false },
     { name: "estado", label: "Estado", required: false },
     { name: "clave", label: "Contraseña", type: "password", required: false },
@@ -70,6 +72,8 @@ function Usuarios() {
         columns={[
           { field: "nombre_completo", label: "Nombre Completo" },
           { field: "usuario", label: "Usuario" },
+          { field: "email", label: "Email" },
+          { field: "telefono", label: "Teléfono" },
           { field: "rol", label: "Rol" },
           { field: "estado", label: "Estado" },
           { field: "creado_en", label: "Creado" },
