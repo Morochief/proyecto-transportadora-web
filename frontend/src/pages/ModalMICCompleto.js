@@ -192,14 +192,14 @@ const ModalMICCompleto = ({
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Campo 10 - Número Interno
+                    Campo 10 - Rol del Contribuyente
                   </label>
                   <input
                     type="text"
                     value={formData.campo_10_numero}
                     onChange={(e) => handleInputChange('campo_10_numero', e.target.value)}
                     className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-colors"
-                    placeholder="Número interno del vehículo"
+                    placeholder="Rol del Contribuyente"
                   />
                 </div>
                 
