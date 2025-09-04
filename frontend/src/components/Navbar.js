@@ -1,6 +1,6 @@
 import React from "react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
-import { isLoggedIn, logout } from "../utils/auth";
+import { logout } from "../utils/auth";
 import {
   FaHome,
   FaUser,
@@ -9,8 +9,6 @@ import {
   FaTruck,
   FaDollarSign,
   FaMoneyCheckAlt,
-  FaFileAlt,
-  FaCogs,
   FaFilePdf,
 } from "react-icons/fa";
 
