@@ -15,6 +15,7 @@ const ModalMICCompleto = ({
     campo_3_transporte: '',
     campo_7_pto_seguro: '',
     campo_8_destino: '',
+    campo_9_datos_transporte: '',
 
     // SECCIÓN 2: Datos del Vehículo
     campo_10_numero: '',
@@ -77,6 +78,7 @@ const ModalMICCompleto = ({
         campo_1_porteador: crt.transportadora_id || '',
         campo_2_numero: crt.transportadora_rol_contribuyente || '',
         campo_8_destino: crt.lugar_entrega || '',
+        campo_9_datos_transporte: crt.transportadora?.nombre || '',
         campo_10_numero: crt.transportadora_rol_contribuyente || '',
         campo_25_moneda: crt.moneda || '',
         campo_27_valor_campo16: crt.declaracion_mercaderia || '',
@@ -104,6 +106,7 @@ const ModalMICCompleto = ({
       campo_3_transporte: '',
       campo_7_pto_seguro: '',
       campo_8_destino: crt?.lugar_entrega || '',
+      campo_9_datos_transporte: '',
       campo_10_numero: crt?.transportadora_rol_contribuyente || '',
       campo_11_placa: '',
       campo_12_modelo_chasis: '',
@@ -284,6 +287,21 @@ const ModalMICCompleto = ({
                     placeholder="Ciudad/Puerto de destino"
                   />
                   <small className="text-gray-500">Del CRT lugar de entrega</small>
+                </div>
+
+                {/* Campo 9 */}
+                <div className="md:col-span-2 lg:col-span-3 xl:col-span-4">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Campo 9 - Datos del transporte
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.campo_9_datos_transporte || ''}
+                    onChange={(e) => handleInputChange('campo_9_datos_transporte', e.target.value)}
+                    className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-colors"
+                    placeholder="Información del transporte"
+                  />
+                  <small className="text-gray-500">Puede editarse manualmente</small>
                 </div>
 
                 {/* Campo 10 */}
