@@ -294,14 +294,32 @@ const ModalMICCompleto = ({
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Campo 9 - Datos del transporte
                   </label>
-                  <input
-                    type="text"
-                    value={formData.campo_9_datos_transporte || ''}
-                    onChange={(e) => handleInputChange('campo_9_datos_transporte', e.target.value)}
-                    className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-colors"
-                    placeholder="Información del transporte"
-                  />
-                  <small className="text-gray-500">Puede editarse manualmente</small>
+                  <div className="flex gap-2">
+                    <select
+                      value={formData.campo_9_datos_transporte || ''}
+                      onChange={(e) => handleInputChange('campo_9_datos_transporte', e.target.value)}
+                      className="flex-1 p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-colors"
+                    >
+                      <option value="">Seleccionar transportadora</option>
+                      {transportadoras.map((transportadora) => (
+                        <option key={transportadora.id} value={transportadora.nombre}>
+                          {transportadora.nombre}
+                        </option>
+                      ))}
+                      <option value="manual">✏️ Editar manualmente</option>
+                    </select>
+                    {formData.campo_9_datos_transporte === 'manual' && (
+                      <input
+                        type="text"
+                        placeholder="Ingrese datos manualmente"
+                        onChange={(e) => handleInputChange('campo_9_datos_transporte', e.target.value)}
+                        className="flex-1 p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-colors"
+                      />
+                    )}
+                  </div>
+                  <small className="text-gray-500 mt-1 block">
+                    Selecciona una transportadora o edita manualmente
+                  </small>
                 </div>
 
                 {/* Campo 10 */}
