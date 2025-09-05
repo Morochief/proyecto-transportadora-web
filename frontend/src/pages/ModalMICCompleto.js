@@ -290,7 +290,7 @@ const ModalMICCompleto = ({
                 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Campo 11 - Placa Principal *
+                    Campo 11 - Placa de camión *
                   </label>
                   <input
                     type="text"
