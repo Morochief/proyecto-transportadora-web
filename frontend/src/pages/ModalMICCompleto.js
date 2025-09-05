@@ -264,6 +264,7 @@ const ModalMICCompleto = ({
                     <option value="ENCARNACIÓN, PARAGUAY">ENCARNACIÓN, PARAGUAY</option>
                     <option value="PEDRO JUAN CABALLERO, PARAGUAY">PEDRO JUAN CABALLERO, PARAGUAY</option>
                     <option value="PUERTO FALCÓN, PARAGUAY">PUERTO FALCÓN, PARAGUAY</option>
+                    <option value="CAMPESTRE S.A. - CIUDAD DEL ESTE - PARAGUAY">CAMPESTRE S.A. - CIUDAD DEL ESTE - PARAGUAY</option>
                     <option value="BUENOS AIRES, ARGENTINA">BUENOS AIRES, ARGENTINA</option>
                     <option value="SÃO PAULO, BRASIL">SÃO PAULO, BRASIL</option>
                     <option value="RIO DE JANEIRO, BRASIL">RIO DE JANEIRO, BRASIL</option>
