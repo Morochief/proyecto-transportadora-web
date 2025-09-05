@@ -36,6 +36,7 @@ function CRT() {
   const [selectedTransportadora, setSelectedTransportadora] = useState(null);
   const [monedaTouched, setMonedaTouched] = useState(false);
   const [formErrors, setFormErrors] = useState({});
+  const [lugarEntregaManual, setLugarEntregaManual] = useState(false);
   const navigate = useNavigate();
 
   const optCiudadPais = (ciudades, paises) =>
@@ -376,12 +377,14 @@ RUTAS QUE NO FUNCIONAN (las que estábamos usando):
     console.log("- remitentes disponibles:", remitentes.length);
     console.log("- ciudades disponibles:", ciudades.length);
     console.log("- países disponibles:", paises.length);
+    console.log("- lugar_entrega_manual:", lugarEntregaManual);
 
     if (
       form.destinatario_id &&
       remitentes.length > 0 &&
       ciudades.length > 0 &&
-      paises.length > 0
+      paises.length > 0 &&
+      !lugarEntregaManual
     ) {
       console.log("✅ Condiciones cumplidas, buscando destinatario...");
 
@@ -450,9 +453,9 @@ RUTAS QUE NO FUNCIONAN (las que estábamos usando):
         );
       }
     } else {
-      console.log("⏳ Esperando datos completos...");
+      console.log("⏳ Esperando datos completos o lugar_entrega modificado manualmente...");
     }
-  }, [form.destinatario_id, remitentes, ciudades, paises]);
+  }, [form.destinatario_id, remitentes, ciudades, paises, lugarEntregaManual]);
 
   // ===============================================
   // 📝 INSTRUCCIONES PARA PROBAR:
@@ -762,7 +765,8 @@ Si ves algún error o mensaje ❌, compártelo conmigo.
 
   const handleRemitente = (option) =>
     setForm((f) => ({ ...f, remitente_id: option ? option.value : null }));
-  const handleDestinatario = (option) =>
+  const handleDestinatario = (option) => {
+    setLugarEntregaManual(false); // Reset flag when destinatario changes
     setForm((f) => ({
       ...f,
       destinatario_id: option ? option.value : null,
@@ -771,6 +775,7 @@ Si ves algún error o mensaje ❌, compártelo conmigo.
       notificar_a_id:
         !f.notificar_a_id && option ? option.value : f.notificar_a_id,
     }));
+  };
   const handleConsignatario = (option) =>
     setForm((f) => ({ ...f, consignatario_id: option ? option.value : null }));
   const handleNotificarA = (option) =>
@@ -796,6 +801,7 @@ Si ves algún error o mensaje ❌, compártelo conmigo.
     setForm((f) => ({ ...f, firma_destinatario_id: option ? option.value : null }));
 
   const handleLugarEntregaSelect = (option) => {
+    setLugarEntregaManual(true);
     setForm((f) => ({
       ...f,
       lugar_entrega: option ? option.label : "",

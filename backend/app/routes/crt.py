@@ -1188,9 +1188,12 @@ def generar_pdf_crt(crt_id):
         # ========== Campo 8 ==========
         x_campo8 = 300
         y_campo8 = y_campo7 - 37
-        ciudad_dest_8 = safe_get_attr(destinatario.ciudad, 'nombre') if destinatario and destinatario.ciudad else ""
-        pais_dest_8 = safe_get_attr(destinatario.ciudad.pais, 'nombre') if destinatario and destinatario.ciudad and destinatario.ciudad.pais else ""
-        texto_campo8 = f"{ciudad_dest_8} - {pais_dest_8}"
+        # Usar lugar_entrega del CRT si existe, sino usar ciudad del destinatario
+        texto_campo8 = safe_get_attr(crt, 'lugar_entrega')
+        if not texto_campo8:
+            ciudad_dest_8 = safe_get_attr(destinatario.ciudad, 'nombre') if destinatario and destinatario.ciudad else ""
+            pais_dest_8 = safe_get_attr(destinatario.ciudad.pais, 'nombre') if destinatario and destinatario.ciudad and destinatario.ciudad.pais else ""
+            texto_campo8 = f"{ciudad_dest_8} - {pais_dest_8}"
         c.setFont("Helvetica", 8)
         w_campo8 = stringWidth(texto_campo8, "Helvetica", 8)
         c.drawString(x_campo8 + (max_width_trans - w_campo8) / 2, y_campo8, texto_campo8)
