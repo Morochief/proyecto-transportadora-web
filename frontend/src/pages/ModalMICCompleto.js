@@ -332,7 +332,7 @@ const ModalMICCompleto = ({
                     placeholder="Rol del Contribuyente"
                   />
                 </div>
-                
+
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Campo 11 - Placa de camión *
@@ -345,7 +345,7 @@ const ModalMICCompleto = ({
                     placeholder="ABC-1234"
                   />
                 </div>
-                
+
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Campo 12 - Marca y número
@@ -358,7 +358,19 @@ const ModalMICCompleto = ({
                     placeholder="Marca y número del vehículo"
                   />
                 </div>
-                
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Campo 13 - Capacidad (Solo lectura)
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.campo_13_siempre_45}
+                    readOnly
+                    className="w-full p-3 border border-gray-200 rounded-lg bg-gray-50 text-gray-600"
+                  />
+                </div>
+
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Campo 14 - Año del Vehículo
@@ -373,7 +385,7 @@ const ModalMICCompleto = ({
                     placeholder="2024"
                   />
                 </div>
-                
+
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Campo 15 - Placa Semirremolque
@@ -384,18 +396,6 @@ const ModalMICCompleto = ({
                     onChange={(e) => handleInputChange('campo_15_placa_semi', e.target.value)}
                     className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-colors"
                     placeholder="XYZ-5678"
-                  />
-                </div>
-                
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Campo 13 - Capacidad (Solo lectura)
-                  </label>
-                  <input
-                    type="text"
-                    value={formData.campo_13_siempre_45}
-                    readOnly
-                    className="w-full p-3 border border-gray-200 rounded-lg bg-gray-50 text-gray-600"
                   />
                 </div>
               </div>
@@ -449,6 +449,18 @@ const ModalMICCompleto = ({
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Campo 25 - Moneda (Solo lectura)
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.campo_25_moneda}
+                    readOnly
+                    className="w-full p-3 border border-gray-200 rounded-lg bg-gray-50 text-gray-600"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
                     Campo 27 - Valor Declarado
                   </label>
                   <input
@@ -461,7 +473,7 @@ const ModalMICCompleto = ({
                   />
                   <small className="text-gray-500">Del CRT Campo 16</small>
                 </div>
-                
+
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Campo 28 - Total Flete
@@ -475,7 +487,7 @@ const ModalMICCompleto = ({
                   />
                   <small className="text-gray-500">Calculado automáticamente</small>
                 </div>
-                
+
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Campo 29 - Seguro
@@ -489,19 +501,7 @@ const ModalMICCompleto = ({
                   />
                   <small className="text-gray-500">Calculado automáticamente</small>
                 </div>
-                
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Campo 25 - Moneda (Solo lectura)
-                  </label>
-                  <input
-                    type="text"
-                    value={formData.campo_25_moneda}
-                    readOnly
-                    className="w-full p-3 border border-gray-200 rounded-lg bg-gray-50 text-gray-600"
-                  />
-                </div>
-                
+
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Campo 37 - Valor Manual
@@ -594,33 +594,33 @@ const ModalMICCompleto = ({
                   />
                   <small className="text-gray-500">Del CRT lugar de entrega</small>
                 </div>
-                
+
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Campo 40 - Tramo
+                    Campo 36 - Factura y Despacho
                   </label>
-                  <input
-                    type="text"
-                    value={formData.campo_40_tramo}
-                    onChange={(e) => handleInputChange('campo_40_tramo', e.target.value)}
-                    className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors"
-                    placeholder="Descripción del tramo"
+                  <textarea
+                    rows="2"
+                    value={formData.campo_36_factura_despacho}
+                    onChange={(e) => handleInputChange('campo_36_factura_despacho', e.target.value)}
+                    className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors resize-none"
+                    placeholder="Información de facturas y números de despacho"
                   />
+                  <small className="text-gray-500">Del CRT factura y despacho</small>
                 </div>
               </div>
-              
+
               <div className="mt-4">
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Campo 36 - Factura y Despacho
+                  Campo 40 - Tramo
                 </label>
-                <textarea
-                  rows="2"
-                  value={formData.campo_36_factura_despacho}
-                  onChange={(e) => handleInputChange('campo_36_factura_despacho', e.target.value)}
-                  className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors resize-none"
-                  placeholder="Información de facturas y números de despacho"
+                <input
+                  type="text"
+                  value={formData.campo_40_tramo}
+                  onChange={(e) => handleInputChange('campo_40_tramo', e.target.value)}
+                  className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors"
+                  placeholder="Descripción del tramo"
                 />
-                <small className="text-gray-500">Del CRT factura y despacho</small>
               </div>
             </div>
           </div>
