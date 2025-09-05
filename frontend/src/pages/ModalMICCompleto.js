@@ -176,6 +176,20 @@ const ModalMICCompleto = ({
                   <small className="text-gray-500">Del CRT transportadora</small>
                 </div>
 
+                {/* Campo 2 */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Campo 2 - Rol de contribuyente
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.campo_2_numero}
+                    onChange={(e) => handleInputChange('campo_2_numero', e.target.value)}
+                    className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                    placeholder="Rol del Contribuyente"
+                  />
+                </div>
+
                 {/* Campo 3 */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -205,21 +219,7 @@ const ModalMICCompleto = ({
                   />
                 </div>
 
-                {/* Campo 2 */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Campo 2 - Rol de contribuyente
-                  </label>
-                  <input
-                    type="text"
-                    value={formData.campo_2_numero}
-                    onChange={(e) => handleInputChange('campo_2_numero', e.target.value)}
-                    className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
-                    placeholder="Rol del Contribuyente"
-                  />
-                </div>
-
-                {/* Campo 5 - Debajo del Campo 3 */}
+                {/* Campo 5 */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Campo 5 - Hoja
@@ -232,8 +232,8 @@ const ModalMICCompleto = ({
                   />
                 </div>
 
-                {/* Campo 6 - Debajo del Campo 4 */}
-                <div>
+                {/* Campo 6 - Achicado para dar espacio al título del Campo 7 */}
+                <div className="col-span-1">
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Campo 6 - Fecha
                   </label>
@@ -245,62 +245,29 @@ const ModalMICCompleto = ({
                   />
                 </div>
 
-                {/* Campo 7 - Debajo de Campo 5 y 6 */}
-                <div className="md:col-span-2 lg:col-span-3 xl:col-span-4">
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                {/* Campo 7 - Expandido para que el título quepa en una línea */}
+                <div className="md:col-span-2 lg:col-span-2 xl:col-span-2">
+                  <label className="block text-sm font-medium text-gray-700 mb-2 whitespace-nowrap">
                     Campo 7 - Aduana, ciudad y país de partida
                   </label>
-                  <div className="flex gap-2">
-                    <select
-                      value={formData.campo_7_pto_seguro}
-                      onChange={(e) => handleInputChange('campo_7_pto_seguro', e.target.value)}
-                      className="flex-1 p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
-                    >
-                      <option value="">Seleccionar aduana</option>
-                      <option value="ASUNCIÓN, PARAGUAY">ASUNCIÓN, PARAGUAY</option>
-                      <option value="CIUDAD DEL ESTE, PARAGUAY">CIUDAD DEL ESTE, PARAGUAY</option>
-                      <option value="ENCARNACIÓN, PARAGUAY">ENCARNACIÓN, PARAGUAY</option>
-                      <option value="PEDRO JUAN CABALLERO, PARAGUAY">PEDRO JUAN CABALLERO, PARAGUAY</option>
-                      <option value="PUERTO FALCÓN, PARAGUAY">PUERTO FALCÓN, PARAGUAY</option>
-                      <option value="BUENOS AIRES, ARGENTINA">BUENOS AIRES, ARGENTINA</option>
-                      <option value="SÃO PAULO, BRASIL">SÃO PAULO, BRASIL</option>
-                      <option value="RIO DE JANEIRO, BRASIL">RIO DE JANEIRO, BRASIL</option>
-                      <option value="SANTOS, BRASIL">SANTOS, BRASIL</option>
-                    </select>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        const nuevaAduana = prompt('Ingrese nueva aduana (Ej: CIUDAD, PAÍS):');
-                        if (nuevaAduana && nuevaAduana.trim()) {
-                          handleInputChange('campo_7_pto_seguro', nuevaAduana.trim());
-                        }
-                      }}
-                      className="px-3 py-3 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors"
-                      title="Agregar nueva aduana"
-                    >
-                      ➕
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        if (formData.campo_7_pto_seguro) {
-                          // eslint-disable-next-line no-restricted-globals
-                          const confirmar = confirm(`¿Eliminar "${formData.campo_7_pto_seguro}" de la lista?`);
-                          if (confirmar) {
-                            handleInputChange('campo_7_pto_seguro', '');
-                          }
-                        } else {
-                          alert('Selecciona una aduana primero para eliminarla.');
-                        }
-                      }}
-                      className="px-3 py-3 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors"
-                      title="Eliminar aduana seleccionada"
-                    >
-                      ❌
-                    </button>
-                  </div>
+                  <select
+                    value={formData.campo_7_pto_seguro}
+                    onChange={(e) => handleInputChange('campo_7_pto_seguro', e.target.value)}
+                    className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                  >
+                    <option value="">Seleccionar aduana</option>
+                    <option value="ASUNCIÓN, PARAGUAY">ASUNCIÓN, PARAGUAY</option>
+                    <option value="CIUDAD DEL ESTE, PARAGUAY">CIUDAD DEL ESTE, PARAGUAY</option>
+                    <option value="ENCARNACIÓN, PARAGUAY">ENCARNACIÓN, PARAGUAY</option>
+                    <option value="PEDRO JUAN CABALLERO, PARAGUAY">PEDRO JUAN CABALLERO, PARAGUAY</option>
+                    <option value="PUERTO FALCÓN, PARAGUAY">PUERTO FALCÓN, PARAGUAY</option>
+                    <option value="BUENOS AIRES, ARGENTINA">BUENOS AIRES, ARGENTINA</option>
+                    <option value="SÃO PAULO, BRASIL">SÃO PAULO, BRASIL</option>
+                    <option value="RIO DE JANEIRO, BRASIL">RIO DE JANEIRO, BRASIL</option>
+                    <option value="SANTOS, BRASIL">SANTOS, BRASIL</option>
+                  </select>
                   <small className="text-gray-500 mt-1 block">
-                    Selecciona una aduana o agrega una nueva con el botón ➕
+                    Selecciona una aduana de la lista
                   </small>
                 </div>
 
