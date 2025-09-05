@@ -141,6 +141,8 @@ class CRT(db.Model):
         db.Integer, db.ForeignKey('remitentes.id'), nullable=True)
     notificar_a_id = db.Column(db.Integer, db.ForeignKey(
         'remitentes.id'), nullable=True)  # NUEVO
+    firma_destinatario_id = db.Column(db.Integer, db.ForeignKey(
+        'remitentes.id'), nullable=True)  # Campo 24: Destinatario firma
     transportadora_id = db.Column(db.Integer, db.ForeignKey(
         'transportadoras.id'), nullable=False)
     ciudad_emision_id = db.Column(
@@ -177,7 +179,9 @@ class CRT(db.Model):
     consignatario = db.relationship(
         'Remitente', foreign_keys=[consignatario_id])
     notificar_a = db.relationship('Remitente', foreign_keys=[
-                                  notificar_a_id])  # NUEVO
+                                   notificar_a_id])  # NUEVO
+    firma_destinatario = db.relationship('Remitente', foreign_keys=[
+                                         firma_destinatario_id])  # Campo 24
     transportadora = db.relationship('Transportadora')
     ciudad_emision = db.relationship('Ciudad')
     pais_emision = db.relationship('Pais')

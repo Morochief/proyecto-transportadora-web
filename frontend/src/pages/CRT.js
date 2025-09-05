@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import api from "../api/api";
 import Select from "react-select";
 import { useNavigate } from "react-router-dom";
+import ModalMICCompleto from "./ModalMICCompleto";
 
 function hoyISO() {
   const d = new Date();
@@ -37,6 +38,9 @@ function CRT() {
   const [monedaTouched, setMonedaTouched] = useState(false);
   const [formErrors, setFormErrors] = useState({});
   const [lugarEntregaManual, setLugarEntregaManual] = useState(false);
+  const [crtEmitido, setCrtEmitido] = useState(null); // Estado para guardar info del CRT emitido
+  const [modalMICOpen, setModalMICOpen] = useState(false); // Estado para controlar el modal MIC
+  const [loadingMIC, setLoadingMIC] = useState(false); // Estado para loading del MIC
   const navigate = useNavigate();
 
   const optCiudadPais = (ciudades, paises) =>
@@ -808,6 +812,30 @@ Si ves algún error o mensaje ❌, compártelo conmigo.
     }));
   };
 
+  // Función para manejar la generación de PDF desde el modal
+  const handleGenerateMIC = async (micData) => {
+    if (!crtEmitido || !crtEmitido.id) {
+      alert("No hay CRT emitido para generar MIC");
+      return;
+    }
+
+    setLoadingMIC(true);
+    try {
+      const response = await api.post(`/mic/generate_pdf_from_crt/${crtEmitido.id}`, micData);
+      // Mostrar el PDF generado
+      const pdfWindow = window.open('', '_blank');
+      pdfWindow.document.write('<pre>' + response.data + '</pre>');
+      pdfWindow.document.close();
+
+      setModalMICOpen(false);
+      alert("MIC generado exitosamente");
+    } catch (error) {
+      alert("Error al generar MIC: " + (error.response?.data?.error || error.message));
+    } finally {
+      setLoadingMIC(false);
+    }
+  };
+
   const monedaObligatoria = !monedaGasto || !monedaGasto.value;
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -822,7 +850,7 @@ Si ves algún error o mensaje ❌, compártelo conmigo.
     if (monedaObligatoria) return;
 
     try {
-      await api.post("/crts/", {
+      const response = await api.post("/crts/", {
         ...form,
         gastos: form.gastos.map((g) => ({
           ...g,
@@ -833,6 +861,30 @@ Si ves algún error o mensaje ❌, compártelo conmigo.
         firma_transportador_id: form.firma_transportador_id,
         firma_destinatario_id: form.firma_destinatario_id,
       });
+
+      // Guardar la información del CRT emitido
+      const crtData = {
+        id: response.data.id,
+        numero_crt: form.numero_crt,
+        fecha_emision: form.fecha_emision,
+        estado: form.estado,
+        remitente_id: form.remitente_id,
+        destinatario_id: form.destinatario_id,
+        transportadora_id: form.transportadora_id,
+        detalles_mercaderia: form.detalles_mercaderia,
+        lugar_entrega: form.lugar_entrega,
+        declaracion_mercaderia: form.declaracion_mercaderia,
+        peso_bruto: form.peso_bruto,
+        factura_exportacion: form.factura_exportacion,
+        nro_despacho: form.nro_despacho,
+        moneda_id: form.moneda_id,
+        // Información adicional para el modal MIC
+        transportadora: selectedTransportadora,
+        moneda: monedas.find(m => m.id === form.moneda_id)?.codigo,
+        // Agregar otros campos relevantes para el MIC
+      };
+      setCrtEmitido(crtData);
+
       alert("CRT emitido correctamente");
       setForm((f) => ({ ...f, gastos: [] }));
       setMonedaTouched(false);
@@ -1628,6 +1680,14 @@ Si ves algún error o mensaje ❌, compártelo conmigo.
             </div>
           </div>
           <div className="flex flex-col md:flex-row gap-4 justify-end mt-8">
+            {/* Indicador visual de CRT emitido */}
+            {crtEmitido && (
+              <div className="flex items-center gap-2 text-green-700 font-semibold">
+                <span className="text-2xl">✅</span>
+                <span>CRT {crtEmitido.numero_crt} emitido - Listo para MIC</span>
+              </div>
+            )}
+
             <button
               type="submit"
               className="bg-indigo-700 hover:bg-indigo-800 text-white font-bold py-3 px-10 rounded-xl shadow-lg transition"
@@ -1636,30 +1696,12 @@ Si ves algún error o mensaje ❌, compártelo conmigo.
             </button>
             <button
               type="button"
-              onClick={async () => {
-                if (!form.numero_crt) {
+              onClick={() => {
+                if (!crtEmitido || !crtEmitido.id) {
                   alert("Primero debes emitir el CRT antes de generar el MIC.");
                   return;
                 }
-                try {
-                  const crtEmitido = await api.get(
-                    `/crts/by_numero/${form.numero_crt}`
-                  );
-                  const crt_id = crtEmitido.data?.id;
-                  if (!crt_id) {
-                    alert("No se pudo obtener el ID del CRT emitido.");
-                    return;
-                  }
-                  // Prellenar datos de MIC desde CRT y redirigir automáticamente
-                  const resp = await api.post(`/mic/from_crt/${crt_id}`);
-                  // Redirigir a /mic/nuevo con los datos prellenados
-                  navigate("/mic/nuevo", { state: resp.data });
-                } catch (err) {
-                  alert(
-                    "Error al generar el MIC: " +
-                      (err.response?.data?.error || err.message)
-                  );
-                }
+                setModalMICOpen(true);
               }}
               className="bg-green-700 hover:bg-green-800 text-white font-bold py-3 px-10 rounded-xl shadow-lg transition"
             >
@@ -1668,6 +1710,15 @@ Si ves algún error o mensaje ❌, compártelo conmigo.
           </div>
         </form>
       </div>
+
+      {/* Modal MIC */}
+      <ModalMICCompleto
+        isOpen={modalMICOpen}
+        onClose={() => setModalMICOpen(false)}
+        crt={crtEmitido}
+        onGenerate={handleGenerateMIC}
+        loading={loadingMIC}
+      />
     </div>
   );
 }

@@ -510,6 +510,7 @@ def crear_crt():
             destinatario_id=data["destinatario_id"],
             consignatario_id=data.get("consignatario_id"),
             notificar_a_id=data.get("notificar_a_id"),
+            firma_destinatario_id=data.get("firma_destinatario_id"),
             transportadora_id=data["transportadora_id"],
             ciudad_emision_id=data["ciudad_emision_id"],
             pais_emision_id=data["pais_emision_id"],
@@ -657,6 +658,7 @@ def editar_crt(crt_id):
         crt.consignatario_id = data.get(
             "consignatario_id", crt.consignatario_id)
         crt.notificar_a_id = data.get("notificar_a_id", crt.notificar_a_id)
+        crt.firma_destinatario_id = data.get("firma_destinatario_id", crt.firma_destinatario_id)
         crt.transportadora_id = data.get(
             "transportadora_id", crt.transportadora_id)
         crt.ciudad_emision_id = data.get(
@@ -792,6 +794,8 @@ def generar_pdf_crt(crt_id):
                 Remitente.ciudad).joinedload(Ciudad.pais),
             joinedload(CRT.notificar_a).joinedload(
                 Remitente.ciudad).joinedload(Ciudad.pais),
+            joinedload(CRT.firma_destinatario).joinedload(
+                Remitente.ciudad).joinedload(Ciudad.pais),
             joinedload(CRT.moneda),
             joinedload(CRT.gastos).joinedload(CRT_Gasto.moneda_remitente),
             joinedload(CRT.gastos).joinedload(CRT_Gasto.moneda_destinatario),
@@ -805,6 +809,7 @@ def generar_pdf_crt(crt_id):
         destinatario = crt.destinatario
         consignatario = crt.consignatario
         notificar_a = crt.notificar_a
+        firma_destinatario = crt.firma_destinatario
 
         # ✅ DEBUG: Verificar que los datos estén cargados
         print(f"🔍 Generando PDF CRT {crt.numero_crt}")
@@ -813,6 +818,7 @@ def generar_pdf_crt(crt_id):
         print(f"   Destinatario: {destinatario.nombre if destinatario else 'NO ENCONTRADO'}")
         print(f"   Consignatario: {consignatario.nombre if consignatario else 'NO ENCONTRADO'}")
         print(f"   Notificar a: {notificar_a.nombre if notificar_a else 'NO ENCONTRADO'}")
+        print(f"   Firma Destinatario: {firma_destinatario.nombre if firma_destinatario else 'NO ENCONTRADO'}")
         print(f"   Gastos: {len(crt.gastos)} items")
 
         output = BytesIO()
@@ -1391,7 +1397,9 @@ def generar_pdf_crt(crt_id):
         y24_nombre = 152
         x24_fecha = 380
         y24_fecha = 87
-        destinatario_nombre = safe_get_attr(destinatario, 'nombre') if destinatario else ""
+        # Usar firma_destinatario si existe, sino usar destinatario
+        firma_destinatario_obj = firma_destinatario if firma_destinatario else destinatario
+        destinatario_nombre = safe_get_attr(firma_destinatario_obj, 'nombre') if firma_destinatario_obj else ""
         c.setFont("Helvetica-Bold", 9)
         c.drawString(x24_nombre, y24_nombre, destinatario_nombre)
         c.setFont("Helvetica", 8)
