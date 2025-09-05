@@ -206,7 +206,7 @@ const ModalMICCompleto = ({
                 </div>
 
                 {/* Campo 2 */}
-                <div className="md:col-span-2 lg:col-span-3 xl:col-span-4">
+                <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Campo 2 - Rol de contribuyente
                   </label>
