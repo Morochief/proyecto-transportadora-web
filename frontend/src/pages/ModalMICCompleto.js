@@ -157,7 +157,7 @@ const ModalMICCompleto = ({
             <div className="bg-white rounded-lg p-6 border border-gray-200">
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
                 {/* Campo 1 */}
-                <div className="md:col-span-2 lg:col-span-3 xl:col-span-4">
+                <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Campo 1 - Nombre del porteador
                   </label>
@@ -174,20 +174,6 @@ const ModalMICCompleto = ({
                     ))}
                   </select>
                   <small className="text-gray-500">Del CRT transportadora</small>
-                </div>
-
-                {/* Campo 2 */}
-                <div className="md:col-span-2 lg:col-span-3 xl:col-span-4">
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Campo 2 - Rol de contribuyente
-                  </label>
-                  <input
-                    type="text"
-                    value={formData.campo_2_numero}
-                    onChange={(e) => handleInputChange('campo_2_numero', e.target.value)}
-                    className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
-                    placeholder="Rol del Contribuyente"
-                  />
                 </div>
 
                 {/* Campo 3 */}
@@ -219,7 +205,21 @@ const ModalMICCompleto = ({
                   />
                 </div>
 
-                {/* Campo 5 */}
+                {/* Campo 2 */}
+                <div className="md:col-span-2 lg:col-span-3 xl:col-span-4">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Campo 2 - Rol de contribuyente
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.campo_2_numero}
+                    onChange={(e) => handleInputChange('campo_2_numero', e.target.value)}
+                    className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                    placeholder="Rol del Contribuyente"
+                  />
+                </div>
+
+                {/* Campo 5 - Debajo del Campo 3 */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Campo 5 - Hoja
@@ -232,7 +232,7 @@ const ModalMICCompleto = ({
                   />
                 </div>
 
-                {/* Campo 6 */}
+                {/* Campo 6 - Debajo del Campo 4 */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Campo 6 - Fecha
