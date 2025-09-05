@@ -160,10 +160,25 @@ const ModalMICCompleto = ({
                 <Calendar className="w-6 h-6 text-gray-600 mr-3" />
                 <h3 className="text-lg font-semibold text-gray-700">Información Automática</h3>
               </div>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Campo 4 - Estado
+                    Campo 3 - Tránsito aduanero
+                  </label>
+                  <select
+                    value={formData.campo_3_transporte}
+                    onChange={(e) => handleInputChange('campo_3_transporte', e.target.value)}
+                    className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-gray-500 focus:border-gray-500 transition-colors"
+                  >
+                    <option value="">Seleccionar opción</option>
+                    <option value="SI">SI</option>
+                    <option value="NO">NO</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Campo 4 - Nº
                   </label>
                   <input
                     type="text"
@@ -236,21 +251,6 @@ const ModalMICCompleto = ({
                     className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
                     placeholder="Rol del Contribuyente"
                   />
-                </div>
-                
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Campo 3 - Tránsito aduanero
-                  </label>
-                  <select
-                    value={formData.campo_3_transporte}
-                    onChange={(e) => handleInputChange('campo_3_transporte', e.target.value)}
-                    className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
-                  >
-                    <option value="">Seleccionar opción</option>
-                    <option value="SI">SI</option>
-                    <option value="NO">NO</option>
-                  </select>
                 </div>
                 
                 <div>
