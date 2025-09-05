@@ -15,33 +15,33 @@ const ModalMICCompleto = ({
     campo_3_transporte: '',
     campo_7_pto_seguro: '',
     campo_8_destino: '',
-    
+
     // SECCIÓN 2: Datos del Vehículo
     campo_10_numero: '',
     campo_11_placa: '',
     campo_12_modelo_chasis: '',
     campo_14_anio: '',
     campo_15_placa_semi: '',
-    
+
     // SECCIÓN 3: Información Aduanera
     campo_24_aduana: '',
     campo_26_pais: '520-PARAGUAY',
-    
+
     // SECCIÓN 4: Valores y Montos (editables)
     campo_27_valor_campo16: '',
     campo_28_total: '',
     campo_29_seguro: '',
-    
+
     // SECCIÓN 5: Mercadería
     campo_30_tipo_bultos: '',
     campo_31_cantidad: '',
     campo_32_peso_bruto: '',
     campo_37_valor_manual: '',
-    
+
     // SECCIÓN 6: Documentos y Referencias
     campo_36_factura_despacho: '',
     campo_40_tramo: '',
-    
+
     // SECCIÓN 7: Campos de Solo Lectura (pre-llenados)
     campo_4_estado: 'PROVISORIO',
     campo_5_hoja: '1 / 1',
@@ -50,12 +50,31 @@ const ModalMICCompleto = ({
     campo_25_moneda: '',
   });
 
+  const [transportadoras, setTransportadoras] = useState([]);
+
+  // Cargar transportadoras cuando se abre el modal
+  useEffect(() => {
+    if (isOpen) {
+      const cargarTransportadoras = async () => {
+        try {
+          const response = await fetch('http://localhost:5000/api/transportadoras/');
+          const data = await response.json();
+          setTransportadoras(data.items || []);
+        } catch (error) {
+          console.error('Error cargando transportadoras:', error);
+          setTransportadoras([]);
+        }
+      };
+      cargarTransportadoras();
+    }
+  }, [isOpen]);
+
   // Prellenar datos del CRT cuando se abre el modal
   useEffect(() => {
     if (isOpen && crt) {
       setFormData(prev => ({
         ...prev,
-        campo_1_porteador: crt.transportadora ? `${crt.transportadora.nombre} - ${crt.transportadora.direccion}` : '',
+        campo_1_porteador: crt.transportadora_id || '',
         campo_2_numero: crt.transportadora_rol_contribuyente || '',
         campo_8_destino: crt.lugar_entrega || '',
         campo_10_numero: crt.transportadora_rol_contribuyente || '',
@@ -80,7 +99,7 @@ const ModalMICCompleto = ({
 
   const resetForm = () => {
     setFormData({
-      campo_1_porteador: crt?.transportadora ? `${crt.transportadora.nombre} - ${crt.transportadora.direccion}` : '',
+      campo_1_porteador: crt?.transportadora_id || '',
       campo_2_numero: crt?.transportadora_rol_contribuyente || '',
       campo_3_transporte: '',
       campo_7_pto_seguro: '',
@@ -144,15 +163,20 @@ const ModalMICCompleto = ({
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Campo 1 - Nombre y domicilio del porteador
+                    Campo 1 - Nombre del porteador
                   </label>
-                  <input
-                    type="text"
+                  <select
                     value={formData.campo_1_porteador}
                     onChange={(e) => handleInputChange('campo_1_porteador', e.target.value)}
                     className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
-                    placeholder="Nombre y dirección del transportista"
-                  />
+                  >
+                    <option value="">Seleccionar transportadora</option>
+                    {transportadoras.map((transportadora) => (
+                      <option key={transportadora.id} value={transportadora.id}>
+                        {transportadora.nombre}
+                      </option>
+                    ))}
+                  </select>
                   <small className="text-gray-500">Del CRT transportadora</small>
                 </div>
 
