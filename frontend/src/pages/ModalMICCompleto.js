@@ -152,75 +152,11 @@ const ModalMICCompleto = ({
 
         {/* CONTENT */}
         <div className="flex-1 overflow-y-auto p-6 pr-8">
-          <div className="space-y-8">
-            
-            {/* CAMPOS DE SOLO LECTURA */}
-            <div className="bg-gradient-to-r from-gray-50 to-gray-100 rounded-lg p-6 border-l-4 border-gray-400">
-              <div className="flex items-center mb-4">
-                <Calendar className="w-6 h-6 text-gray-600 mr-3" />
-                <h3 className="text-lg font-semibold text-gray-700">Información Automática</h3>
-              </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Campo 3 - Tránsito aduanero
-                  </label>
-                  <select
-                    value={formData.campo_3_transporte}
-                    onChange={(e) => handleInputChange('campo_3_transporte', e.target.value)}
-                    className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-gray-500 focus:border-gray-500 transition-colors"
-                  >
-                    <option value="">Seleccionar opción</option>
-                    <option value="SI">SI</option>
-                    <option value="NO">NO</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Campo 4 - Nº
-                  </label>
-                  <input
-                    type="text"
-                    value={formData.campo_4_estado}
-                    readOnly
-                    className="w-full p-3 border border-gray-200 rounded-lg bg-gray-50 text-gray-600"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Campo 5 - Hoja
-                  </label>
-                  <input
-                    type="text"
-                    value={formData.campo_5_hoja}
-                    readOnly
-                    className="w-full p-3 border border-gray-200 rounded-lg bg-gray-50 text-gray-600"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Campo 6 - Fecha
-                  </label>
-                  <input
-                    type="date"
-                    value={formData.campo_6_fecha}
-                    onChange={(e) => handleInputChange('campo_6_fecha', e.target.value)}
-                    className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-gray-500 focus:border-gray-500 transition-colors"
-                  />
-                </div>
-              </div>
-            </div>
-
-            {/* SECCIÓN 1: INFORMACIÓN DEL TRANSPORTE */}
-            <div className="bg-gradient-to-r from-blue-50 to-blue-100 rounded-lg p-6 border-l-4 border-blue-500">
-              <div className="flex items-center mb-4">
-                <Truck className="w-6 h-6 text-blue-600 mr-3" />
-                <h3 className="text-lg font-semibold text-blue-800">Información del Transporte</h3>
-              </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          <div className="space-y-6">
+            {/* FORMULARIO UNIFICADO - TODOS LOS CAMPOS ORGANIZADOS POR NÚMERO */}
+            <div className="bg-white rounded-lg p-6 border border-gray-200">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                {/* Campo 1 */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Campo 1 - Nombre del porteador
@@ -240,6 +176,7 @@ const ModalMICCompleto = ({
                   <small className="text-gray-500">Del CRT transportadora</small>
                 </div>
 
+                {/* Campo 2 */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Campo 2 - Rol de contribuyente
@@ -252,8 +189,64 @@ const ModalMICCompleto = ({
                     placeholder="Rol del Contribuyente"
                   />
                 </div>
-                
+
+                {/* Campo 3 */}
                 <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Campo 3 - Tránsito aduanero
+                  </label>
+                  <select
+                    value={formData.campo_3_transporte}
+                    onChange={(e) => handleInputChange('campo_3_transporte', e.target.value)}
+                    className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-gray-500 focus:border-gray-500 transition-colors"
+                  >
+                    <option value="">Seleccionar opción</option>
+                    <option value="SI">SI</option>
+                    <option value="NO">NO</option>
+                  </select>
+                </div>
+
+                {/* Campo 4 */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Campo 4 - Nº
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.campo_4_estado}
+                    readOnly
+                    className="w-full p-3 border border-gray-200 rounded-lg bg-gray-50 text-gray-600"
+                  />
+                </div>
+
+                {/* Campo 5 */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Campo 5 - Hoja
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.campo_5_hoja}
+                    readOnly
+                    className="w-full p-3 border border-gray-200 rounded-lg bg-gray-50 text-gray-600"
+                  />
+                </div>
+
+                {/* Campo 6 */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Campo 6 - Fecha
+                  </label>
+                  <input
+                    type="date"
+                    value={formData.campo_6_fecha}
+                    onChange={(e) => handleInputChange('campo_6_fecha', e.target.value)}
+                    className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-gray-500 focus:border-gray-500 transition-colors"
+                  />
+                </div>
+
+                {/* Campo 7 */}
+                <div className="md:col-span-2 lg:col-span-3 xl:col-span-2">
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Campo 7 - Aduana, ciudad y país de partida
                   </label>
@@ -310,16 +303,23 @@ const ModalMICCompleto = ({
                     Selecciona una aduana o agrega una nueva con el botón ➕
                   </small>
                 </div>
-              </div>
-            </div>
 
-            {/* SECCIÓN 2: DATOS DEL VEHÍCULO */}
-            <div className="bg-gradient-to-r from-green-50 to-green-100 rounded-lg p-6 border-l-4 border-green-500">
-              <div className="flex items-center mb-4">
-                <Package className="w-6 h-6 text-green-600 mr-3" />
-                <h3 className="text-lg font-semibold text-green-800">Datos del Vehículo</h3>
-              </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {/* Campo 8 */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Campo 8 - Destino
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.campo_8_destino}
+                    onChange={(e) => handleInputChange('campo_8_destino', e.target.value)}
+                    className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors"
+                    placeholder="Ciudad/Puerto de destino"
+                  />
+                  <small className="text-gray-500">Del CRT lugar de entrega</small>
+                </div>
+
+                {/* Campo 10 */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Campo 10 - Rol del Contribuyente
@@ -333,6 +333,7 @@ const ModalMICCompleto = ({
                   />
                 </div>
 
+                {/* Campo 11 */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Campo 11 - Placa de camión *
@@ -346,6 +347,7 @@ const ModalMICCompleto = ({
                   />
                 </div>
 
+                {/* Campo 12 */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Campo 12 - Marca y número
@@ -359,6 +361,7 @@ const ModalMICCompleto = ({
                   />
                 </div>
 
+                {/* Campo 13 */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Campo 13 - Capacidad (Solo lectura)
@@ -371,6 +374,7 @@ const ModalMICCompleto = ({
                   />
                 </div>
 
+                {/* Campo 14 */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Campo 14 - Año del Vehículo
@@ -386,6 +390,7 @@ const ModalMICCompleto = ({
                   />
                 </div>
 
+                {/* Campo 15 */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Campo 15 - Placa Semirremolque
@@ -398,16 +403,8 @@ const ModalMICCompleto = ({
                     placeholder="XYZ-5678"
                   />
                 </div>
-              </div>
-            </div>
 
-            {/* SECCIÓN 3: INFORMACIÓN ADUANERA */}
-            <div className="bg-gradient-to-r from-purple-50 to-purple-100 rounded-lg p-6 border-l-4 border-purple-500">
-              <div className="flex items-center mb-4">
-                <Building className="w-6 h-6 text-purple-600 mr-3" />
-                <h3 className="text-lg font-semibold text-purple-800">Información Aduanera</h3>
-              </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {/* Campo 24 */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Campo 24 - Aduana
@@ -425,28 +422,8 @@ const ModalMICCompleto = ({
                     <option value="PUERTO FALCÓN">PUERTO FALCÓN</option>
                   </select>
                 </div>
-                
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Campo 26 - País (Solo lectura)
-                  </label>
-                  <input
-                    type="text"
-                    value={formData.campo_26_pais}
-                    readOnly
-                    className="w-full p-3 border border-gray-200 rounded-lg bg-gray-50 text-gray-600"
-                  />
-                </div>
-              </div>
-            </div>
 
-            {/* SECCIÓN 4: VALORES Y MONTOS */}
-            <div className="bg-gradient-to-r from-yellow-50 to-yellow-100 rounded-lg p-6 border-l-4 border-yellow-500">
-              <div className="flex items-center mb-4">
-                <DollarSign className="w-6 h-6 text-yellow-600 mr-3" />
-                <h3 className="text-lg font-semibold text-yellow-800">Valores y Montos</h3>
-              </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {/* Campo 25 */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Campo 25 - Moneda (Solo lectura)
@@ -459,6 +436,20 @@ const ModalMICCompleto = ({
                   />
                 </div>
 
+                {/* Campo 26 */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Campo 26 - País (Solo lectura)
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.campo_26_pais}
+                    readOnly
+                    className="w-full p-3 border border-gray-200 rounded-lg bg-gray-50 text-gray-600"
+                  />
+                </div>
+
+                {/* Campo 27 */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Campo 27 - Valor Declarado
@@ -474,6 +465,7 @@ const ModalMICCompleto = ({
                   <small className="text-gray-500">Del CRT Campo 16</small>
                 </div>
 
+                {/* Campo 28 */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Campo 28 - Total Flete
@@ -488,6 +480,7 @@ const ModalMICCompleto = ({
                   <small className="text-gray-500">Calculado automáticamente</small>
                 </div>
 
+                {/* Campo 29 */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Campo 29 - Seguro
@@ -502,28 +495,7 @@ const ModalMICCompleto = ({
                   <small className="text-gray-500">Calculado automáticamente</small>
                 </div>
 
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Campo 37 - Valor Manual
-                  </label>
-                  <input
-                    type="text"
-                    value={formData.campo_37_valor_manual}
-                    onChange={(e) => handleInputChange('campo_37_valor_manual', e.target.value)}
-                    className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-yellow-500 focus:border-yellow-500 transition-colors"
-                    placeholder="Valor adicional"
-                  />
-                </div>
-              </div>
-            </div>
-
-            {/* SECCIÓN 5: MERCADERÍA */}
-            <div className="bg-gradient-to-r from-orange-50 to-orange-100 rounded-lg p-6 border-l-4 border-orange-500">
-              <div className="flex items-center mb-4">
-                <Package className="w-6 h-6 text-orange-600 mr-3" />
-                <h3 className="text-lg font-semibold text-orange-800">Información de Mercadería</h3>
-              </div>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                {/* Campo 30 */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Campo 30 - Tipo de Bultos
@@ -542,7 +514,8 @@ const ModalMICCompleto = ({
                     <option value="OTROS">OTROS</option>
                   </select>
                 </div>
-                
+
+                {/* Campo 31 */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Campo 31 - Cantidad
@@ -556,7 +529,8 @@ const ModalMICCompleto = ({
                     placeholder="0"
                   />
                 </div>
-                
+
+                {/* Campo 32 */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Campo 32 - Peso Bruto (kg)
@@ -571,31 +545,9 @@ const ModalMICCompleto = ({
                   />
                   <small className="text-gray-500">Del CRT</small>
                 </div>
-              </div>
-            </div>
 
-            {/* SECCIÓN 6: INFORMACIÓN ADICIONAL */}
-            <div className="bg-gradient-to-r from-indigo-50 to-indigo-100 rounded-lg p-6 border-l-4 border-indigo-500">
-              <div className="flex items-center mb-4">
-                <MapPin className="w-6 h-6 text-indigo-600 mr-3" />
-                <h3 className="text-lg font-semibold text-indigo-800">Información Adicional</h3>
-              </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Campo 8 - Destino
-                  </label>
-                  <input
-                    type="text"
-                    value={formData.campo_8_destino}
-                    onChange={(e) => handleInputChange('campo_8_destino', e.target.value)}
-                    className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors"
-                    placeholder="Ciudad/Puerto de destino"
-                  />
-                  <small className="text-gray-500">Del CRT lugar de entrega</small>
-                </div>
-
-                <div>
+                {/* Campo 36 */}
+                <div className="md:col-span-2 lg:col-span-3 xl:col-span-2">
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Campo 36 - Factura y Despacho
                   </label>
@@ -608,19 +560,34 @@ const ModalMICCompleto = ({
                   />
                   <small className="text-gray-500">Del CRT factura y despacho</small>
                 </div>
-              </div>
 
-              <div className="mt-4">
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Campo 40 - Tramo
-                </label>
-                <input
-                  type="text"
-                  value={formData.campo_40_tramo}
-                  onChange={(e) => handleInputChange('campo_40_tramo', e.target.value)}
-                  className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors"
-                  placeholder="Descripción del tramo"
-                />
+                {/* Campo 37 */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Campo 37 - Valor Manual
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.campo_37_valor_manual}
+                    onChange={(e) => handleInputChange('campo_37_valor_manual', e.target.value)}
+                    className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-yellow-500 focus:border-yellow-500 transition-colors"
+                    placeholder="Valor adicional"
+                  />
+                </div>
+
+                {/* Campo 40 */}
+                <div className="md:col-span-2 lg:col-span-3 xl:col-span-2">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Campo 40 - Tramo
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.campo_40_tramo}
+                    onChange={(e) => handleInputChange('campo_40_tramo', e.target.value)}
+                    className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors"
+                    placeholder="Descripción del tramo"
+                  />
+                </div>
               </div>
             </div>
           </div>
