@@ -73,17 +73,73 @@ const ModalMICCompleto = ({
   // Prellenar datos del CRT cuando se abre el modal
   useEffect(() => {
     if (isOpen && crt) {
+      console.log('📋 Datos completos del CRT en modal:', crt);
+      console.log('💰 Valores calculados:', {
+        total_flete: crt.total_flete,
+        seguro: crt.seguro
+      });
+
+      // Formatear los valores calculados
+      const totalFleteFormatted = crt.total_flete ? crt.total_flete.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).replace('.', ',') : '';
+      const seguroFormatted = crt.seguro ? crt.seguro.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).replace('.', ',') : '';
+
+      console.log('📝 Valores formateados:', {
+        totalFleteFormatted,
+        seguroFormatted
+      });
+
+      // Formatear valores numéricos del CRT
+      const pesoNetoFormatted = crt.peso_neto ? parseFloat(crt.peso_neto.replace(',', '.')).toLocaleString('es-ES', { minimumFractionDigits: 3, maximumFractionDigits: 3 }).replace('.', ',') : '';
+      const volumenFormatted = crt.volumen ? parseFloat(crt.volumen.replace(',', '.')).toLocaleString('es-ES', { minimumFractionDigits: 5, maximumFractionDigits: 5 }).replace('.', ',') : '';
+      const valorIncotermFormatted = crt.valor_incoterm ? parseFloat(crt.valor_incoterm.replace(',', '.')).toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).replace('.', ',') : '';
+      const valorMercaderiaFormatted = crt.valor_mercaderia ? parseFloat(crt.valor_mercaderia.replace(',', '.')).toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).replace('.', ',') : '';
+      const valorReembolsoFormatted = crt.valor_reembolso ? parseFloat(crt.valor_reembolso).toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).replace('.', ',') : '';
+
+      console.log('🔢 Valores numéricos formateados:', {
+        pesoNetoFormatted,
+        volumenFormatted,
+        valorIncotermFormatted,
+        valorMercaderiaFormatted,
+        valorReembolsoFormatted
+      });
+
       setFormData(prev => ({
         ...prev,
+        // Transportadora
         campo_1_porteador: crt.transportadora_id || '',
-        campo_2_numero: crt.transportadora_rol_contribuyente || '',
-        campo_8_destino: crt.lugar_entrega || '',
+        campo_2_numero: crt.transportadora?.rol_contribuyente || crt.transportadora_rol_contribuyente || '',
         campo_9_datos_transporte: crt.transportadora?.nombre || '',
-        campo_10_numero: crt.transportadora_rol_contribuyente || '',
-        campo_25_moneda: crt.moneda || '',
-        campo_27_valor_campo16: crt.declaracion_mercaderia || '',
+        campo_10_numero: crt.transportadora?.rol_contribuyente || crt.transportadora_rol_contribuyente || '',
+
+        // Destino y datos del transporte
+        campo_8_destino: crt.lugar_entrega || '',
+        campo_7_pto_seguro: crt.ciudad_emision_id || '',
+
+        // Vehículo (datos que vendrían del CRT si existieran)
+        campo_11_placa: crt.placa_camion || '',
+        campo_12_modelo_chasis: crt.marca_modelo || '',
+        campo_14_anio: crt.anio_vehiculo || '',
+        campo_15_placa_semi: crt.placa_semi || '',
+
+        // Mercadería
+        campo_30_tipo_bultos: crt.tipo_bultos || 'CAJAS', // Default si no viene del CRT
+        campo_31_cantidad: crt.cantidad_bultos || '1', // Default si no viene del CRT
         campo_32_peso_bruto: crt.peso_bruto || '',
+        campo_37_valor_manual: pesoNetoFormatted,
+
+        // Valores monetarios
+        campo_25_moneda: crt.moneda || 'USD', // Default USD
+        campo_27_valor_campo16: crt.declaracion_mercaderia || '',
+        campo_28_total: totalFleteFormatted,
+        campo_29_seguro: seguroFormatted,
+
+        // Documentos
         campo_36_factura_despacho: `${crt.factura_exportacion || ''} ${crt.nro_despacho || ''}`.trim(),
+
+        // Otros campos que podrían venir del CRT
+        campo_3_transporte: crt.transporte_sucesivos || 'NO', // Default NO
+        campo_24_aduana: crt.aduana || 'ASUNCIÓN', // Default Asunción
+        campo_40_tramo: crt.tramo || crt.detalles_mercaderia?.substring(0, 50) || '', // Usar parte de detalles como tramo
       }));
     }
   }, [isOpen, crt]);
@@ -100,29 +156,36 @@ const ModalMICCompleto = ({
   };
 
   const resetForm = () => {
+    // Formatear los valores calculados
+    const totalFleteFormatted = crt?.total_flete ? crt.total_flete.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).replace('.', ',') : '';
+    const seguroFormatted = crt?.seguro ? crt.seguro.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).replace('.', ',') : '';
+
+    // Formatear valores numéricos del CRT
+    const pesoNetoFormatted = crt?.peso_neto ? parseFloat(crt.peso_neto.replace(',', '.')).toLocaleString('es-ES', { minimumFractionDigits: 3, maximumFractionDigits: 3 }).replace('.', ',') : '';
+
     setFormData({
       campo_1_porteador: crt?.transportadora_id || '',
-      campo_2_numero: crt?.transportadora_rol_contribuyente || '',
-      campo_3_transporte: '',
-      campo_7_pto_seguro: '',
+      campo_2_numero: crt?.transportadora?.rol_contribuyente || crt?.transportadora_rol_contribuyente || '',
+      campo_3_transporte: crt?.transporte_sucesivos || '',
+      campo_7_pto_seguro: crt?.ciudad_emision_id || '',
       campo_8_destino: crt?.lugar_entrega || '',
-      campo_9_datos_transporte: '',
-      campo_10_numero: crt?.transportadora_rol_contribuyente || '',
-      campo_11_placa: '',
-      campo_12_modelo_chasis: '',
-      campo_14_anio: '',
-      campo_15_placa_semi: '',
-      campo_24_aduana: '',
+      campo_9_datos_transporte: crt?.transportadora?.nombre || '',
+      campo_10_numero: crt?.transportadora?.rol_contribuyente || crt?.transportadora_rol_contribuyente || '',
+      campo_11_placa: crt?.placa_camion || '',
+      campo_12_modelo_chasis: crt?.marca_modelo || '',
+      campo_14_anio: crt?.anio_vehiculo || '',
+      campo_15_placa_semi: crt?.placa_semi || '',
+      campo_24_aduana: crt?.aduana || '',
       campo_26_pais: '520-PARAGUAY',
       campo_27_valor_campo16: crt?.declaracion_mercaderia || '',
-      campo_28_total: '',
-      campo_29_seguro: '',
-      campo_30_tipo_bultos: '',
-      campo_31_cantidad: '',
+      campo_28_total: totalFleteFormatted,
+      campo_29_seguro: seguroFormatted,
+      campo_30_tipo_bultos: crt?.tipo_bultos || 'CAJAS',
+      campo_31_cantidad: crt?.cantidad_bultos || '1',
       campo_32_peso_bruto: crt?.peso_bruto || '',
-      campo_37_valor_manual: '',
+      campo_37_valor_manual: pesoNetoFormatted,
       campo_36_factura_despacho: `${crt?.factura_exportacion || ''} ${crt?.nro_despacho || ''}`.trim(),
-      campo_40_tramo: '',
+      campo_40_tramo: crt?.tramo || crt?.detalles_mercaderia?.substring(0, 50) || '',
       campo_4_estado: 'PROVISORIO',
       campo_5_hoja: '1 / 1',
       campo_6_fecha: new Date().toISOString().split('T')[0],
@@ -481,7 +544,7 @@ const ModalMICCompleto = ({
                     className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-yellow-500 focus:border-yellow-500 transition-colors"
                     placeholder="1.500,00"
                   />
-                  <small className="text-gray-500">Calculado automáticamente</small>
+                  <small className="text-gray-500">Del CRT - Suma de gastos</small>
                 </div>
 
                 {/* Campo 29 */}
@@ -496,7 +559,7 @@ const ModalMICCompleto = ({
                     className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-yellow-500 focus:border-yellow-500 transition-colors"
                     placeholder="150,00"
                   />
-                  <small className="text-gray-500">Calculado automáticamente</small>
+                  <small className="text-gray-500">Del CRT - 1% del valor declarado</small>
                 </div>
 
                 {/* Campo 30 */}

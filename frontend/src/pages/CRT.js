@@ -862,6 +862,24 @@ Si ves algún error o mensaje ❌, compártelo conmigo.
         firma_destinatario_id: form.firma_destinatario_id,
       });
 
+      // Calcular total de flete desde los gastos
+      const totalFlete = form.gastos.reduce((total, gasto) => {
+        const valorRemitente = parseFloat((gasto.valor_remitente || '0').replace(/\./g, '').replace(',', '.')) || 0;
+        const valorDestinatario = parseFloat((gasto.valor_destinatario || '0').replace(/\./g, '').replace(',', '.')) || 0;
+        return total + valorRemitente + valorDestinatario;
+      }, 0);
+
+      // Calcular seguro (ejemplo: 1% del valor declarado)
+      const valorDeclarado = parseFloat((form.declaracion_mercaderia || '0').replace(/\./g, '').replace(',', '.')) || 0;
+      const seguro = valorDeclarado > 0 ? (valorDeclarado * 0.01) : 0; // 1% del valor declarado
+
+      console.log('🔢 Cálculos para MIC:', {
+        totalFlete,
+        valorDeclarado,
+        seguro,
+        gastos: form.gastos
+      });
+
       // Guardar la información del CRT emitido
       const crtData = {
         id: response.data.id,
@@ -875,15 +893,28 @@ Si ves algún error o mensaje ❌, compártelo conmigo.
         lugar_entrega: form.lugar_entrega,
         declaracion_mercaderia: form.declaracion_mercaderia,
         peso_bruto: form.peso_bruto,
+        peso_neto: form.peso_neto,
+        volumen: form.volumen,
         factura_exportacion: form.factura_exportacion,
         nro_despacho: form.nro_despacho,
         moneda_id: form.moneda_id,
+        valor_incoterm: form.valor_incoterm,
+        valor_mercaderia: form.valor_mercaderia,
+        transporte_sucesivos: form.transporte_sucesivos,
+        observaciones: form.observaciones,
+        ciudad_emision_id: form.ciudad_emision_id,
+        pais_emision_id: form.pais_emision_id,
+        gastos: form.gastos, // Incluir gastos para cálculos
         // Información adicional para el modal MIC
         transportadora: selectedTransportadora,
         moneda: monedas.find(m => m.id === form.moneda_id)?.codigo,
+        total_flete: totalFlete,
+        seguro: seguro,
         // Agregar otros campos relevantes para el MIC
       };
       setCrtEmitido(crtData);
+
+      console.log('✅ CRT emitido con datos para MIC:', crtData);
 
       alert("CRT emitido correctamente");
       setForm((f) => ({ ...f, gastos: [] }));
