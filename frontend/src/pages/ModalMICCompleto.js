@@ -245,8 +245,8 @@ const ModalMICCompleto = ({
                   />
                 </div>
 
-                {/* Campo 7 */}
-                <div className="md:col-span-2 lg:col-span-3 xl:col-span-2">
+                {/* Campo 7 - Debajo de Campo 5 y 6 */}
+                <div className="md:col-span-2 lg:col-span-3 xl:col-span-4">
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Campo 7 - Aduana, ciudad y país de partida
                   </label>
