@@ -64,6 +64,8 @@ function ListarCRT() {
   };
 
   // Función mejorada para manejar entrada numérica con comas decimales naturales
+  // NOTA: Esta función está disponible para uso futuro si se necesita una alternativa
+  // eslint-disable-next-line no-unused-vars
   const manejarEntradaNumerica = (e, callback) => {
     let valor = e.target.value;
     

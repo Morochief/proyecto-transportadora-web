@@ -10,6 +10,7 @@ const ModalMICCompleto = ({
 }) => {
   const [formData, setFormData] = useState({
     // SECCIÓN 1: Información del Transporte
+    campo_1_porteador: '',
     campo_2_numero: '',
     campo_3_transporte: '',
     campo_7_pto_seguro: '',
@@ -54,6 +55,7 @@ const ModalMICCompleto = ({
     if (isOpen && crt) {
       setFormData(prev => ({
         ...prev,
+        campo_1_porteador: crt.transportadora ? `${crt.transportadora.nombre} - ${crt.transportadora.direccion}` : '',
         campo_2_numero: crt.transportadora_rol_contribuyente || '',
         campo_8_destino: crt.lugar_entrega || '',
         campo_10_numero: crt.transportadora_rol_contribuyente || '',
@@ -78,6 +80,7 @@ const ModalMICCompleto = ({
 
   const resetForm = () => {
     setFormData({
+      campo_1_porteador: crt?.transportadora ? `${crt.transportadora.nombre} - ${crt.transportadora.direccion}` : '',
       campo_2_numero: crt?.transportadora_rol_contribuyente || '',
       campo_3_transporte: '',
       campo_7_pto_seguro: '',
@@ -129,7 +132,7 @@ const ModalMICCompleto = ({
         </div>
 
         {/* CONTENT */}
-        <div className="flex-1 overflow-y-auto p-6">
+        <div className="flex-1 overflow-y-auto p-6 pr-8">
           <div className="space-y-8">
             
             {/* SECCIÓN 1: INFORMACIÓN DEL TRANSPORTE */}
@@ -139,6 +142,20 @@ const ModalMICCompleto = ({
                 <h3 className="text-lg font-semibold text-blue-800">Información del Transporte</h3>
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Campo 1 - Nombre y domicilio del porteador
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.campo_1_porteador}
+                    onChange={(e) => handleInputChange('campo_1_porteador', e.target.value)}
+                    className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                    placeholder="Nombre y dirección del transportista"
+                  />
+                  <small className="text-gray-500">Del CRT transportadora</small>
+                </div>
+
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Campo 2 - Rol de contribuyente
@@ -200,6 +217,24 @@ const ModalMICCompleto = ({
                       title="Agregar nueva aduana"
                     >
                       ➕
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (formData.campo_7_pto_seguro) {
+                          // eslint-disable-next-line no-restricted-globals
+                          const confirmar = confirm(`¿Eliminar "${formData.campo_7_pto_seguro}" de la lista?`);
+                          if (confirmar) {
+                            handleInputChange('campo_7_pto_seguro', '');
+                          }
+                        } else {
+                          alert('Selecciona una aduana primero para eliminarla.');
+                        }
+                      }}
+                      className="px-3 py-3 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors"
+                      title="Eliminar aduana seleccionada"
+                    >
+                      ❌
                     </button>
                   </div>
                   <small className="text-gray-500 mt-1 block">
