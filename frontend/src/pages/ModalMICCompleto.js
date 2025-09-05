@@ -154,6 +154,51 @@ const ModalMICCompleto = ({
         <div className="flex-1 overflow-y-auto p-6 pr-8">
           <div className="space-y-8">
             
+            {/* CAMPOS DE SOLO LECTURA */}
+            <div className="bg-gradient-to-r from-gray-50 to-gray-100 rounded-lg p-6 border-l-4 border-gray-400">
+              <div className="flex items-center mb-4">
+                <Calendar className="w-6 h-6 text-gray-600 mr-3" />
+                <h3 className="text-lg font-semibold text-gray-700">Información Automática</h3>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Campo 4 - Estado
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.campo_4_estado}
+                    readOnly
+                    className="w-full p-3 border border-gray-200 rounded-lg bg-gray-50 text-gray-600"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Campo 5 - Hoja
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.campo_5_hoja}
+                    readOnly
+                    className="w-full p-3 border border-gray-200 rounded-lg bg-gray-50 text-gray-600"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Campo 6 - Fecha
+                  </label>
+                  <input
+                    type="date"
+                    value={formData.campo_6_fecha}
+                    onChange={(e) => handleInputChange('campo_6_fecha', e.target.value)}
+                    className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-gray-500 focus:border-gray-500 transition-colors"
+                  />
+                </div>
+              </div>
+            </div>
+
             {/* SECCIÓN 1: INFORMACIÓN DEL TRANSPORTE */}
             <div className="bg-gradient-to-r from-blue-50 to-blue-100 rounded-lg p-6 border-l-4 border-blue-500">
               <div className="flex items-center mb-4">
@@ -576,51 +621,6 @@ const ModalMICCompleto = ({
                   placeholder="Información de facturas y números de despacho"
                 />
                 <small className="text-gray-500">Del CRT factura y despacho</small>
-              </div>
-            </div>
-
-            {/* CAMPOS DE SOLO LECTURA */}
-            <div className="bg-gradient-to-r from-gray-50 to-gray-100 rounded-lg p-6 border-l-4 border-gray-400">
-              <div className="flex items-center mb-4">
-                <Calendar className="w-6 h-6 text-gray-600 mr-3" />
-                <h3 className="text-lg font-semibold text-gray-700">Información Automática</h3>
-              </div>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Campo 4 - Estado
-                  </label>
-                  <input
-                    type="text"
-                    value={formData.campo_4_estado}
-                    readOnly
-                    className="w-full p-3 border border-gray-200 rounded-lg bg-gray-50 text-gray-600"
-                  />
-                </div>
-                
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Campo 5 - Hoja
-                  </label>
-                  <input
-                    type="text"
-                    value={formData.campo_5_hoja}
-                    readOnly
-                    className="w-full p-3 border border-gray-200 rounded-lg bg-gray-50 text-gray-600"
-                  />
-                </div>
-                
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Campo 6 - Fecha
-                  </label>
-                  <input
-                    type="date"
-                    value={formData.campo_6_fecha}
-                    onChange={(e) => handleInputChange('campo_6_fecha', e.target.value)}
-                    className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-gray-500 focus:border-gray-500 transition-colors"
-                  />
-                </div>
               </div>
             </div>
           </div>
