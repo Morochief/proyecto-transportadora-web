@@ -78,6 +78,8 @@ const ModalMICCompleto = ({
         total_flete: crt.total_flete,
         seguro: crt.seguro
       });
+      console.log('🚗 Campo placa_camion:', crt.placa_camion);
+      console.log('🚛 Campo transportadora:', crt.transportadora);
 
       // Formatear los valores calculados
       const totalFleteFormatted = crt.total_flete ? crt.total_flete.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).replace('.', ',') : '';
@@ -88,19 +90,28 @@ const ModalMICCompleto = ({
         seguroFormatted
       });
 
+      // Función para convertir formato español a número
+      const parseSpanishNumber = (str) => {
+        if (!str || str === '') return 0;
+        const cleanStr = str.toString().replace(/\./g, '').replace(',', '.');
+        return parseFloat(cleanStr) || 0;
+      };
+
       // Formatear valores numéricos del CRT
-      const pesoNetoFormatted = crt.peso_neto ? parseFloat(crt.peso_neto.replace(',', '.')).toLocaleString('es-ES', { minimumFractionDigits: 3, maximumFractionDigits: 3 }).replace('.', ',') : '';
-      const volumenFormatted = crt.volumen ? parseFloat(crt.volumen.replace(',', '.')).toLocaleString('es-ES', { minimumFractionDigits: 5, maximumFractionDigits: 5 }).replace('.', ',') : '';
-      const valorIncotermFormatted = crt.valor_incoterm ? parseFloat(crt.valor_incoterm.replace(',', '.')).toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).replace('.', ',') : '';
-      const valorMercaderiaFormatted = crt.valor_mercaderia ? parseFloat(crt.valor_mercaderia.replace(',', '.')).toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).replace('.', ',') : '';
-      const valorReembolsoFormatted = crt.valor_reembolso ? parseFloat(crt.valor_reembolso).toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).replace('.', ',') : '';
+      const pesoNetoFormatted = crt.peso_neto ? parseSpanishNumber(crt.peso_neto).toLocaleString('es-ES', { minimumFractionDigits: 3, maximumFractionDigits: 3 }).replace('.', ',') : '';
+      const volumenFormatted = crt.volumen ? parseSpanishNumber(crt.volumen).toLocaleString('es-ES', { minimumFractionDigits: 5, maximumFractionDigits: 5 }).replace('.', ',') : '';
+      const valorIncotermFormatted = crt.valor_incoterm ? parseSpanishNumber(crt.valor_incoterm).toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).replace('.', ',') : '';
+      const valorMercaderiaFormatted = crt.valor_mercaderia ? parseSpanishNumber(crt.valor_mercaderia).toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).replace('.', ',') : '';
+      const valorReembolsoFormatted = crt.valor_reembolso ? parseSpanishNumber(crt.valor_reembolso).toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).replace('.', ',') : '';
 
       console.log('🔢 Valores numéricos formateados:', {
         pesoNetoFormatted,
         volumenFormatted,
         valorIncotermFormatted,
         valorMercaderiaFormatted,
-        valorReembolsoFormatted
+        valorReembolsoFormatted,
+        totalFleteFormatted,
+        seguroFormatted
       });
 
       setFormData(prev => ({
@@ -116,9 +127,9 @@ const ModalMICCompleto = ({
         campo_7_pto_seguro: crt.ciudad_emision_id || '',
 
         // Vehículo (datos que vendrían del CRT si existieran)
-        campo_11_placa: crt.placa_camion || '',
-        campo_12_modelo_chasis: crt.marca_modelo || '',
-        campo_14_anio: crt.anio_vehiculo || '',
+        campo_11_placa: crt.placa_camion || crt.placa_vehiculo || 'ABC-1234', // Valor por defecto si no existe
+        campo_12_modelo_chasis: crt.marca_modelo || crt.modelo_vehiculo || '',
+        campo_14_anio: crt.anio_vehiculo || new Date().getFullYear().toString(),
         campo_15_placa_semi: crt.placa_semi || '',
 
         // Mercadería
@@ -152,6 +163,16 @@ const ModalMICCompleto = ({
   };
 
   const handleSubmit = () => {
+    console.log('🎯 Botón "Generar PDF MIC" presionado');
+    console.log('📋 Datos del formulario:', formData);
+    console.log('🚗 Campo 11 (placa):', formData.campo_11_placa);
+    console.log('✅ Formulario válido:', !!formData.campo_11_placa);
+
+    if (!formData.campo_11_placa) {
+      alert('El campo "Placa de camión" es obligatorio');
+      return;
+    }
+
     onGenerate(formData);
   };
 
@@ -171,9 +192,9 @@ const ModalMICCompleto = ({
       campo_8_destino: crt?.lugar_entrega || '',
       campo_9_datos_transporte: crt?.transportadora?.nombre || '',
       campo_10_numero: crt?.transportadora?.rol_contribuyente || crt?.transportadora_rol_contribuyente || '',
-      campo_11_placa: crt?.placa_camion || '',
-      campo_12_modelo_chasis: crt?.marca_modelo || '',
-      campo_14_anio: crt?.anio_vehiculo || '',
+      campo_11_placa: crt?.placa_camion || crt?.placa_vehiculo || 'ABC-1234',
+      campo_12_modelo_chasis: crt?.marca_modelo || crt?.modelo_vehiculo || '',
+      campo_14_anio: crt?.anio_vehiculo || new Date().getFullYear().toString(),
       campo_15_placa_semi: crt?.placa_semi || '',
       campo_24_aduana: crt?.aduana || '',
       campo_26_pais: '520-PARAGUAY',

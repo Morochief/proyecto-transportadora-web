@@ -814,6 +814,10 @@ Si ves algún error o mensaje ❌, compártelo conmigo.
 
   // Función para manejar la generación de PDF desde el modal
   const handleGenerateMIC = async (micData) => {
+    console.log('🎯 Iniciando generación de MIC...');
+    console.log('📋 Datos MIC recibidos:', micData);
+    console.log('📋 CRT emitido:', crtEmitido);
+
     if (!crtEmitido || !crtEmitido.id) {
       alert("No hay CRT emitido para generar MIC");
       return;
@@ -821,15 +825,28 @@ Si ves algún error o mensaje ❌, compártelo conmigo.
 
     setLoadingMIC(true);
     try {
-      const response = await api.post(`/mic/generate_pdf_from_crt/${crtEmitido.id}`, micData);
-      // Mostrar el PDF generado
-      const pdfWindow = window.open('', '_blank');
-      pdfWindow.document.write('<pre>' + response.data + '</pre>');
-      pdfWindow.document.close();
+      console.log('📡 Enviando solicitud a API...');
+      const response = await api.post(`/mic/generate_pdf_from_crt/${crtEmitido.id}`, micData, {
+        responseType: 'blob' // Importante: especificar que esperamos un blob (archivo binario)
+      });
+      console.log('✅ Respuesta de API:', response);
+
+      // Crear un enlace de descarga para el PDF
+      const blob = new Blob([response.data], { type: 'application/pdf' });
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `MIC_${crtEmitido.numero_crt}.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
 
       setModalMICOpen(false);
       alert("MIC generado exitosamente");
     } catch (error) {
+      console.error('❌ Error al generar MIC:', error);
+      console.error('❌ Detalles del error:', error.response?.data);
       alert("Error al generar MIC: " + (error.response?.data?.error || error.message));
     } finally {
       setLoadingMIC(false);
@@ -862,21 +879,30 @@ Si ves algún error o mensaje ❌, compártelo conmigo.
         firma_destinatario_id: form.firma_destinatario_id,
       });
 
+      // Función para convertir formato español a número
+      const parseSpanishNumber = (str) => {
+        if (!str || str === '') return 0;
+        // Remover puntos (separadores de miles) y convertir coma a punto decimal
+        const cleanStr = str.toString().replace(/\./g, '').replace(',', '.');
+        return parseFloat(cleanStr) || 0;
+      };
+
       // Calcular total de flete desde los gastos
       const totalFlete = form.gastos.reduce((total, gasto) => {
-        const valorRemitente = parseFloat((gasto.valor_remitente || '0').replace(/\./g, '').replace(',', '.')) || 0;
-        const valorDestinatario = parseFloat((gasto.valor_destinatario || '0').replace(/\./g, '').replace(',', '.')) || 0;
+        const valorRemitente = parseSpanishNumber(gasto.valor_remitente);
+        const valorDestinatario = parseSpanishNumber(gasto.valor_destinatario);
         return total + valorRemitente + valorDestinatario;
       }, 0);
 
       // Calcular seguro (ejemplo: 1% del valor declarado)
-      const valorDeclarado = parseFloat((form.declaracion_mercaderia || '0').replace(/\./g, '').replace(',', '.')) || 0;
+      const valorDeclarado = parseSpanishNumber(form.declaracion_mercaderia);
       const seguro = valorDeclarado > 0 ? (valorDeclarado * 0.01) : 0; // 1% del valor declarado
 
       console.log('🔢 Cálculos para MIC:', {
         totalFlete,
         valorDeclarado,
         seguro,
+        gastosCount: form.gastos.length,
         gastos: form.gastos
       });
 
