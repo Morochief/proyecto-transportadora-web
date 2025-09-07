@@ -857,39 +857,6 @@ def generar_micdta_pdf_con_datos(mic_data, filename="mic_{id}.pdf"):
         tx_pt, ty_pt, tw_pt, th_pt = draw_field_title(
             c, x_pt, y_pt, w_pt, h_pt, titulo, subtitulo)
 
-        # CASO ESPECIAL: Campo 1 (transportadora) - Dibujo directo multilínea para garantizar visibilidad
-        if n == 1 and key and (mic_data or {}).get(key):
-            valor = str(mic_data[key])
-            log(f"🖼️ Campo 1: Dibujo directo multilínea de '{valor[:50]}...'")
-
-            c.saveState()
-            try:
-                # Usar método simple con margen reducido para campos grandes
-                margin = 8  # Margen más pequeño para maximizar área
-                font_size = 16  # Tamaño específico para Campo 1
-
-                # Área interna (debajo de título)
-                x_frame = x_pt + FIELD_PADDING_PT
-                y_frame = y_pt + 80  # Offset aumentado para bajar el texto 20 pt más
-                w_frame = w_pt - 2 * FIELD_PADDING_PT
-                h_frame = h_pt - 80 - FIELD_PADDING_PT  # Espacio restante debajo del título ajustado
-
-                draw_multiline_text_simple(
-                    c,
-                    valor,
-                    x_frame,
-                    y_frame,
-                    w_frame,
-                    h_frame,
-                    font_size=font_size,
-                    font=FONT_REGULAR,
-                    margin=margin
-                )
-                log(f"✅ Campo 1 dibujado con font_size={font_size}, margen={margin}")
-            finally:
-                c.restoreState()
-
-            continue  # Saltar el procesamiento normal para este campo
 
         # CASO ESPECIAL: Campo 23 (número CRT) - Dibujo directo para garantizar visibilidad
         if n == 23 and key and (mic_data or {}).get(key):
@@ -1003,73 +970,19 @@ def generar_micdta_pdf_con_datos(mic_data, filename="mic_{id}.pdf"):
             )
             continue
 
-        # Campo 12: lógica de 2 líneas con topes aplicados
-        if n == 12 and key and (mic_data or {}).get(key):
-            val = str(mic_data[key])
-            lines = val.split('\n')
-
-            # Aplicar topes/márgenes
-            margin = 12
-            eff_x = x_pt + margin
-            eff_y = y_pt + margin
-            eff_w = w_pt - 2 * margin
-            eff_h = h_pt - 2 * margin
-
-            log(f"🔤 Campo 12 (2 líneas) con topes aplicados")
-
-            c.saveState()
-            try:
-                if len(lines) >= 1 and eff_w > 0 and eff_h > 0:
-                    c.setFont(FONT_REGULAR, 12)
-                    # Posición de primera línea con topes
-                    line1_y = y_pt + h_pt - TITLE_OFFSET_PT - SUBTITLE_OFFSET_PT - 34
-                    # Verificar que esté dentro de los límites verticales
-                    if line1_y >= eff_y and line1_y <= eff_y + eff_h:
-                        # Truncar texto si es muy largo para el ancho disponible
-                        text1 = lines[0]
-                        max_chars = len(text1)
-                        while max_chars > 0:
-                            test_text = text1[:max_chars]
-                            if c.stringWidth(test_text, FONT_REGULAR, 12) <= eff_w:
-                                break
-                            max_chars -= 1
-                        if max_chars > 0:
-                            c.drawString(eff_x, line1_y, text1[:max_chars])
-
-                if len(lines) >= 2 and lines[1].strip() and eff_w > 0 and eff_h > 0:
-                    c.setFont(FONT_REGULAR, 11)
-                    # Posición de segunda línea con topes
-                    line2_y = y_pt + h_pt - TITLE_OFFSET_PT - SUBTITLE_OFFSET_PT - 50
-                    # Verificar que esté dentro de los límites verticales
-                    if line2_y >= eff_y and line2_y <= eff_y + eff_h:
-                        # Truncar texto si es muy largo para el ancho disponible
-                        text2 = lines[1]
-                        max_chars = len(text2)
-                        while max_chars > 0:
-                            test_text = text2[:max_chars]
-                            if c.stringWidth(test_text, FONT_REGULAR, 11) <= eff_w:
-                                break
-                            max_chars -= 1
-                        if max_chars > 0:
-                            c.drawString(eff_x, line2_y, text2[:max_chars])
-            finally:
-                c.restoreState()
-            continue
 
         # Campos normales con topes aplicados
         if key and (mic_data or {}).get(key):
             valor = str(mic_data[key])
             size = 14
-            if n == 12 and len(valor) > 50:
-                size = 11
 
             # Determinar si el campo necesita multilínea basado en longitud del texto
             # Campos como 36, 37 que suelen tener texto largo necesitan multilínea
-            # Forzar multilínea para campos 4, 23 para mejor posicionamiento
+            # Forzar multilínea para campos 1, 2, 3, 4, 5, 6, 7, 11, 12, 13, 14, 15, 23 para mejor posicionamiento
             needs_multiline = (
                 len(valor) > 80 or  # Texto largo
                 # Campos específicos que necesitan mejor posicionamiento
-                n in [4, 23, 36, 37] or
+                n in [1, 2, 3, 4, 5, 6, 7, 11, 12, 13, 14, 15, 23, 36, 37] or
                 '\n' in valor  # Texto con saltos de línea explícitos
             )
 
