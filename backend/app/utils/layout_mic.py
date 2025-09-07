@@ -933,7 +933,8 @@ def generar_micdta_pdf_con_datos(mic_data, filename="mic_{id}.pdf"):
 
             continue  # Saltar el procesamiento normal para este campo
 
-        # Campo 38: ajuste dinámico de fuente con posicionamiento exacto
+
+            # Campo 38: ajuste dinámico de fuente con posicionamiento exacto
         if n == 38:
             log(f"🎯 PROCESANDO CAMPO 38 (posicionamiento exacto)")
             valor = (mic_data or {}).get(key, "")
@@ -1064,11 +1065,11 @@ def generar_micdta_pdf_con_datos(mic_data, filename="mic_{id}.pdf"):
 
             # Determinar si el campo necesita multilínea basado en longitud del texto
             # Campos como 36, 37 que suelen tener texto largo necesitan multilínea
-            # Forzar multilínea para campo 23 para mejor posicionamiento
+            # Forzar multilínea para campos 4, 23 para mejor posicionamiento
             needs_multiline = (
                 len(valor) > 80 or  # Texto largo
-                # Campos específicos que suelen tener texto largo o necesitan mejor posicionamiento
-                n in [23, 36, 37] or
+                # Campos específicos que necesitan mejor posicionamiento
+                n in [4, 23, 36, 37] or
                 '\n' in valor  # Texto con saltos de línea explícitos
             )
 
