@@ -858,47 +858,6 @@ def generar_micdta_pdf_con_datos(mic_data, filename="mic_{id}.pdf"):
             c, x_pt, y_pt, w_pt, h_pt, titulo, subtitulo)
 
 
-        # CASO ESPECIAL: Campo 23 (número CRT) - Dibujo directo para garantizar visibilidad
-        if n == 23 and key and (mic_data or {}).get(key):
-            valor = str(mic_data[key])
-            log(f"🔤 Campo 23: Dibujo directo de '{valor}'")
-
-            c.saveState()
-            try:
-                c.setFont(FONT_BOLD, 14)  # Fuente bold y mayor tamaño para mejor visibilidad
-
-                # Posición fija cerca del top de la caja para máxima visibilidad
-                text_x = x_pt + FIELD_PADDING_PT
-                text_y = y_pt + h_pt - 80  # 20 pt desde el top de la caja, arriba del título
-
-                # Truncar si es necesario (ancho efectivo)
-                eff_w = w_pt - 2 * FIELD_PADDING_PT
-                max_chars = len(valor)
-                while max_chars > 0:
-                    test_text = valor[:max_chars]
-                    if c.stringWidth(test_text, FONT_BOLD, 14) <= eff_w:
-                        break
-                    max_chars -= 1
-
-                if max_chars < len(valor) and max_chars > 3:
-                    truncated_text = valor[:max_chars-3] + "..."
-                    if c.stringWidth(truncated_text, FONT_BOLD, 14) <= eff_w:
-                        valor = truncated_text
-                    else:
-                        valor = valor[:max_chars]
-                elif max_chars > 0:
-                    valor = valor[:max_chars]
-                else:
-                    valor = ""
-
-                # Dibujar solo si hay texto
-                if valor:
-                    c.drawString(text_x, text_y, valor)
-                    log(f"✅ Campo 23 dibujado en y={text_y} con '{valor}' (truncado: {max_chars < len(valor)})")
-            finally:
-                c.restoreState()
-
-            continue  # Saltar el procesamiento normal para este campo
 
 
             # Campo 38: ajuste dinámico de fuente con posicionamiento exacto
@@ -978,11 +937,11 @@ def generar_micdta_pdf_con_datos(mic_data, filename="mic_{id}.pdf"):
 
             # Determinar si el campo necesita multilínea basado en longitud del texto
             # Campos como 36, 37 que suelen tener texto largo necesitan multilínea
-            # Forzar multilínea para campos 1, 2, 3, 4, 5, 6, 7, 11, 12, 13, 14, 15, 23 para mejor posicionamiento
+            # Forzar multilínea para campos 1, 2, 3, 4, 5, 6, 7, 8, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35 para mejor posicionamiento
             needs_multiline = (
                 len(valor) > 80 or  # Texto largo
                 # Campos específicos que necesitan mejor posicionamiento
-                n in [1, 2, 3, 4, 5, 6, 7, 11, 12, 13, 14, 15, 23, 36, 37] or
+                n in [1, 2, 3, 4, 5, 6, 7, 8, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37] or
                 '\n' in valor  # Texto con saltos de línea explícitos
             )
 
