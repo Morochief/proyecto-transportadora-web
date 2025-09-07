@@ -1,7 +1,6 @@
 import React, { useEffect, useState } from "react";
 import api from "../api/api";
 import Select from "react-select";
-import { useNavigate } from "react-router-dom";
 import ModalMICCompleto from "./ModalMICCompleto";
 
 function hoyISO() {
@@ -41,7 +40,6 @@ function CRT() {
   const [crtEmitido, setCrtEmitido] = useState(null); // Estado para guardar info del CRT emitido
   const [modalMICOpen, setModalMICOpen] = useState(false); // Estado para controlar el modal MIC
   const [loadingMIC, setLoadingMIC] = useState(false); // Estado para loading del MIC
-  const navigate = useNavigate();
 
   const optCiudadPais = (ciudades, paises) =>
     ciudades.map((c) => {

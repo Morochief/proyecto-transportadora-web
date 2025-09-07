@@ -173,7 +173,77 @@ const ModalMICCompleto = ({
       return;
     }
 
-    onGenerate(formData);
+    // ✅ MAPEO CORREGIDO: Los nombres DEBEN coincidir exactamente con layout_mic.py
+    const datosPDF = {
+      // Transportadora y básicos - CORREGIDO: campo_1_transporte debe ser el NOMBRE, no el ID
+      campo_1_transporte: formData.campo_9_datos_transporte || crt?.transportadora?.nombre || '',
+      campo_2_numero: formData.campo_2_numero,
+      campo_3_transporte: formData.campo_3_transporte || 'NO',
+      campo_4_estado: formData.campo_4_estado || 'PROVISORIO',
+      campo_5_hoja: formData.campo_5_hoja || '1 / 1',
+      campo_6_fecha: formData.campo_6_fecha,
+      campo_7_pto_seguro: formData.campo_7_pto_seguro,
+      campo_8_destino: formData.campo_8_destino,
+      campo_9_datos_transporte: formData.campo_9_datos_transporte,
+
+      // Vehículo
+      campo_10_numero: formData.campo_10_numero,
+      campo_11_placa: formData.campo_11_placa,
+      campo_12_modelo_chasis: formData.campo_12_modelo_chasis,
+      campo_13_siempre_45: formData.campo_13_siempre_45 || '45 TON',
+      campo_14_anio: formData.campo_14_anio,
+      campo_15_placa_semi: formData.campo_15_placa_semi,
+
+      // Campos 16-22 (sustitutos)
+      campo_16_asteriscos_1: '******',
+      campo_17_asteriscos_2: '******',
+      campo_18_asteriscos_3: '******',
+      campo_19_asteriscos_4: '******',
+      campo_20_asteriscos_5: '******',
+      campo_21_asteriscos_6: '******',
+      campo_22_asteriscos_7: '******',
+
+      // ⭐ CAMPO 23 - CORREGIDO: Número del CRT
+      campo_23_numero_campo2_crt: crt?.numero_crt || '',
+
+      // Aduanas
+      campo_24_aduana: formData.campo_24_aduana,
+      campo_25_moneda: formData.campo_25_moneda || 'USD',
+      campo_26_pais: formData.campo_26_pais || '520-PARAGUAY',
+
+      // Valores monetarios
+      campo_27_valor_campo16: formData.campo_27_valor_campo16,
+      campo_28_total: formData.campo_28_total,
+      campo_29_seguro: formData.campo_29_seguro,
+
+      // Mercadería
+      campo_30_tipo_bultos: formData.campo_30_tipo_bultos,
+      campo_31_cantidad: formData.campo_31_cantidad,
+      campo_32_peso_bruto: formData.campo_32_peso_bruto,
+
+      // Documentos
+      campo_36_factura_despacho: formData.campo_36_factura_despacho,
+      campo_37_valor_manual: formData.campo_37_valor_manual,
+      campo_40_tramo: formData.campo_40_tramo,
+    };
+
+    // ✅ CONVERSIÓN SEGURA: Asegurar que todos los valores sean strings
+    const datosPDFSeguros = {};
+    for (const [key, value] of Object.entries(datosPDF)) {
+      if (value === null || value === undefined) {
+        datosPDFSeguros[key] = '';
+      } else if (typeof value === 'number') {
+        datosPDFSeguros[key] = value.toString();
+      } else {
+        datosPDFSeguros[key] = value;
+      }
+    }
+
+    console.log('📄 Datos enviados al PDF (convertidos a string):', datosPDFSeguros);
+    console.log('⭐ Campo 23 (Número CRT):', datosPDFSeguros.campo_23_numero_campo2_crt);
+    console.log('🏢 Campo 1 (Transportadora):', datosPDFSeguros.campo_1_transporte);
+
+    onGenerate(datosPDFSeguros);
   };
 
   const resetForm = () => {

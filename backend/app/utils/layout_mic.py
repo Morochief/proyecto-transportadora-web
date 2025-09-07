@@ -66,13 +66,19 @@ def log(msg):
             print(msg.encode('ascii', 'replace').decode('ascii'))
 
 
-def safe_clean_text(text: str) -> str:
+def safe_clean_text(text) -> str:
     """
     Limpieza universal: normaliza saltos de línea y remueve caracteres de control problemáticos
     (excepto \n y \t). NO elimina acentos ni caracteres Unicode válidos.
+    Maneja cualquier tipo de entrada (str, int, float, None).
     """
     if text is None:
         return ""
+    if isinstance(text, (int, float)):
+        text = str(text)
+    if not isinstance(text, str):
+        text = str(text)
+
     t = text.replace('\r\n', '\n').replace('\r', '\n')
     # Remover controles ASCII (mantiene \n y \t)
     t = re.sub(r'[\x00-\x08\x0b\x0c\x0e-\x1f\x7f-\x9f]', '', t)
@@ -479,9 +485,8 @@ def draw_single_line_text_with_bounds(c, text, x, y, w, h, font_size=14, font=No
     try:
         c.setFont(font, font_size)
 
-        # Posicionar el texto en la parte superior del área efectiva (debajo del título)
-        # Usar la misma lógica que los otros campos para consistencia
-        text_y = y + h - TITLE_OFFSET_PT - SUBTITLE_OFFSET_PT - 34
+        # Posicionar el texto dinámicamente debajo del subtítulo con espacio apropiado
+        text_y = y + h - TITLE_OFFSET_PT - SUBTITLE_OFFSET_PT - font_size - 2
 
         # Verificar que esté dentro de los límites verticales
         if text_y < eff_y or text_y > eff_y + eff_h:
@@ -753,7 +758,7 @@ def generar_micdta_pdf_con_datos(mic_data, filename="mic_{id}.pdf"):
          "Nome e endereço do transportador", "campo_1_transporte"),
         (2,  55, 610, 861, 142, "2 Rol de contribuyente",
          "Cadastro geral de contribuintes", "campo_2_numero"),
-        (3, 916, 162, 389, 169, "3 Tránsito aduanero", "Trânsito aduaneiro", None),
+        (3, 916, 162, 389, 169, "3 Tránsito aduanero", "Trânsito aduaneiro", "campo_3_transporte"),
         (4, 1305, 162, 365, 167, "4 Nº", "", "campo_4_estado"),
         (5, 916, 330, 388, 115, "5 Hoja / Folha", "", "campo_5_hoja"),
         (6, 1305, 330, 365, 115, "6 Fecha de emisión",
@@ -832,6 +837,14 @@ def generar_micdta_pdf_con_datos(mic_data, filename="mic_{id}.pdf"):
             # Campo 39 especial
             draw_campo39(c, x, y, w, h, height_px, mic_data)
             continue
+
+        # DEBUG ESPECÍFICO PARA CAMPO 23
+        if n == 23:
+            log(f"🎯 PROCESANDO CAMPO 23:")
+            log(f"   Key esperado: '{key}'")
+            log(f"   Valor en mic_data: '{(mic_data or {}).get(key, 'NO_ENCONTRADO')}'")
+            log(f"   Tipo de valor: {type((mic_data or {}).get(key))}")
+            log(f"   mic_data keys: {list((mic_data or {}).keys())}")
 
         # Caja
         x_pt, y_pt, w_pt, h_pt = rect_pt(

@@ -352,7 +352,7 @@ def generar_pdf_mic_desde_crt(crt_id):
 
             # ✅ OTROS CAMPOS DEL CRT CLONADOS
             "campo_2_numero": "",
-            "campo_3_transporte": "",
+            "campo_3_transporte": "SI" if crt.formalidades_aduana and crt.formalidades_aduana.strip() else "NO",
             "campo_4_estado": "PROVISORIO",
             "campo_5_hoja": "1 / 1",
             "campo_6_fecha": crt.fecha_emision.strftime('%Y-%m-%d') if crt.fecha_emision else "",
@@ -390,6 +390,11 @@ def generar_pdf_mic_desde_crt(crt_id):
 
         # ✅ APLICAR DATOS DEL USUARIO (si los hay)
         if user_data:
+            print(f"📥 DATOS DEL USUARIO RECIBIDOS: {len(user_data)} campos")
+            print(f"   Campo 23 del usuario: '{user_data.get('campo_23_numero_campo2_crt', 'NO_RECIBIDO')}'")
+            print(f"   Campo 3 del usuario: '{user_data.get('campo_3_transporte', 'NO_RECIBIDO')}'")
+            print(f"   Campo 11 del usuario: '{user_data.get('campo_11_placa', 'NO_RECIBIDO')}'")
+
             if 'campo_38' in user_data:
                 user_data['campo_38_datos_campo11_crt'] = user_data.pop(
                     'campo_38')
@@ -405,23 +410,46 @@ def generar_pdf_mic_desde_crt(crt_id):
                     user_data.pop(campo, None)
 
             mic_data.update(user_data)
+            print(f"   Campo 23 final en mic_data: '{mic_data.get('campo_23_numero_campo2_crt', 'VACIO')}'")
+            print(f"   Campo 3 final en mic_data: '{mic_data.get('campo_3_transporte', 'VACIO')}'")
+            print(f"   Campo 11 final en mic_data: '{mic_data.get('campo_11_placa', 'VACIO')}'")
 
         # ✅ RESUMEN FINAL DE CLONACIÓN Y GASTOS
+        def safe_len(val):
+            """Función segura para obtener longitud de valores que pueden ser None, int o str"""
+            if val is None:
+                return 0
+            if isinstance(val, (int, float)):
+                return len(str(val))
+            if isinstance(val, str):
+                return len(val)
+            return 0
+
+        def safe_bool(val):
+            """Función segura para verificar si un valor tiene contenido"""
+            if val is None:
+                return False
+            if isinstance(val, (int, float)):
+                return val != 0
+            if isinstance(val, str):
+                return bool(val.strip())
+            return bool(val)
+
         print("🎯 RESUMEN DE CLONACIÓN COMPLETA:")
         print(
-            f"   📋 Campo 1 (Transportadora): {len(mic_data['campo_1_transporte'])} chars - {'✅ CON DATOS' if mic_data['campo_1_transporte'] else '❌ VACÍO'}")
+            f"   📋 Campo 1 (Transportadora): {safe_len(mic_data['campo_1_transporte'])} chars - {'✅ CON DATOS' if safe_bool(mic_data['campo_1_transporte']) else '❌ VACÍO'}")
         print(
-            f"   📋 Campo 33 (Remitente): {len(mic_data['campo_33_datos_campo1_crt'])} chars - {'✅ CON DATOS' if mic_data['campo_33_datos_campo1_crt'] else '❌ VACÍO'}")
+            f"   📋 Campo 33 (Remitente): {safe_len(mic_data['campo_33_datos_campo1_crt'])} chars - {'✅ CON DATOS' if safe_bool(mic_data['campo_33_datos_campo1_crt']) else '❌ VACÍO'}")
         print(
-            f"   📋 Campo 34 (Destinatario): {len(mic_data['campo_34_datos_campo4_crt'])} chars - {'✅ CON DATOS' if mic_data['campo_34_datos_campo4_crt'] else '❌ VACÍO'}")
+            f"   📋 Campo 34 (Destinatario): {safe_len(mic_data['campo_34_datos_campo4_crt'])} chars - {'✅ CON DATOS' if safe_bool(mic_data['campo_34_datos_campo4_crt']) else '❌ VACÍO'}")
         print(
-            f"   📋 Campo 35 (Consignatario): {len(mic_data['campo_35_datos_campo6_crt'])} chars - {'✅ CON DATOS' if mic_data['campo_35_datos_campo6_crt'] else '❌ VACÍO'}")
+            f"   📋 Campo 35 (Consignatario): {safe_len(mic_data['campo_35_datos_campo6_crt'])} chars - {'✅ CON DATOS' if safe_bool(mic_data['campo_35_datos_campo6_crt']) else '❌ VACÍO'}")
         print(
-            f"   📦 Campo 38 (Mercadería): {len(mic_data['campo_38_datos_campo11_crt'])} chars - {'✅ CON DATOS' if mic_data['campo_38_datos_campo11_crt'] else '❌ VACÍO'}")
+            f"   📦 Campo 38 (Mercadería): {safe_len(mic_data['campo_38_datos_campo11_crt'])} chars - {'✅ CON DATOS' if safe_bool(mic_data['campo_38_datos_campo11_crt']) else '❌ VACÍO'}")
         print(
-            f"   🚛 Campo 28 (Flete): '{mic_data['campo_28_total']}' - {'✅ CON VALOR' if mic_data['campo_28_total'] else '❌ VACÍO'}")
+            f"   🚛 Campo 28 (Flete): '{mic_data['campo_28_total']}' - {'✅ CON VALOR' if safe_bool(mic_data['campo_28_total']) else '❌ VACÍO'}")
         print(
-            f"   🛡️ Campo 29 (Seguro): '{mic_data['campo_29_seguro']}' - {'✅ CON VALOR' if mic_data['campo_29_seguro'] else '❌ VACÍO'}")
+            f"   🛡️ Campo 29 (Seguro): '{mic_data['campo_29_seguro']}' - {'✅ CON VALOR' if safe_bool(mic_data['campo_29_seguro']) else '❌ VACÍO'}")
         print("="*80)
 
         # Generar el PDF
