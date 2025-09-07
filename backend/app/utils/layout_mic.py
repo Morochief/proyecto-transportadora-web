@@ -357,13 +357,16 @@ def draw_multiline_text_simple(c, text, x, y, w, h, font_size=9, font=None, marg
     if font is None:
         font = FONT_REGULAR
 
+    # Margen dinámico: más pequeño para cajas pequeñas (como campo 23)
+    dynamic_margin = 6 if h < 120 else margin
+
     clean_text = safe_clean_text(text)
 
     # Aplicar topes/márgenes en todos los lados
-    eff_x = x + margin
-    eff_y = y + margin
-    eff_w = w - 2 * margin
-    eff_h = h - 2 * margin
+    eff_x = x + dynamic_margin
+    eff_y = y + dynamic_margin
+    eff_w = w - 2 * dynamic_margin
+    eff_h = h - 2 * dynamic_margin
 
     # Verificar que el área efectiva sea válida
     if eff_w <= 0 or eff_h <= 0:
@@ -854,6 +857,48 @@ def generar_micdta_pdf_con_datos(mic_data, filename="mic_{id}.pdf"):
         tx_pt, ty_pt, tw_pt, th_pt = draw_field_title(
             c, x_pt, y_pt, w_pt, h_pt, titulo, subtitulo)
 
+        # CASO ESPECIAL: Campo 23 (número CRT) - Dibujo directo para garantizar visibilidad
+        if n == 23 and key and (mic_data or {}).get(key):
+            valor = str(mic_data[key])
+            log(f"🔤 Campo 23: Dibujo directo de '{valor}'")
+
+            c.saveState()
+            try:
+                c.setFont(FONT_BOLD, 14)  # Fuente bold y mayor tamaño para mejor visibilidad
+
+                # Posición fija cerca del top de la caja para máxima visibilidad
+                text_x = x_pt + FIELD_PADDING_PT
+                text_y = y_pt + h_pt - 80  # 20 pt desde el top de la caja, arriba del título
+
+                # Truncar si es necesario (ancho efectivo)
+                eff_w = w_pt - 2 * FIELD_PADDING_PT
+                max_chars = len(valor)
+                while max_chars > 0:
+                    test_text = valor[:max_chars]
+                    if c.stringWidth(test_text, FONT_BOLD, 14) <= eff_w:
+                        break
+                    max_chars -= 1
+
+                if max_chars < len(valor) and max_chars > 3:
+                    truncated_text = valor[:max_chars-3] + "..."
+                    if c.stringWidth(truncated_text, FONT_BOLD, 14) <= eff_w:
+                        valor = truncated_text
+                    else:
+                        valor = valor[:max_chars]
+                elif max_chars > 0:
+                    valor = valor[:max_chars]
+                else:
+                    valor = ""
+
+                # Dibujar solo si hay texto
+                if valor:
+                    c.drawString(text_x, text_y, valor)
+                    log(f"✅ Campo 23 dibujado en y={text_y} con '{valor}' (truncado: {max_chars < len(valor)})")
+            finally:
+                c.restoreState()
+
+            continue  # Saltar el procesamiento normal para este campo
+
         # Campo 38: ajuste dinámico de fuente con posicionamiento exacto
         if n == 38:
             log(f"🎯 PROCESANDO CAMPO 38 (posicionamiento exacto)")
@@ -982,10 +1027,11 @@ def generar_micdta_pdf_con_datos(mic_data, filename="mic_{id}.pdf"):
 
             # Determinar si el campo necesita multilínea basado en longitud del texto
             # Campos como 36, 37 que suelen tener texto largo necesitan multilínea
+            # Forzar multilínea para campo 23 para mejor posicionamiento
             needs_multiline = (
                 len(valor) > 80 or  # Texto largo
-                # Campos específicos que suelen tener texto largo
-                n in [36, 37] or
+                # Campos específicos que suelen tener texto largo o necesitan mejor posicionamiento
+                n in [23, 36, 37] or
                 '\n' in valor  # Texto con saltos de línea explícitos
             )
 
