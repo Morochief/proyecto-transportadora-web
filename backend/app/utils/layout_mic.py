@@ -857,6 +857,40 @@ def generar_micdta_pdf_con_datos(mic_data, filename="mic_{id}.pdf"):
         tx_pt, ty_pt, tw_pt, th_pt = draw_field_title(
             c, x_pt, y_pt, w_pt, h_pt, titulo, subtitulo)
 
+        # CASO ESPECIAL: Campo 1 (transportadora) - Dibujo directo multilínea para garantizar visibilidad
+        if n == 1 and key and (mic_data or {}).get(key):
+            valor = str(mic_data[key])
+            log(f"🖼️ Campo 1: Dibujo directo multilínea de '{valor[:50]}...'")
+
+            c.saveState()
+            try:
+                # Usar método simple con margen reducido para campos grandes
+                margin = 8  # Margen más pequeño para maximizar área
+                font_size = 16  # Tamaño específico para Campo 1
+
+                # Área interna (debajo de título)
+                x_frame = x_pt + FIELD_PADDING_PT
+                y_frame = y_pt + 80  # Offset aumentado para bajar el texto 20 pt más
+                w_frame = w_pt - 2 * FIELD_PADDING_PT
+                h_frame = h_pt - 80 - FIELD_PADDING_PT  # Espacio restante debajo del título ajustado
+
+                draw_multiline_text_simple(
+                    c,
+                    valor,
+                    x_frame,
+                    y_frame,
+                    w_frame,
+                    h_frame,
+                    font_size=font_size,
+                    font=FONT_REGULAR,
+                    margin=margin
+                )
+                log(f"✅ Campo 1 dibujado con font_size={font_size}, margen={margin}")
+            finally:
+                c.restoreState()
+
+            continue  # Saltar el procesamiento normal para este campo
+
         # CASO ESPECIAL: Campo 23 (número CRT) - Dibujo directo para garantizar visibilidad
         if n == 23 and key and (mic_data or {}).get(key):
             valor = str(mic_data[key])
@@ -951,6 +985,9 @@ def generar_micdta_pdf_con_datos(mic_data, filename="mic_{id}.pdf"):
 
             log(f"   ➜ Usando font_size={font_size_multiline}pt en campo {n} con topes")
 
+            # Margen ajustado para campos 33,34,35 para bajarlos ligeramente
+            specific_margin = 10 if n in [33, 34, 35] else 12
+
             # Usamos SIEMPRE el método simple con topes aplicados
             draw_multiline_text_simple(
                 c,
@@ -961,7 +998,7 @@ def generar_micdta_pdf_con_datos(mic_data, filename="mic_{id}.pdf"):
                 h_frame,
                 font_size=font_size_multiline,
                 font=FONT_REGULAR,
-                margin=12  # Aplicar topes de 12pt en todos los lados
+                margin=specific_margin  # Aplicar topes ajustados
             )
             continue
 

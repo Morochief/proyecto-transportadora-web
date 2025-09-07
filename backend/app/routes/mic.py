@@ -314,6 +314,42 @@ def generar_pdf_mic_desde_crt(crt_id):
         # Campo 1 y 9: Transportadora completa
         campo_1_transportadora = formatear_entidad_completa_crt(
             crt.transportadora)
+        
+        # Debug: imprimir atributos de transportadora para diagnosticar
+        if crt.transportadora:
+            print(f"🔍 DEBUG TRANSPORTADORA:")
+            print(f"   Nombre: '{crt.transportadora.nombre}'")
+            print(f"   Dirección: '{crt.transportadora.direccion}'")
+            print(f"   Ciudad ID: {crt.transportadora.ciudad_id}")
+            print(f"   Ciudad: '{crt.transportadora.ciudad.nombre if crt.transportadora.ciudad else 'None'}'")
+            print(f"   País: '{crt.transportadora.ciudad.pais.nombre if crt.transportadora.ciudad and crt.transportadora.ciudad.pais else 'None'}'")
+            print(f"   Tipo Doc: '{crt.transportadora.tipo_documento}'")
+            print(f"   Núm Doc: '{crt.transportadora.numero_documento}'")
+            print(f"   Teléfono: '{crt.transportadora.telefono}'")
+            print(f"   Formato completo: '{campo_1_transportadora[:100]}...' (len: {len(campo_1_transportadora)})")
+        
+        # Fallback mejorado: si el formato completo está vacío, construir con datos disponibles
+        if not campo_1_transportadora and crt.transportadora:
+            lines = []
+            if crt.transportadora.nombre:
+                lines.append(crt.transportadora.nombre.strip())
+            if crt.transportadora.direccion:
+                lines.append(crt.transportadora.direccion.strip())
+            if crt.transportadora.ciudad and crt.transportadora.ciudad.nombre:
+                ciudad_line = crt.transportadora.ciudad.nombre.strip()
+                if crt.transportadora.ciudad.pais and crt.transportadora.ciudad.pais.nombre:
+                    ciudad_line += f" - {crt.transportadora.ciudad.pais.nombre.strip()}"
+                lines.append(ciudad_line)
+            if crt.transportadora.tipo_documento and crt.transportadora.numero_documento:
+                doc_line = f"{crt.transportadora.tipo_documento.strip()}:{crt.transportadora.numero_documento.strip()}"
+                lines.append(doc_line)
+            elif crt.transportadora.numero_documento:
+                lines.append(f"DOC:{crt.transportadora.numero_documento.strip()}")
+            if crt.transportadora.telefono:
+                lines.append(f"Tel: {crt.transportadora.telefono.strip()}")
+            
+            campo_1_transportadora = "\n".join(lines)
+            print(f"🔍 FALLBACK APLICADO: '{campo_1_transportadora}'")
 
         # Campo 33: Remitente completo
         campo_33_remitente = formatear_entidad_completa_crt(crt.remitente)
@@ -410,6 +446,11 @@ def generar_pdf_mic_desde_crt(crt_id):
                     user_data.pop(campo, None)
 
             mic_data.update(user_data)
+            
+            # BLINDAJE: Asegurar que campo 9 = campo 1 si campo 9 está vacío
+            if not mic_data.get('campo_9_datos_transporte'):
+                mic_data['campo_9_datos_transporte'] = mic_data['campo_1_transporte']
+            
             print(f"   Campo 23 final en mic_data: '{mic_data.get('campo_23_numero_campo2_crt', 'VACIO')}'")
             print(f"   Campo 3 final en mic_data: '{mic_data.get('campo_3_transporte', 'VACIO')}'")
             print(f"   Campo 11 final en mic_data: '{mic_data.get('campo_11_placa', 'VACIO')}'")
