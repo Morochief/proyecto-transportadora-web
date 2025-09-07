@@ -40,6 +40,7 @@ function CRT() {
   const [crtEmitido, setCrtEmitido] = useState(null); // Estado para guardar info del CRT emitido
   const [modalMICOpen, setModalMICOpen] = useState(false); // Estado para controlar el modal MIC
   const [loadingMIC, setLoadingMIC] = useState(false); // Estado para loading del MIC
+  const [diagnosticoMIC, setDiagnosticoMIC] = useState(null);
 
   const optCiudadPais = (ciudades, paises) =>
     ciudades.map((c) => {
@@ -822,12 +823,25 @@ Si ves algún error o mensaje ❌, compártelo conmigo.
     }
 
     setLoadingMIC(true);
+    setDiagnosticoMIC(null); // Reset diagnostics
     try {
       console.log('📡 Enviando solicitud a API...');
       const response = await api.post(`/mic/generate_pdf_from_crt/${crtEmitido.id}`, micData, {
         responseType: 'blob' // Importante: especificar que esperamos un blob (archivo binario)
       });
       console.log('✅ Respuesta de API:', response);
+
+      // Extraer diagnóstico del encabezado
+      const diagnosticoHeader = response.headers['x-pdf-diagnostico'];
+      if (diagnosticoHeader) {
+        try {
+          const diagnosticoData = JSON.parse(diagnosticoHeader);
+          console.log('📊 Diagnóstico recibido:', diagnosticoData);
+          setDiagnosticoMIC(diagnosticoData);
+        } catch (e) {
+          console.error('❌ Error al parsear diagnóstico:', e);
+        }
+      }
 
       // Crear un enlace de descarga para el PDF
       const blob = new Blob([response.data], { type: 'application/pdf' });
@@ -840,8 +854,9 @@ Si ves algún error o mensaje ❌, compártelo conmigo.
       document.body.removeChild(link);
       window.URL.revokeObjectURL(url);
 
-      setModalMICOpen(false);
-      alert("MIC generado exitosamente");
+      // No cerrar el modal para poder ver el diagnóstico
+      // setModalMICOpen(false); 
+      alert("MIC generado exitosamente. Revisa el diagnóstico.");
     } catch (error) {
       console.error('❌ Error al generar MIC:', error);
       console.error('❌ Detalles del error:', error.response?.data);
@@ -1769,10 +1784,14 @@ Si ves algún error o mensaje ❌, compártelo conmigo.
       {/* Modal MIC */}
       <ModalMICCompleto
         isOpen={modalMICOpen}
-        onClose={() => setModalMICOpen(false)}
+        onClose={() => {
+          setModalMICOpen(false);
+          setDiagnosticoMIC(null); // Limpiar diagnóstico al cerrar
+        }}
         crt={crtEmitido}
         onGenerate={handleGenerateMIC}
         loading={loadingMIC}
+        diagnostico={diagnosticoMIC}
       />
     </div>
   );

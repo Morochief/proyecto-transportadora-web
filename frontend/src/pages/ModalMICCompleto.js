@@ -6,7 +6,8 @@ const ModalMICCompleto = ({
   onClose, 
   crt, 
   onGenerate,
-  loading = false 
+  loading = false,
+  diagnostico
 }) => {
   const [formData, setFormData] = useState({
     // SECCIÓN 1: Información del Transporte
@@ -309,6 +310,17 @@ const ModalMICCompleto = ({
 
         {/* CONTENT */}
         <div className="flex-1 overflow-y-auto p-6 pr-8">
+          {diagnostico && (
+            <div className="mb-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+              <h3 className="text-lg font-bold text-blue-800">Diagnóstico de Generación de PDF</h3>
+              <div className="mt-2 text-sm text-blue-700">
+                <p><strong>Fuente utilizada:</strong> {diagnostico.campo_38?.font_size_used}pt</p>
+                <p><strong>Líneas dibujadas:</strong> {diagnostico.campo_38?.lines_drawn}</p>
+                <p><strong>Texto truncado:</strong> {diagnostico.campo_38?.truncated ? 'Sí' : 'No'}</p>
+                <p><strong>Área efectiva:</strong> {diagnostico.campo_38?.effective_area}</p>
+              </div>
+            </div>
+          )}
           <div className="space-y-6">
             {/* FORMULARIO UNIFICADO - TODOS LOS CAMPOS ORGANIZADOS POR NÚMERO */}
             <div className="bg-white rounded-lg p-6 border border-gray-200">
