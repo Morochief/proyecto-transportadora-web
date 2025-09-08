@@ -54,7 +54,24 @@ const ModalMICCompleto = ({
 
   const [transportadoras, setTransportadoras] = useState([]);
 
-  // ✅ FUNCIÓN HELPER: Obtener nombre de transportadora por ID (memoizada)
+  // ✅ FUNCIÓN HELPER: Obtener datos completos de transportadora por ID (memoizada)
+  const getTransportadoraCompleta = useCallback((id) => {
+    if (!id) return '';
+    const transportadora = transportadoras.find(t => t.id.toString() === id.toString());
+    if (!transportadora) return '';
+
+    // Formatear datos completos de la transportadora
+    const partes = [
+      transportadora.nombre,
+      transportadora.direccion,
+      transportadora.ciudad ? `${transportadora.ciudad.nombre}, ${transportadora.ciudad.pais?.nombre || ''}` : '',
+      transportadora.telefono ? `Tel: ${transportadora.telefono}` : ''
+    ].filter(Boolean);
+
+    return partes.join('\n');
+  }, [transportadoras]);
+
+  // ✅ FUNCIÓN HELPER: Obtener solo nombre de transportadora por ID (memoizada)
   const getTransportadoraNombre = useCallback((id) => {
     if (!id) return '';
     const transportadora = transportadoras.find(t => t.id.toString() === id.toString());
@@ -78,90 +95,44 @@ const ModalMICCompleto = ({
     }
   }, [isOpen]);
 
-  // Prellenar datos del CRT cuando se abre el modal
+  // ✅ CARGAR DATOS DEL CRT desde backend Python (con datos completos formateados)
   useEffect(() => {
     if (isOpen && crt) {
-      console.log('📋 Datos completos del CRT en modal:', crt);
-      console.log('💰 Valores calculados:', {
-        total_flete: crt.total_flete,
-        seguro: crt.seguro
-      });
-      console.log('🚗 Campo placa_camion:', crt.placa_camion);
-      console.log('🚛 Campo transportadora:', crt.transportadora);
+      console.log('🔍 Cargando datos del CRT desde backend:', crt.numero_crt);
 
-      // Formatear los valores calculados
-      const totalFleteFormatted = crt.total_flete ? crt.total_flete.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).replace('.', ',') : '';
-      const seguroFormatted = crt.seguro ? crt.seguro.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).replace('.', ',') : '';
+      // Usar endpoint del backend que tiene la lógica completa de formateo
+      const endpoint = `http://localhost:5000/api/mic/cargar-datos-crt/${crt.id || crt.numero_crt}`;
 
-      console.log('📝 Valores formateados:', {
-        totalFleteFormatted,
-        seguroFormatted
-      });
+      fetch(endpoint)
+        .then(res => res.json())
+        .then(datos => {
+          console.log('📦 Datos del CRT formateados:', datos);
 
-      // Función para convertir formato español a número
-      const parseSpanishNumber = (str) => {
-        if (!str || str === '') return 0;
-        const cleanStr = str.toString().replace(/\./g, '').replace(',', '.');
-        return parseFloat(cleanStr) || 0;
-      };
+          setFormData(prev => ({
+            ...prev,
+            ...datos, // Aplicar todos los datos formateados del backend
 
-      // Formatear valores numéricos del CRT
-      const pesoNetoFormatted = crt.peso_neto ? parseSpanishNumber(crt.peso_neto).toLocaleString('es-ES', { minimumFractionDigits: 3, maximumFractionDigits: 3 }).replace('.', ',') : '';
-      const volumenFormatted = crt.volumen ? parseSpanishNumber(crt.volumen).toLocaleString('es-ES', { minimumFractionDigits: 5, maximumFractionDigits: 5 }).replace('.', ',') : '';
-      const valorIncotermFormatted = crt.valor_incoterm ? parseSpanishNumber(crt.valor_incoterm).toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).replace('.', ',') : '';
-      const valorMercaderiaFormatted = crt.valor_mercaderia ? parseSpanishNumber(crt.valor_mercaderia).toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).replace('.', ',') : '';
-      const valorReembolsoFormatted = crt.valor_reembolso ? parseSpanishNumber(crt.valor_reembolso).toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).replace('.', ',') : '';
+            // Campo 9 debe ser editable, no el mismo que Campo 1
+            campo_9_datos_transporte: datos.campo_9_datos_transporte || getTransportadoraNombre(datos.campo_1_transporte?.split('\n')[0] || ''),
+          }));
 
-      console.log('🔢 Valores numéricos formateados:', {
-        pesoNetoFormatted,
-        volumenFormatted,
-        valorIncotermFormatted,
-        valorMercaderiaFormatted,
-        valorReembolsoFormatted,
-        totalFleteFormatted,
-        seguroFormatted
-      });
-
-      setFormData(prev => ({
-        ...prev,
-        // Transportadora
-        campo_1_porteador: crt.transportadora_id || '',
-        campo_2_numero: crt.transportadora?.rol_contribuyente || crt.transportadora_rol_contribuyente || '',
-        campo_9_datos_transporte: crt.transportadora?.nombre || '', // ✅ Mismo valor que campo 1
-        campo_10_numero: crt.transportadora?.rol_contribuyente || crt.transportadora_rol_contribuyente || '',
-
-        // Destino y datos del transporte
-        campo_8_destino: crt.lugar_entrega || '',
-        campo_7_pto_seguro: crt.ciudad_emision_id || '',
-
-        // Vehículo (datos que vendrían del CRT si existieran)
-        campo_11_placa: crt.placa_camion || crt.placa_vehiculo || 'ABC-1234', // Valor por defecto si no existe
-        campo_12_modelo_chasis: crt.marca_modelo || crt.modelo_vehiculo || '',
-        campo_14_anio: crt.anio_vehiculo || new Date().getFullYear().toString(),
-        campo_15_placa_semi: crt.placa_semi || '',
-
-        // Mercadería
-        campo_30_tipo_bultos: crt.tipo_bultos || 'CAJAS', // Default si no viene del CRT
-        campo_31_cantidad: crt.cantidad_bultos || '1', // Default si no viene del CRT
-        campo_32_peso_bruto: crt.peso_bruto || '',
-        campo_37_valor_manual: pesoNetoFormatted,
-
-        // Valores monetarios
-        campo_25_moneda: crt.moneda || 'USD', // Default USD
-        campo_27_valor_campo16: crt.declaracion_mercaderia || '',
-        campo_28_total: totalFleteFormatted,
-        campo_29_seguro: seguroFormatted,
-
-        // Documentos
-        campo_36_factura_despacho: `${crt.factura_exportacion || ''} ${crt.nro_despacho || ''}`.trim(),
-
-        // Otros campos que podrían venir del CRT
-        campo_3_transporte: crt.transporte_sucesivos || 'NO', // Default NO
-        campo_24_aduana: crt.aduana || 'ASUNCIÓN', // Default Asunción
-        campo_40_tramo: crt.tramo || crt.detalles_mercaderia?.substring(0, 50) || '', // Usar parte de detalles como tramo
-      }));
+          console.log('✅ Datos cargados - Campo 1 (completo):', datos.campo_1_transporte);
+          console.log('✅ Datos cargados - Campo 9 (editable):', datos.campo_9_datos_transporte);
+          console.log('✅ Datos cargados - Campo 38 (mercadería):', datos.campo_38_datos_campo11_crt);
+        })
+        .catch(err => {
+          console.error('❌ Error cargando datos del CRT:', err);
+          // Fallback a datos básicos del CRT
+          setFormData(prev => ({
+            ...prev,
+            campo_8_destino: crt.lugar_entrega || '',
+            campo_27_valor_campo16: crt.declaracion_mercaderia || '',
+            campo_32_peso_bruto: crt.peso_bruto || '',
+            campo_36_factura_despacho: `${crt.factura_exportacion || ''} ${crt.nro_despacho || ''}`.trim(),
+          }));
+        });
     }
-  }, [isOpen, crt]);
+  }, [isOpen, crt, getTransportadoraNombre]);
 
   // ✅ SINCRONIZAR Campo 9 con Campo 1 (cuando cambia la selección)
   useEffect(() => {
@@ -198,8 +169,13 @@ const ModalMICCompleto = ({
     const transportadoraSeleccionada = getTransportadoraNombre(formData.campo_1_porteador) || '';
 
     const datosPDF = {
-      // ✅ CAMPO 1 y 9: MISMO VALOR (como funcionaba antes)
-      campo_1_transporte: transportadoraSeleccionada,
+      // ✅ CAMPO 1: Datos completos del transportista (solo lectura)
+      campo_1_transporte: formData.campo_1_transporte || '',
+
+      // ✅ CAMPO 9: Nombre editable del transportista
+      campo_9_datos_transporte: formData.campo_9_datos_transporte || '',
+
+      // Datos básicos
       campo_2_numero: formData.campo_2_numero,
       campo_3_transporte: formData.campo_3_transporte || 'NO',
       campo_4_estado: formData.campo_4_estado || 'PROVISORIO',
@@ -207,7 +183,6 @@ const ModalMICCompleto = ({
       campo_6_fecha: formData.campo_6_fecha,
       campo_7_pto_seguro: formData.campo_7_pto_seguro,
       campo_8_destino: formData.campo_8_destino,
-      campo_9_datos_transporte: transportadoraSeleccionada, // ✅ MISMO VALOR QUE CAMPO 1
 
       // Vehículo
       campo_10_numero: formData.campo_10_numero,
@@ -226,7 +201,7 @@ const ModalMICCompleto = ({
       campo_21_asteriscos_6: '******',
       campo_22_asteriscos_7: '******',
 
-      // ⭐ CAMPO 23 - CORREGIDO: Número del CRT
+      // Número del CRT
       campo_23_numero_campo2_crt: crt?.numero_crt || '',
 
       // Aduanas
@@ -243,6 +218,14 @@ const ModalMICCompleto = ({
       campo_30_tipo_bultos: formData.campo_30_tipo_bultos,
       campo_31_cantidad: formData.campo_31_cantidad,
       campo_32_peso_bruto: formData.campo_32_peso_bruto,
+
+      // ✅ CAMPOS DE ENTIDADES (formateados por el backend)
+      campo_33_datos_campo1_crt: formData.campo_33_datos_campo1_crt || '',
+      campo_34_datos_campo4_crt: formData.campo_34_datos_campo4_crt || '',
+      campo_35_datos_campo6_crt: formData.campo_35_datos_campo6_crt || '',
+
+      // ✅ CAMPO 38: Detalles de mercadería
+      campo_38_datos_campo11_crt: formData.campo_38_datos_campo11_crt || '',
 
       // Documentos
       campo_36_factura_despacho: formData.campo_36_factura_despacho,
@@ -264,7 +247,9 @@ const ModalMICCompleto = ({
 
     console.log('📄 Datos enviados al PDF (convertidos a string):', datosPDFSeguros);
     console.log('⭐ Campo 23 (Número CRT):', datosPDFSeguros.campo_23_numero_campo2_crt);
-    console.log('🏢 Campo 1 y 9 (Transportadora - mismo valor):', datosPDFSeguros.campo_1_transporte);
+    console.log('🏢 Campo 1 (Transportadora completo):', datosPDFSeguros.campo_1_transporte);
+    console.log('📝 Campo 9 (Nombre editable):', datosPDFSeguros.campo_9_datos_transporte);
+    console.log('📦 Campo 38 (Detalles mercadería):', datosPDFSeguros.campo_38_datos_campo11_crt);
 
     onGenerate(datosPDFSeguros);
   };
@@ -347,24 +332,18 @@ const ModalMICCompleto = ({
             {/* FORMULARIO UNIFICADO - TODOS LOS CAMPOS ORGANIZADOS POR NÚMERO */}
             <div className="bg-white rounded-lg p-6 border border-gray-200">
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-                {/* Campo 1 */}
-                <div>
+                {/* Campo 1 - SOLO LECTURA con datos completos */}
+                <div className="md:col-span-2 lg:col-span-3 xl:col-span-4">
                   <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Campo 1 - Transportadora (PDF)
+                    Campo 1 - Transportadora (PDF) - Solo Lectura
                   </label>
-                  <select
-                    value={formData.campo_1_porteador}
-                    onChange={(e) => handleInputChange('campo_1_porteador', e.target.value)}
-                    className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
-                  >
-                    <option value="">Seleccionar transportadora</option>
-                    {transportadoras.map((transportadora) => (
-                      <option key={transportadora.id} value={transportadora.id}>
-                        {transportadora.nombre}
-                      </option>
-                    ))}
-                  </select>
-                  <small className="text-gray-500">Del CRT transportadora</small>
+                  <textarea
+                    value={formData.campo_1_transporte || ''}
+                    readOnly
+                    rows="3"
+                    className="w-full p-3 border border-gray-200 rounded-lg bg-gray-50 text-gray-600 resize-none"
+                  />
+                  <small className="text-gray-500">Datos completos del transportista (solo lectura)</small>
                 </div>
 
                 {/* Campo 2 */}
@@ -478,20 +457,63 @@ const ModalMICCompleto = ({
                   <small className="text-gray-500">Del CRT lugar de entrega</small>
                 </div>
 
-                {/* Campo 9 - Solo lectura (mismo valor que Campo 1) */}
+                {/* Campo 9 - EDITABLE (usuario puede cambiar el nombre) */}
                 <div className="md:col-span-2 lg:col-span-3 xl:col-span-4">
                   <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Campo 9 - Datos completos del transporte (PDF)
+                    Campo 9 - Nombre del Transportista (Editable)
                   </label>
                   <input
                     type="text"
-                    value={getTransportadoraNombre(formData.campo_1_porteador) || ''}
-                    readOnly
-                    className="w-full p-3 border border-gray-200 rounded-lg bg-gray-50 text-gray-600"
+                    value={formData.campo_9_datos_transporte || ''}
+                    onChange={(e) => handleInputChange('campo_9_datos_transporte', e.target.value)}
+                    className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                    placeholder="Nombre del transportista"
                   />
                   <small className="text-gray-500 mt-1 block">
-                    Automáticamente igual al Campo 1 (solo lectura)
+                    Auto-completado desde Campo 1, pero puedes editarlo
                   </small>
+                </div>
+
+                {/* Campo 33 - Remitente (Solo Lectura) */}
+                <div className="md:col-span-2 lg:col-span-3 xl:col-span-4">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Campo 33 - Remitente (PDF) - Solo Lectura
+                  </label>
+                  <textarea
+                    value={formData.campo_33_datos_campo1_crt || ''}
+                    readOnly
+                    rows="3"
+                    className="w-full p-3 border border-gray-200 rounded-lg bg-gray-50 text-gray-600 resize-none"
+                  />
+                  <small className="text-gray-500">Datos completos del remitente (solo lectura)</small>
+                </div>
+
+                {/* Campo 34 - Destinatario (Solo Lectura) */}
+                <div className="md:col-span-2 lg:col-span-3 xl:col-span-4">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Campo 34 - Destinatario (PDF) - Solo Lectura
+                  </label>
+                  <textarea
+                    value={formData.campo_34_datos_campo4_crt || ''}
+                    readOnly
+                    rows="3"
+                    className="w-full p-3 border border-gray-200 rounded-lg bg-gray-50 text-gray-600 resize-none"
+                  />
+                  <small className="text-gray-500">Datos completos del destinatario (solo lectura)</small>
+                </div>
+
+                {/* Campo 35 - Consignatario (Solo Lectura) */}
+                <div className="md:col-span-2 lg:col-span-3 xl:col-span-4">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Campo 35 - Consignatario (PDF) - Solo Lectura
+                  </label>
+                  <textarea
+                    value={formData.campo_35_datos_campo6_crt || ''}
+                    readOnly
+                    rows="3"
+                    className="w-full p-3 border border-gray-200 rounded-lg bg-gray-50 text-gray-600 resize-none"
+                  />
+                  <small className="text-gray-500">Datos completos del consignatario (solo lectura)</small>
                 </div>
 
                 {/* Campo 10 */}
@@ -748,6 +770,21 @@ const ModalMICCompleto = ({
                     className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-yellow-500 focus:border-yellow-500 transition-colors"
                     placeholder="Valor adicional"
                   />
+                </div>
+
+                {/* Campo 38 - Detalles de Mercadería */}
+                <div className="md:col-span-2 lg:col-span-3 xl:col-span-4">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Campo 38 - Detalles de Mercadería
+                  </label>
+                  <textarea
+                    value={formData.campo_38_datos_campo11_crt || ''}
+                    onChange={(e) => handleInputChange('campo_38_datos_campo11_crt', e.target.value)}
+                    rows="4"
+                    className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-colors resize-none"
+                    placeholder="Descripción completa de la mercadería"
+                  />
+                  <small className="text-gray-500">Del CRT detalles de mercaderia</small>
                 </div>
 
                 {/* Campo 40 */}

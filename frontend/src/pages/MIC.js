@@ -31,6 +31,7 @@ const CAMPOS_16_22 = [16, 17, 18, 19, 20, 21, 22];
 
 // Estado inicial
 const initialState = {
+  campo_1_transporte: "",
   campo_2_numero: "",
   campo_3_transporte: "",
   campo_4_estado: "PROVISORIO",
@@ -55,48 +56,36 @@ export default function MIC({ crtId, crtNumero, onClose, modo = "generar" }) {
   const [loading, setLoading] = useState(false);
   const [guardando, setGuardando] = useState(false);
 
-  // ✅ CARGAR DATOS DEL CRT desde microservicio Go
+  // ✅ CARGAR DATOS DEL CRT desde backend Python (con datos completos formateados)
   useEffect(() => {
     if (!crtId && !crtNumero) {
       console.log('⚠️ No se proporcionó crtId ni crtNumero');
       return;
     }
-    
-    const endpoint = `http://localhost:8080/api/crts/${crtId || crtNumero}`;
-    
-    console.log('🔍 Cargando CRT desde microservicio Go:', endpoint);
-    
+
+    // Usar endpoint del backend Python que tiene la lógica completa de formateo
+    const endpoint = `http://localhost:5000/api/mic/cargar-datos-crt/${crtId || crtNumero}`;
+
+    console.log('🔍 Cargando CRT desde backend Python:', endpoint);
+    console.log('📋 Parámetros - crtId:', crtId, 'crtNumero:', crtNumero);
+
     axios.get(endpoint)
       .then(res => {
-        const crt = res.data;
-        console.log('📦 CRT recibido:', crt);
-        
+        const datos = res.data;
+        console.log('📦 Datos del CRT formateados:', datos);
+        console.log('📦 Campo 38 recibido:', datos.campo_38);
+        console.log('📦 Campo 38_datos_campo11_crt recibido:', datos.campo_38_datos_campo11_crt);
+
         setMic(prev => ({
           ...prev,
-          campo_24_aduana: crt.aduana || "",
-          campo_30_tipo_bultos: crt.tipo_bultos || "",
-          campo_40_tramo: crt.tramo || "",
-          campo_9_datos_transporte:
-            ((crt.transportadora_nombre || crt.transportadora || "") +
-              (crt.transportadora_direccion ? "\n" + crt.transportadora_direccion : "")) || "",
-          campo_38: crt.detalles_mercaderia || "",
-          campo_6_fecha: crt.fecha_emision || new Date().toISOString().split('T')[0],
-          campo_8_destino: crt.lugar_entrega || "",
-          campo_23_numero_campo2_crt: crt.numero_crt || "",
-          campo_25_moneda: crt.moneda?.nombre || "DOLAR AMERICANO",
-          campo_26_pais: "520-PARAGUAY",
-          campo_27_valor_campo16: crt.declaracion_mercaderia || "",
-          campo_32_peso_bruto: crt.peso_bruto || "",
-          campo_36_factura_despacho: crt.factura_exportacion && crt.nro_despacho 
-            ? `Factura: ${crt.factura_exportacion} Despacho: ${crt.nro_despacho}`
-            : (crt.factura_exportacion ? `Factura: ${crt.factura_exportacion}` : "")
+          ...datos  // Aplicar todos los datos formateados del backend
         }));
-        
-        toast.success(`✅ CRT ${crt.numero_crt} cargado - Campo 38 auto-completado`);
+
+        toast.success(`✅ CRT ${datos.campo_23_numero_campo2_crt || crtId} cargado - Todos los campos auto-completados`);
       })
       .catch(err => {
         console.error('❌ Error cargando CRT:', err);
-        const errorMsg = err.response?.status === 404 
+        const errorMsg = err.response?.status === 404
           ? `CRT ID ${crtId || crtNumero} no encontrado`
           : `Error de conexión: ${err.message}`;
         toast.error(`❌ ${errorMsg}`);
@@ -244,7 +233,7 @@ export default function MIC({ crtId, crtNumero, onClose, modo = "generar" }) {
 
   // Mismos campos principales del componente original
   const CAMPOS_PRINCIPALES = [
-    "campo_2_numero", "campo_3_transporte", "campo_4_estado", "campo_7_pto_seguro",
+    "campo_1_transporte", "campo_2_numero", "campo_3_transporte", "campo_4_estado", "campo_7_pto_seguro",
     "campo_9_datos_transporte", "campo_10_numero", "campo_11_placa", "campo_12_modelo_chasis",
     "campo_14_anio", "campo_15_placa_semi", "campo_24_aduana", "campo_30_tipo_bultos",
     "campo_31_cantidad", "campo_37_valor_manual", "campo_38", "campo_40_tramo"
@@ -293,7 +282,26 @@ export default function MIC({ crtId, crtNumero, onClose, modo = "generar" }) {
             <option value="EN_PROCESO">EN_PROCESO</option>
           </select>
         </label>
-        
+
+        {/* CAMPO 1 */}
+        <label style={{ gridColumn: "span 2" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "4px" }}>
+            <span style={{ fontWeight: "bold" }}>Campo 1 (Nombre y domicilio del porteador)</span>
+            {mic.campo_1_transporte && <span style={{ color: "#10b981", fontSize: "0.8em" }}>✅ Auto-completado</span>}
+          </div>
+          <textarea
+            name="campo_1_transporte"
+            value={mic.campo_1_transporte}
+            onChange={handleChange}
+            className="inputPro"
+            rows={3}
+            style={{ resize: "vertical", maxHeight: 100, width: "100%" }}
+            placeholder="Nombre completo, dirección, ciudad y país del transportista"
+            readOnly
+          />
+          <small style={{ color: "#666", fontSize: "0.8em" }}>Campo de solo lectura - muestra todos los datos del transportista</small>
+        </label>
+
         {/* CAMPO 6 */}
         <label>
           Campo 6 (Fecha de emisión)
@@ -331,16 +339,19 @@ export default function MIC({ crtId, crtNumero, onClose, modo = "generar" }) {
 
         {/* CAMPO 9 */}
         <label>
-          Campo 9 (CAMIÓN ORIGINAL: Nombre y domicilio del propietario)
-          <textarea
+          <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "4px" }}>
+            <span style={{ fontWeight: "bold" }}>Campo 9 (CAMIÓN ORIGINAL: Nombre del propietario)</span>
+            {mic.campo_9_datos_transporte && <span style={{ color: "#10b981", fontSize: "0.8em" }}>✅ Auto-completado</span>}
+          </div>
+          <input
             name="campo_9_datos_transporte"
             value={mic.campo_9_datos_transporte}
             onChange={handleChange}
             className="inputPro"
-            rows={3}
-            style={{ resize: "vertical", maxHeight: 80 }}
-            placeholder="Nombre y dirección (auto-completado desde CRT)"
+            placeholder="Solo el nombre del transportista (editable)"
+            maxLength={100}
           />
+          <small style={{ color: "#666", fontSize: "0.8em" }}>Campo editable - puedes cambiar el nombre si es necesario</small>
         </label>
 
         {/* CAMPO 10 */}
@@ -647,6 +658,8 @@ export default function MIC({ crtId, crtNumero, onClose, modo = "generar" }) {
           <ul>
             <li><strong>💾 Guardar MIC:</strong> Guarda el MIC en la base de datos para futuras consultas</li>
             <li><strong>👁️ Vista Previa PDF:</strong> Genera un PDF temporal sin guardar en base de datos</li>
+            <li><strong>📋 Campo 1:</strong> Muestra TODOS los datos del transportista (solo lectura)</li>
+            <li><strong>✏️ Campo 9:</strong> Muestra SOLO el nombre del transportista (editable)</li>
             <li>Los campos marcados con <span style={{color: "#10b981"}}>✅ Auto-completado</span> se llenan desde el CRT</li>
             <li>Los campos marcados con * son obligatorios</li>
           </ul>

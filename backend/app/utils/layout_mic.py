@@ -57,12 +57,112 @@ def px2pt(v):
     return v * PT_PER_PX
 
 
+# =============================
+#         DEBUG SYSTEM
+# =============================
+
+class DebugLogger:
+    """Sistema de debug consistente y organizado para MIC/DTA PDF"""
+
+    # Emojis para diferentes tipos de mensajes
+    EMOJI = {
+        'processing': '🎯',
+        'success': '✅',
+        'multiline': '🖼️',
+        'singleline': '🔤',
+        'summary': '📋',
+        'transport': '🚛',
+        'date': '📅',
+        'field_40': '🎯',
+        'error': '❌',
+        'warning': '⚠️',
+        'info': 'ℹ️',
+        'debug': '🔍',
+        'file': '📁',
+        'data': '📊'
+    }
+
+    @staticmethod
+    def log(msg_type, message, *args):
+        """Log consistente con tipo y mensaje"""
+        if not DEBUG:
+            return
+
+        emoji = DebugLogger.EMOJI.get(msg_type, '🔍')
+        formatted_msg = f"{emoji} {message}"
+
+        if args:
+            formatted_msg = formatted_msg.format(*args)
+
+        try:
+            print(formatted_msg)
+        except UnicodeEncodeError:
+            # Fallback para consolas que no soportan Unicode
+            print(formatted_msg.encode('ascii', 'replace').decode('ascii'))
+
+    @staticmethod
+    def processing(message, *args):
+        DebugLogger.log('processing', message, *args)
+
+    @staticmethod
+    def success(message, *args):
+        DebugLogger.log('success', message, *args)
+
+    @staticmethod
+    def multiline(message, *args):
+        DebugLogger.log('multiline', message, *args)
+
+    @staticmethod
+    def singleline(message, *args):
+        DebugLogger.log('singleline', message, *args)
+
+    @staticmethod
+    def summary(message, *args):
+        DebugLogger.log('summary', message, *args)
+
+    @staticmethod
+    def transport(message, *args):
+        DebugLogger.log('transport', message, *args)
+
+    @staticmethod
+    def date(message, *args):
+        DebugLogger.log('date', message, *args)
+
+    @staticmethod
+    def field_40(message, *args):
+        DebugLogger.log('field_40', message, *args)
+
+    @staticmethod
+    def error(message, *args):
+        DebugLogger.log('error', message, *args)
+
+    @staticmethod
+    def warning(message, *args):
+        DebugLogger.log('warning', message, *args)
+
+    @staticmethod
+    def info(message, *args):
+        DebugLogger.log('info', message, *args)
+
+    @staticmethod
+    def debug(message, *args):
+        DebugLogger.log('debug', message, *args)
+
+    @staticmethod
+    def file(message, *args):
+        DebugLogger.log('file', message, *args)
+
+    @staticmethod
+    def data(message, *args):
+        DebugLogger.log('data', message, *args)
+
+
 def log(msg):
+    """Función de compatibilidad con el sistema anterior"""
     if DEBUG:
         try:
             print(msg)
         except UnicodeEncodeError:
-            # Fallback para consolas que no soportan Unicode
             print(msg.encode('ascii', 'replace').decode('ascii'))
 
 
@@ -127,7 +227,7 @@ def register_unicode_fonts():
         already = FONT_REGULAR in pdfmetrics.getRegisteredFontNames(
         ) and FONT_BOLD in pdfmetrics.getRegisteredFontNames()
         if already:
-            log("ℹ️ Fuentes DejaVuSans ya registradas.")
+            DebugLogger.info("Fuentes DejaVuSans ya registradas.")
             return
 
         # Intentar encontrar archivos
@@ -144,17 +244,16 @@ def register_unicode_fonts():
         if reg_path and bold_path:
             pdfmetrics.registerFont(TTFont(FONT_REGULAR, reg_path))
             pdfmetrics.registerFont(TTFont(FONT_BOLD, bold_path))
-            log(f"✅ Fuentes Unicode registradas: {reg_path}, {bold_path}")
+            DebugLogger.success(f"Fuentes Unicode registradas: {reg_path}, {bold_path}")
         else:
             # Si no encontramos ambas, caer a Helvetica
             FONT_REGULAR = FALLBACK_REGULAR
             FONT_BOLD = FALLBACK_BOLD
-            log("⚠️ No se encontraron DejaVuSans TTF; usando Helvetica como fallback.")
+            DebugLogger.warning("No se encontraron DejaVuSans TTF; usando Helvetica como fallback.")
     except Exception as e:
         FONT_REGULAR = FALLBACK_REGULAR
         FONT_BOLD = FALLBACK_BOLD
-        log(
-            f"⚠️ No se pudieron registrar TTF Unicode ({e}); usando Helvetica.")
+        DebugLogger.warning(f"No se pudieron registrar TTF Unicode ({e}); usando Helvetica.")
 
 
 # Registrar fuentes al importar el módulo (evita 500 si se usa como librería)
@@ -416,6 +515,7 @@ def draw_multiline_text_simple(c, text, x, y, w, h, font_size=9, font=None, marg
             truncate_y = start_y - (max_lines * line_height)
             if truncate_y >= eff_y:
                 c.drawString(eff_x, truncate_y, "... (continúa)")
+                DebugLogger.warning(f"Texto truncado en campo multilínea: {len(all_lines) - max_lines} líneas omitidas")
     finally:
         c.restoreState()
 
@@ -550,12 +650,12 @@ def draw_multiline_text(c, text, x, y, w, h, font_size=13, font=None, margin=12)
 
     clean_text = safe_clean_text(text)
     if '\n' in clean_text or len(clean_text) > 500:
-        log(f"🎯 Texto con saltos o largo ({len(clean_text)} chars) → método simple")
+        DebugLogger.processing(f"Texto con saltos o largo ({len(clean_text)} chars) → método simple")
         draw_multiline_text_simple(
             c, clean_text, x, y, w, h, font_size=font_size, font=font, margin=margin)
         return
 
-    log(f"🔍 Texto corto ({len(clean_text)} chars) → método Frame")
+    DebugLogger.debug(f"Texto corto ({len(clean_text)} chars) → método Frame")
     style = ParagraphStyle(
         name='multi',
         fontName=font,
@@ -573,7 +673,7 @@ def draw_multiline_text(c, text, x, y, w, h, font_size=13, font=None, margin=12)
                       topPadding=4, bottomPadding=4)
         frame.addFromList([para], c)
     except Exception as e:
-        log(f"❌ Error en Paragraph/Frame: {e} → fallback simple")
+        DebugLogger.error(f"Error en Paragraph/Frame: {e} → fallback simple")
         draw_multiline_text_simple(
             c, clean_text, x, y, w, h, font_size, font, margin)
 
@@ -652,7 +752,7 @@ def draw_campo40_robust(c, x_pt, y_pt, w_pt, h_pt, valor):
     if not valor:
         return
 
-    log("🎯 Campo 40: Usando función robusta")
+    DebugLogger.field_40("Campo 40: Usando función robusta")
 
     # Área de contenido
     margin = 6  # Margen más pequeño para Campo 40
@@ -664,7 +764,7 @@ def draw_campo40_robust(c, x_pt, y_pt, w_pt, h_pt, valor):
     content_h = h_pt - 2 * margin - title_space
 
     if content_w <= 0 or content_h <= 0:
-        log(f"❌ Área de contenido inválida: {content_w}x{content_h}")
+        DebugLogger.error(f"Área de contenido inválida: {content_w}x{content_h}")
         return
 
     # Parámetros optimizados
@@ -727,7 +827,7 @@ def draw_campo40_robust(c, x_pt, y_pt, w_pt, h_pt, valor):
             if truncate_y >= content_y:
                 c.drawString(content_x, truncate_y, "...")
 
-        log(f"✅ Campo 40 procesado: {len(visible_lines)}/{len(final_lines)} líneas")
+        DebugLogger.success(f"Campo 40 procesado: {len(visible_lines)}/{len(final_lines)} líneas")
 
     finally:
         c.restoreState()
@@ -788,8 +888,8 @@ def draw_campo39(c, x_px, y_px, w_px, h_px, height_px, mic_data=None):
     fecha_actual = normalized_date(mic_data)
 
     if DEBUG:
-        log(f"🚛 Campo 39 - Transportador: '{nombre_transportador}'")
-        log(f"📅 Campo 39 - Fecha: '{fecha_actual}'")
+        DebugLogger.transport(f"Campo 39 - Transportador: '{nombre_transportador}'")
+        DebugLogger.date(f"Campo 39 - Fecha: '{fecha_actual}'")
 
     # Crear párrafos y dibujar
     para_es = Paragraph(txt_es, styles['es'])
@@ -825,18 +925,19 @@ def generar_micdta_pdf_con_datos(mic_data, filename="mic_{id}.pdf"):
     # Garantizar registro por si el módulo se importó antes de tener las fuentes
     register_unicode_fonts()
 
-    log("🔄 Iniciando generación de PDF MIC...")
-    log(f"📋 Campos recibidos: {len(mic_data or {})}")
+    DebugLogger.processing("Iniciando generación de PDF MIC")
+    DebugLogger.data(f"Campos recibidos: {len(mic_data or {})}")
 
     # Debug: mostrar campos no vacíos
     if DEBUG and mic_data:
-        log("\n" + "="*50)
-        log("🔍 DATOS COMPLETOS RECIBIDOS (no vacíos):")
+        DebugLogger.info("="*60)
+        DebugLogger.debug("DATOS COMPLETOS RECIBIDOS (no vacíos):")
         for key, value in mic_data.items():
             if value:
                 s = str(value)
-                log(f"  {key}: {s[:100]}{'...' if len(s) > 100 else ''}")
-        log("="*50 + "\n")
+                DebugLogger.debug(f"  {key}: {s[:100]}{'...' if len(s) > 100 else ''}")
+        DebugLogger.info("="*60)
+        print()  # Línea en blanco
 
     # Resolución base
     width_px, height_px = 1700, 2800
@@ -959,11 +1060,11 @@ def generar_micdta_pdf_con_datos(mic_data, filename="mic_{id}.pdf"):
             continue
 
         if n == 23:
-            log(f"🎯 PROCESANDO CAMPO 23:")
-            log(f"   Key esperado: '{key}'")
-            log(f"   Valor en mic_data: '{(mic_data or {}).get(key, 'NO_ENCONTRADO')}'")
-            log(f"   Tipo de valor: {type((mic_data or {}).get(key))}")
-            log(f"   mic_data keys: {list((mic_data or {}).keys())}")
+            DebugLogger.processing("PROCESANDO CAMPO 23")
+            DebugLogger.debug(f"  Key esperado: '{key}'")
+            DebugLogger.debug(f"  Valor en mic_data: '{(mic_data or {}).get(key, 'NO_ENCONTRADO')}'")
+            DebugLogger.debug(f"  Tipo de valor: {type((mic_data or {}).get(key))}")
+            DebugLogger.debug(f"  mic_data keys: {list((mic_data or {}).keys())}")
 
         x_pt, y_pt, w_pt, h_pt = rect_pt(
             c, x, y, w, h, height_px, line_width=1)
@@ -975,17 +1076,20 @@ def generar_micdta_pdf_con_datos(mic_data, filename="mic_{id}.pdf"):
 
 
         if n == 40 and key and (mic_data or {}).get(key):
+            DebugLogger.field_40("Campo 40: Usando función robusta")
             draw_campo40_robust(c, x_pt, y_pt, w_pt, h_pt, mic_data[key])
             continue
 
         if n == 38 and key and (mic_data or {}).get(key):
-            log(f"🎯 PROCESANDO CAMPO 38 (ajuste dinámico adaptativo - posicionamiento desde título)")
+            DebugLogger.processing("PROCESANDO CAMPO 38 (posicionamiento justo debajo del título)")
             valor = str(mic_data[key])
 
+            # Calcular posición exacta debajo del subtítulo
             x_frame = x_pt + FIELD_PADDING_PT
-            y_frame = y_pt + TITLE_OFFSET_PT + SUBTITLE_OFFSET_PT + 5
+            y_frame = y_pt + FIELD_PADDING_PT  # Desde el fondo de la caja
             w_frame = w_pt - 2 * FIELD_PADDING_PT
-            h_frame = h_pt - TITLE_OFFSET_PT - SUBTITLE_OFFSET_PT - 10
+            # Altura disponible: desde el fondo hasta justo debajo del subtítulo
+            h_frame = h_pt - TITLE_OFFSET_PT - SUBTITLE_OFFSET_PT - 8  # 8pt de separación del subtítulo
 
             fit = draw_multiline_text_adaptive(
                 c,
@@ -995,17 +1099,17 @@ def generar_micdta_pdf_con_datos(mic_data, filename="mic_{id}.pdf"):
                 w=w_frame,
                 h=h_frame,
                 font=FONT_REGULAR,
-                min_font=8,
-                max_font=14,
-                margin=8,
-                title_reserved_h=0
+                min_font=6,
+                max_font=12,
+                margin=4,
+                title_reserved_h=0  # Ya calculamos el espacio arriba
             )
-            log(f"✅ Campo 38 → fuente {fit['font_size_used']}, líneas {fit['lines_drawn']}, truncado={fit['truncated']}")
+            DebugLogger.success(f"Campo 38 corregido → fuente {fit['font_size_used']}, líneas {fit['lines_drawn']}, truncado={fit['truncated']}")
             diagnostico['campo_38'] = fit
             continue
 
         if n in [1, 9, 33, 34, 35] and key and (mic_data or {}).get(key):
-            log(f"🖼️ Campo multilínea {n} con topes aplicados")
+            DebugLogger.multiline(f"Campo multilínea {n} con topes aplicados")
 
             x_frame = x_pt + FIELD_PADDING_PT
             y_frame = y_pt + FIELD_PADDING_PT
@@ -1019,7 +1123,7 @@ def generar_micdta_pdf_con_datos(mic_data, filename="mic_{id}.pdf"):
             else:
                 font_size_multiline = 10
 
-            log(f"   ➜ Usando font_size={font_size_multiline}pt en campo {n} con topes")
+            DebugLogger.debug(f"  Usando font_size={font_size_multiline}pt en campo {n} con topes")
 
             specific_margin = 10 if n in [33, 34, 35] else 12
 
@@ -1048,7 +1152,7 @@ def generar_micdta_pdf_con_datos(mic_data, filename="mic_{id}.pdf"):
             )
 
             if needs_multiline:
-                log(f"🖼️ Campo {n} (multilínea automática) con topes aplicados")
+                DebugLogger.multiline(f"Campo {n} (multilínea automática) con topes aplicados")
 
                 x_frame = x_pt + FIELD_PADDING_PT
                 y_frame = y_pt + FIELD_PADDING_PT
@@ -1067,7 +1171,7 @@ def generar_micdta_pdf_con_datos(mic_data, filename="mic_{id}.pdf"):
                     margin=12
                 )
             else:
-                log(f"🔤 Campo {n} (una línea) con topes aplicados")
+                DebugLogger.singleline(f"Campo {n} (una línea) con topes aplicados")
 
                 text_x = x_pt
                 text_y = y_pt
@@ -1083,37 +1187,14 @@ def generar_micdta_pdf_con_datos(mic_data, filename="mic_{id}.pdf"):
 
     try:
         c.save()
-
-        # DEBUG CRÍTICO: Verificar archivo generado
-        print(f"DEBUG: Intentando guardar PDF como: {filename}")
-
+        DebugLogger.success(f"PDF generado exitosamente: {filename}")
         if os.path.exists(filename):
-            size = os.path.getsize(filename)
-            print(f"DEBUG: Archivo creado exitosamente")
-            print(f"DEBUG: Ruta completa: {os.path.abspath(filename)}")
-            print(f"DEBUG: Tamaño del archivo: {size} bytes")
-
-            if size < 1000:
-                print("WARNING: Archivo muy pequeño, posible PDF corrupto")
-
-            # Verificar que es un PDF válido leyendo las primeras líneas
-            with open(filename, 'rb') as f:
-                first_bytes = f.read(10)
-                print(f"DEBUG: Primeros bytes: {first_bytes}")
-                if not first_bytes.startswith(b'%PDF'):
-                    print("ERROR: El archivo no es un PDF válido")
-                else:
-                    print("DEBUG: Archivo PDF válido detectado")
+            DebugLogger.file(f"Archivo confirmado en: {os.path.abspath(filename)}")
         else:
-            print(f"ERROR: No se pudo crear el archivo {filename}")
-
+            DebugLogger.error(f"Archivo NO encontrado en: {os.path.abspath(filename)}")
     except Exception as e:
-        print(f"ERROR COMPLETO en save(): {str(e)}")
-        import traceback
-        traceback.print_exc()
+        DebugLogger.error(f"ERROR al guardar PDF: {e}")
         raise
-
-    log(f"✅ PDF generado exitosamente: {filename}")
 
     if DEBUG:
         campos_documentos = {
@@ -1122,23 +1203,23 @@ def generar_micdta_pdf_con_datos(mic_data, filename="mic_{id}.pdf"):
             'campo_34_datos_campo4_crt': 'Destinatario',
             'campo_35_datos_campo6_crt': 'Consignatario'
         }
-        log("🎯 RESUMEN DE CAMPOS CON DOCUMENTOS:")
+        DebugLogger.processing("RESUMEN DE CAMPOS CON DOCUMENTOS")
         for key, descripcion in campos_documentos.items():
             val = (mic_data or {}).get(key)
             if val:
                 lines_count = len(safe_clean_text(val).split('\n'))
-                log(f"   📋 {descripcion}: {lines_count} líneas")
+                DebugLogger.summary(f"{descripcion}: {lines_count} líneas")
             else:
-                log(f"   ❌ {descripcion}: Sin datos")
+                DebugLogger.error(f"{descripcion}: Sin datos")
 
-        log("🎯 RESUMEN - MÉTODO DE RENDERIZADO CON TOPES:")
-        log("   📋 Campos 1, 9, 33, 34, 35 → Multilínea con topes (12pt) ✅")
-        log("   📦 Campo 38 → Ajuste dinámico adaptativo con topes (8-14pt) ✅")
-        log("   🎯 Campo 40 → Función robusta con topes (6pt) ✅")
-        log("   📄 Campo 12 → 2 líneas con topes (12pt) ✅")
-        log("   🔤 Otros campos → 1 línea con topes (12pt) ✅")
-        log("   🛡️ TODOS LOS CAMPOS CON TOPES APLICADOS ✅")
-        log("   🔍 Debug completo: ACTIVADO ✅")
+        DebugLogger.processing("RESUMEN - MÉTODO DE RENDERIZADO CON TOPES")
+        DebugLogger.summary("Campos 1, 9, 33, 34, 35 → Multilínea con topes (12pt) ✅")
+        DebugLogger.summary("Campo 38 → Ajuste dinámico adaptativo con topes (8-14pt) ✅")
+        DebugLogger.summary("Campo 40 → Función robusta con topes (6pt) ✅")
+        DebugLogger.summary("Campo 12 → 2 líneas con topes (12pt) ✅")
+        DebugLogger.summary("Otros campos → 1 línea con topes (12pt) ✅")
+        DebugLogger.summary("TODOS LOS CAMPOS CON TOPES APLICADOS ✅")
+        DebugLogger.debug("Debug completo: ACTIVADO ✅")
 
     return diagnostico
 
@@ -1151,7 +1232,7 @@ def test_campo38():
     """
     Prueba de Campo 38 con texto largo y verificación de generación de PDF.
     """
-    log("🧪 INICIANDO PRUEBA DEL CAMPO 38 (versión completa)")
+    DebugLogger.info("INICIANDO PRUEBA DEL CAMPO 38 (versión completa)")
     test_data = {
         'campo_38_datos_campo11_crt': (
             "1572 CAJAS QUE DICEN CONTENER: CARNE RESFRIADA DE BOVINO SEM OSSO "
@@ -1168,16 +1249,16 @@ def test_campo38():
     out = "test_campo38_corregido.pdf"
     generar_micdta_pdf_con_datos(test_data, out)
     if os.path.exists(out):
-        log(f"✅ PRUEBA EXITOSA: generado {out}")
+        DebugLogger.success(f"PRUEBA EXITOSA: generado {out}")
     else:
-        log("❌ PRUEBA FALLÓ: no se encontró el PDF")
+        DebugLogger.error("PRUEBA FALLÓ: no se encontró el PDF")
 
 
 def test_campo40_desbordamiento():
     """
     Prueba específica para el campo 40 que se desborda.
     """
-    log("🧪 INICIANDO PRUEBA DEL CAMPO 40 (desbordamiento)")
+    DebugLogger.info("INICIANDO PRUEBA DEL CAMPO 40 (desbordamiento)")
     test_data = {
         'campo_40_tramo': (
             "ORIGEN: CAMPESTRE S.A.-CIUDAD DEL ESTE SALIDA: CIUDAD DEL ESTE-CIUDAD DEL ESTE "
@@ -1190,16 +1271,16 @@ def test_campo40_desbordamiento():
     out = "test_campo40_topes.pdf"
     generar_micdta_pdf_con_datos(test_data, out)
     if os.path.exists(out):
-        log(f"✅ PRUEBA CAMPO 40 EXITOSA: generado {out}")
+        DebugLogger.success(f"PRUEBA CAMPO 40 EXITOSA: generado {out}")
     else:
-        log("❌ PRUEBA CAMPO 40 FALLÓ: no se encontró el PDF")
+        DebugLogger.error("PRUEBA CAMPO 40 FALLÓ: no se encontró el PDF")
 
 
 def test_campo38_ajuste_dinamico():
     """
     Prueba del ajuste dinámico de tamaño en campo 38 con diferentes cantidades de texto.
     """
-    log("🧪 INICIANDO PRUEBA CAMPO 38 - AJUSTE DINÁMICO DE TAMAÑO")
+    DebugLogger.info("INICIANDO PRUEBA CAMPO 38 - AJUSTE DINÁMICO DE TAMAÑO")
 
     # Texto corto - debería usar fuente grande (cerca de 14pt)
     test_data_corto = {
@@ -1244,18 +1325,18 @@ def test_campo38_ajuste_dinamico():
     ]
 
     for data, filename, tipo in casos:
-        log(f"\n--- GENERANDO PDF PARA TEXTO {tipo} ---")
+        DebugLogger.info(f"GENERANDO PDF PARA TEXTO {tipo}")
         generar_micdta_pdf_con_datos(data, filename)
         if os.path.exists(filename):
-            log(f"✅ PRUEBA TEXTO {tipo} EXITOSA: generado {filename}")
+            DebugLogger.success(f"PRUEBA TEXTO {tipo} EXITOSA: generado {filename}")
         else:
-            log(f"❌ PRUEBA TEXTO {tipo} FALLÓ: no se encontró {filename}")
+            DebugLogger.error(f"PRUEBA TEXTO {tipo} FALLÓ: no se encontró {filename}")
 
-    log("\n🎯 RESUMEN: Se generaron 3 PDFs para demostrar el ajuste dinámico de fuente")
-    log("   📄 Texto corto → fuente grande (cerca de 14pt)")
-    log("   📄 Texto medio → fuente intermedia (10-12pt)")
-    log("   📄 Texto largo → fuente pequeña (cerca de 8pt)")
-    log("   📍 En todos los casos, el texto empieza justo debajo del título")
+    DebugLogger.processing("RESUMEN: Se generaron 3 PDFs para demostrar el ajuste dinámico de fuente")
+    DebugLogger.summary("Texto corto → fuente grande (cerca de 14pt)")
+    DebugLogger.summary("Texto medio → fuente intermedia (10-12pt)")
+    DebugLogger.summary("Texto largo → fuente pequeña (cerca de 8pt)")
+    DebugLogger.summary("En todos los casos, el texto empieza justo debajo del título")
 
 
 # =============================
@@ -1266,14 +1347,14 @@ if __name__ == "__main__":
     # 1) Registrar fuentes Unicode (DejaVuSans) con fallback automático
     register_unicode_fonts()
 
-    log("📋 CÓDIGO COMPLETO MIC/DTA PDF - Versión robusta")
-    log("🎯 Highlights:")
-    log("   ✅ Campo 38 con ajuste dinámico adaptativo (búsqueda binaria mejorada) y márgenes")
-    log("   ✅ Fuentes Unicode (DejaVuSans) para acentos/ñ/ç")
-    log("   ✅ Helpers px→pt y coordenadas consistentes")
-    log("   ✅ saveState()/restoreState() para aislar estilos")
-    log("   ✅ Estilos cacheados y refactors de cajas/títulos")
-    log("   ✅ Debug detallado activable")
+    DebugLogger.data("CÓDIGO COMPLETO MIC/DTA PDF - Versión robusta")
+    DebugLogger.processing("Highlights")
+    DebugLogger.success("Campo 38 con ajuste dinámico adaptativo (búsqueda binaria mejorada) y márgenes")
+    DebugLogger.success("Fuentes Unicode (DejaVuSans) para acentos/ñ/ç")
+    DebugLogger.success("Helpers px→pt y coordenadas consistentes")
+    DebugLogger.success("saveState()/restoreState() para aislar estilos")
+    DebugLogger.success("Estilos cacheados y refactors de cajas/títulos")
+    DebugLogger.success("Debug detallado activable")
 
     # 2) Ejecutar prueba opcional:
     # test_campo38()
@@ -1288,17 +1369,18 @@ def generar_micdta_pdf_con_datos_y_diagnostico(mic_data, filename="mic_{id}.pdf"
     # pero al final devuelve el diagnóstico
     register_unicode_fonts()
 
-    log("🔄 Iniciando generación de PDF MIC...")
-    log(f"📋 Campos recibidos: {len(mic_data or {})}")
+    DebugLogger.processing("Iniciando generación de PDF MIC")
+    DebugLogger.data(f"Campos recibidos: {len(mic_data or {})}")
 
     if DEBUG and mic_data:
-        log("\n" + "="*50)
-        log("🔍 DATOS COMPLETOS RECIBIDOS (no vacíos):")
+        DebugLogger.info("="*60)
+        DebugLogger.debug("DATOS COMPLETOS RECIBIDOS (no vacíos):")
         for key, value in mic_data.items():
             if value:
                 s = str(value)
-                log(f"  {key}: {s[:100]}{'...' if len(s) > 100 else ''}")
-        log("="*50 + "\n")
+                DebugLogger.debug(f"  {key}: {s[:100]}{'...' if len(s) > 100 else ''}")
+        DebugLogger.info("="*60)
+        print()  # Línea en blanco
 
     width_px, height_px = 1700, 2800
     width_pt, height_pt = px2pt(width_px), px2pt(height_px)
@@ -1415,11 +1497,11 @@ def generar_micdta_pdf_con_datos_y_diagnostico(mic_data, filename="mic_{id}.pdf"
             continue
 
         if n == 23:
-            log(f"🎯 PROCESANDO CAMPO 23:")
-            log(f"   Key esperado: '{key}'")
-            log(f"   Valor en mic_data: '{(mic_data or {}).get(key, 'NO_ENCONTRADO')}'")
-            log(f"   Tipo de valor: {type((mic_data or {}).get(key))}")
-            log(f"   mic_data keys: {list((mic_data or {}).keys())}")
+            DebugLogger.processing("PROCESANDO CAMPO 23")
+            DebugLogger.debug(f"  Key esperado: '{key}'")
+            DebugLogger.debug(f"  Valor en mic_data: '{(mic_data or {}).get(key, 'NO_ENCONTRADO')}'")
+            DebugLogger.debug(f"  Tipo de valor: {type((mic_data or {}).get(key))}")
+            DebugLogger.debug(f"  mic_data keys: {list((mic_data or {}).keys())}")
 
         x_pt, y_pt, w_pt, h_pt = rect_pt(
             c, x, y, w, h, height_px, line_width=1)
@@ -1435,13 +1517,13 @@ def generar_micdta_pdf_con_datos_y_diagnostico(mic_data, filename="mic_{id}.pdf"
             continue
 
         if n == 38 and key and (mic_data or {}).get(key):
-            log(f"🎯 PROCESANDO CAMPO 38 (ajuste dinámico adaptativo - posicionamiento desde título)")
+            DebugLogger.processing("PROCESANDO CAMPO 38 (ajuste dinámico adaptativo - posicionamiento desde título)")
             valor = str(mic_data[key])
 
             x_frame = x_pt + FIELD_PADDING_PT
-            y_frame = y_pt + TITLE_OFFSET_PT + SUBTITLE_OFFSET_PT + 5
+            y_frame = y_pt + TITLE_OFFSET_PT + SUBTITLE_OFFSET_PT
             w_frame = w_pt - 2 * FIELD_PADDING_PT
-            h_frame = h_pt - TITLE_OFFSET_PT - SUBTITLE_OFFSET_PT - 10
+            h_frame = h_pt - TITLE_OFFSET_PT - SUBTITLE_OFFSET_PT - 5
 
             fit = draw_multiline_text_adaptive(
                 c,
@@ -1456,12 +1538,12 @@ def generar_micdta_pdf_con_datos_y_diagnostico(mic_data, filename="mic_{id}.pdf"
                 margin=8,
                 title_reserved_h=0
             )
-            log(f"✅ Campo 38 → fuente {fit['font_size_used']}, líneas {fit['lines_drawn']}, truncado={fit['truncated']}")
+            DebugLogger.success(f"Campo 38 → fuente {fit['font_size_used']}, líneas {fit['lines_drawn']}, truncado={fit['truncated']}")
             diagnostico['campo_38'] = fit
             continue
 
         if n in [1, 9, 33, 34, 35] and key and (mic_data or {}).get(key):
-            log(f"🖼️ Campo multilínea {n} con topes aplicados")
+            DebugLogger.multiline(f"Campo multilínea {n} con topes aplicados")
 
             x_frame = x_pt + FIELD_PADDING_PT
             y_frame = y_pt + FIELD_PADDING_PT
@@ -1475,7 +1557,7 @@ def generar_micdta_pdf_con_datos_y_diagnostico(mic_data, filename="mic_{id}.pdf"
             else:
                 font_size_multiline = 10
 
-            log(f"   ➜ Usando font_size={font_size_multiline}pt en campo {n} con topes")
+            DebugLogger.debug(f"  Usando font_size={font_size_multiline}pt en campo {n} con topes")
 
             specific_margin = 10 if n in [33, 34, 35] else 12
 
@@ -1504,7 +1586,7 @@ def generar_micdta_pdf_con_datos_y_diagnostico(mic_data, filename="mic_{id}.pdf"
             )
 
             if needs_multiline:
-                log(f"🖼️ Campo {n} (multilínea automática) con topes aplicados")
+                DebugLogger.multiline(f"Campo {n} (multilínea automática) con topes aplicados")
 
                 x_frame = x_pt + FIELD_PADDING_PT
                 y_frame = y_pt + FIELD_PADDING_PT
@@ -1523,7 +1605,7 @@ def generar_micdta_pdf_con_datos_y_diagnostico(mic_data, filename="mic_{id}.pdf"
                     margin=12
                 )
             else:
-                log(f"🔤 Campo {n} (una línea) con topes aplicados")
+                DebugLogger.singleline(f"Campo {n} (una línea) con topes aplicados")
 
                 text_x = x_pt
                 text_y = y_pt
@@ -1538,7 +1620,7 @@ def generar_micdta_pdf_con_datos_y_diagnostico(mic_data, filename="mic_{id}.pdf"
     rect_pt(c, 55, 55, 1616.75, 2672.75, height_px, line_width=1)
 
     c.save()
-    log(f"✅ PDF generado exitosamente: {filename}")
+    DebugLogger.success(f"PDF generado exitosamente: {filename}")
 
     if DEBUG:
         campos_documentos = {
@@ -1547,22 +1629,22 @@ def generar_micdta_pdf_con_datos_y_diagnostico(mic_data, filename="mic_{id}.pdf"
             'campo_34_datos_campo4_crt': 'Destinatario',
             'campo_35_datos_campo6_crt': 'Consignatario'
         }
-        log("🎯 RESUMEN DE CAMPOS CON DOCUMENTOS:")
+        DebugLogger.processing("RESUMEN DE CAMPOS CON DOCUMENTOS")
         for key, descripcion in campos_documentos.items():
             val = (mic_data or {}).get(key)
             if val:
                 lines_count = len(safe_clean_text(val).split('\n'))
-                log(f"   📋 {descripcion}: {lines_count} líneas")
+                DebugLogger.summary(f"{descripcion}: {lines_count} líneas")
             else:
-                log(f"   ❌ {descripcion}: Sin datos")
+                DebugLogger.error(f"{descripcion}: Sin datos")
 
-        log("🎯 RESUMEN - MÉTODO DE RENDERIZADO CON TOPES:")
-        log("   📋 Campos 1, 9, 33, 34, 35 → Multilínea con topes (12pt) ✅")
-        log("   📦 Campo 38 → Ajuste dinámico adaptativo con topes (8-14pt) ✅")
-        log("   🎯 Campo 40 → Función robusta con topes (6pt) ✅")
-        log("   📄 Campo 12 → 2 líneas con topes (12pt) ✅")
-        log("   🔤 Otros campos → 1 línea con topes (12pt) ✅")
-        log("   🛡️ TODOS LOS CAMPOS CON TOPES APLICADOS ✅")
-        log("   🔍 Debug completo: ACTIVADO ✅")
+        DebugLogger.processing("RESUMEN - MÉTODO DE RENDERIZADO CON TOPES")
+        DebugLogger.summary("Campos 1, 9, 33, 34, 35 → Multilínea con topes (12pt) ✅")
+        DebugLogger.summary("Campo 38 → Ajuste dinámico adaptativo con topes (8-14pt) ✅")
+        DebugLogger.summary("Campo 40 → Función robusta con topes (6pt) ✅")
+        DebugLogger.summary("Campo 12 → 2 líneas con topes (12pt) ✅")
+        DebugLogger.summary("Otros campos → 1 línea con topes (12pt) ✅")
+        DebugLogger.summary("TODOS LOS CAMPOS CON TOPES APLICADOS ✅")
+        DebugLogger.debug("Debug completo: ACTIVADO ✅")
 
     return diagnostico
