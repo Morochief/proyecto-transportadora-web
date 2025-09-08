@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { X, Save, FileText } from 'lucide-react';
 
 const ModalMICCompleto = ({ 
@@ -53,6 +53,13 @@ const ModalMICCompleto = ({
   });
 
   const [transportadoras, setTransportadoras] = useState([]);
+
+  // ✅ FUNCIÓN HELPER: Obtener nombre de transportadora por ID (memoizada)
+  const getTransportadoraNombre = useCallback((id) => {
+    if (!id) return '';
+    const transportadora = transportadoras.find(t => t.id.toString() === id.toString());
+    return transportadora?.nombre || '';
+  }, [transportadoras]);
 
   // Cargar transportadoras cuando se abre el modal
   useEffect(() => {
@@ -120,7 +127,7 @@ const ModalMICCompleto = ({
         // Transportadora
         campo_1_porteador: crt.transportadora_id || '',
         campo_2_numero: crt.transportadora?.rol_contribuyente || crt.transportadora_rol_contribuyente || '',
-        campo_9_datos_transporte: crt.transportadora?.nombre || '',
+        campo_9_datos_transporte: crt.transportadora?.nombre || '', // ✅ Mismo valor que campo 1
         campo_10_numero: crt.transportadora?.rol_contribuyente || crt.transportadora_rol_contribuyente || '',
 
         // Destino y datos del transporte
@@ -156,6 +163,19 @@ const ModalMICCompleto = ({
     }
   }, [isOpen, crt]);
 
+  // ✅ SINCRONIZAR Campo 9 con Campo 1 (cuando cambia la selección)
+  useEffect(() => {
+    if (formData.campo_1_porteador) {
+      const transportadoraNombre = getTransportadoraNombre(formData.campo_1_porteador);
+      if (transportadoraNombre && transportadoraNombre !== formData.campo_9_datos_transporte) {
+        setFormData(prev => ({
+          ...prev,
+          campo_9_datos_transporte: transportadoraNombre
+        }));
+      }
+    }
+  }, [formData.campo_1_porteador, formData.campo_9_datos_transporte, getTransportadoraNombre]);
+
   const handleInputChange = (field, value) => {
     setFormData(prev => ({
       ...prev,
@@ -174,10 +194,12 @@ const ModalMICCompleto = ({
       return;
     }
 
-    // ✅ MAPEO CORREGIDO: Los nombres DEBEN coincidir exactamente con layout_mic.py
+    // ✅ MAPEO ORIGINAL: Campos 1 y 9 con el mismo valor (como funcionaba antes)
+    const transportadoraSeleccionada = getTransportadoraNombre(formData.campo_1_porteador) || '';
+
     const datosPDF = {
-      // Transportadora y básicos - CORREGIDO: campo_1_transporte debe ser el NOMBRE, no el ID
-      campo_1_transporte: formData.campo_9_datos_transporte || crt?.transportadora?.nombre || '',
+      // ✅ CAMPO 1 y 9: MISMO VALOR (como funcionaba antes)
+      campo_1_transporte: transportadoraSeleccionada,
       campo_2_numero: formData.campo_2_numero,
       campo_3_transporte: formData.campo_3_transporte || 'NO',
       campo_4_estado: formData.campo_4_estado || 'PROVISORIO',
@@ -185,7 +207,7 @@ const ModalMICCompleto = ({
       campo_6_fecha: formData.campo_6_fecha,
       campo_7_pto_seguro: formData.campo_7_pto_seguro,
       campo_8_destino: formData.campo_8_destino,
-      campo_9_datos_transporte: formData.campo_9_datos_transporte,
+      campo_9_datos_transporte: transportadoraSeleccionada, // ✅ MISMO VALOR QUE CAMPO 1
 
       // Vehículo
       campo_10_numero: formData.campo_10_numero,
@@ -242,7 +264,7 @@ const ModalMICCompleto = ({
 
     console.log('📄 Datos enviados al PDF (convertidos a string):', datosPDFSeguros);
     console.log('⭐ Campo 23 (Número CRT):', datosPDFSeguros.campo_23_numero_campo2_crt);
-    console.log('🏢 Campo 1 (Transportadora):', datosPDFSeguros.campo_1_transporte);
+    console.log('🏢 Campo 1 y 9 (Transportadora - mismo valor):', datosPDFSeguros.campo_1_transporte);
 
     onGenerate(datosPDFSeguros);
   };
@@ -261,7 +283,7 @@ const ModalMICCompleto = ({
       campo_3_transporte: crt?.transporte_sucesivos || '',
       campo_7_pto_seguro: crt?.ciudad_emision_id || '',
       campo_8_destino: crt?.lugar_entrega || '',
-      campo_9_datos_transporte: crt?.transportadora?.nombre || '',
+      campo_9_datos_transporte: crt?.transportadora?.nombre || '', // ✅ Mismo valor que campo 1
       campo_10_numero: crt?.transportadora?.rol_contribuyente || crt?.transportadora_rol_contribuyente || '',
       campo_11_placa: crt?.placa_camion || crt?.placa_vehiculo || 'ABC-1234',
       campo_12_modelo_chasis: crt?.marca_modelo || crt?.modelo_vehiculo || '',
@@ -328,7 +350,7 @@ const ModalMICCompleto = ({
                 {/* Campo 1 */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Campo 1 - Nombre del porteador
+                    Campo 1 - Transportadora (PDF)
                   </label>
                   <select
                     value={formData.campo_1_porteador}
@@ -456,36 +478,19 @@ const ModalMICCompleto = ({
                   <small className="text-gray-500">Del CRT lugar de entrega</small>
                 </div>
 
-                {/* Campo 9 */}
+                {/* Campo 9 - Solo lectura (mismo valor que Campo 1) */}
                 <div className="md:col-span-2 lg:col-span-3 xl:col-span-4">
                   <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Campo 9 - Datos del transporte
+                    Campo 9 - Datos completos del transporte (PDF)
                   </label>
-                  <div className="flex gap-2">
-                    <select
-                      value={formData.campo_9_datos_transporte || ''}
-                      onChange={(e) => handleInputChange('campo_9_datos_transporte', e.target.value)}
-                      className="flex-1 p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-colors"
-                    >
-                      <option value="">Seleccionar transportadora</option>
-                      {transportadoras.map((transportadora) => (
-                        <option key={transportadora.id} value={transportadora.nombre}>
-                          {transportadora.nombre}
-                        </option>
-                      ))}
-                      <option value="manual">✏️ Editar manualmente</option>
-                    </select>
-                    {formData.campo_9_datos_transporte === 'manual' && (
-                      <input
-                        type="text"
-                        placeholder="Ingrese datos manualmente"
-                        onChange={(e) => handleInputChange('campo_9_datos_transporte', e.target.value)}
-                        className="flex-1 p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-colors"
-                      />
-                    )}
-                  </div>
+                  <input
+                    type="text"
+                    value={getTransportadoraNombre(formData.campo_1_porteador) || ''}
+                    readOnly
+                    className="w-full p-3 border border-gray-200 rounded-lg bg-gray-50 text-gray-600"
+                  />
                   <small className="text-gray-500 mt-1 block">
-                    Selecciona una transportadora o edita manualmente
+                    Automáticamente igual al Campo 1 (solo lectura)
                   </small>
                 </div>
 

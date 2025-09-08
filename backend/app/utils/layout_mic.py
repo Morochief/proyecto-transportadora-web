@@ -1081,7 +1081,38 @@ def generar_micdta_pdf_con_datos(mic_data, filename="mic_{id}.pdf"):
 
     rect_pt(c, 55, 55, 1616.75, 2672.75, height_px, line_width=1)
 
-    c.save()
+    try:
+        c.save()
+
+        # DEBUG CRÍTICO: Verificar archivo generado
+        print(f"DEBUG: Intentando guardar PDF como: {filename}")
+
+        if os.path.exists(filename):
+            size = os.path.getsize(filename)
+            print(f"DEBUG: Archivo creado exitosamente")
+            print(f"DEBUG: Ruta completa: {os.path.abspath(filename)}")
+            print(f"DEBUG: Tamaño del archivo: {size} bytes")
+
+            if size < 1000:
+                print("WARNING: Archivo muy pequeño, posible PDF corrupto")
+
+            # Verificar que es un PDF válido leyendo las primeras líneas
+            with open(filename, 'rb') as f:
+                first_bytes = f.read(10)
+                print(f"DEBUG: Primeros bytes: {first_bytes}")
+                if not first_bytes.startswith(b'%PDF'):
+                    print("ERROR: El archivo no es un PDF válido")
+                else:
+                    print("DEBUG: Archivo PDF válido detectado")
+        else:
+            print(f"ERROR: No se pudo crear el archivo {filename}")
+
+    except Exception as e:
+        print(f"ERROR COMPLETO en save(): {str(e)}")
+        import traceback
+        traceback.print_exc()
+        raise
+
     log(f"✅ PDF generado exitosamente: {filename}")
 
     if DEBUG:

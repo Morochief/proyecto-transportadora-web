@@ -1,4 +1,5 @@
 # ========== IMPORTS COMPLETOS Y ORDENADOS ==========
+import os
 from flask import Blueprint, request, jsonify, send_file
 from sqlalchemy.orm import joinedload
 from datetime import datetime
@@ -266,46 +267,43 @@ def to_dict_mic(mic):
 
 
 @mic_bp.route('/generate_pdf_from_crt/<int:crt_id>', methods=['POST'])
-def generar_pdf_mic_desde_crt(crt_id):
-    """
-    ✅ ACTUALIZADO: Genera un PDF del MIC directamente desde un CRT
-    con clonación COMPLETA de datos Y procesamiento de gastos Seguro vs Flete
-    """
+def generate_pdf_from_crt(crt_id):
     try:
-        user_data = request.json if request.is_json else {}
+        print(f"DEBUG: Generando PDF para CRT ID: {crt_id}")
 
-        print(f"🔍 INICIANDO CLONACIÓN COMPLETA CRT -> MIC (ID: {crt_id})")
-        print("="*80)
+        # Obtener datos del CRT y del formulario
+        datos = request.get_json()
+        print(f"DEBUG: Datos recibidos del frontend: {datos}")
 
-        # ✅ CARGAR CRT CON TODAS LAS RELACIONES NECESARIAS (INCLUYENDO GASTOS)
-        crt = CRT.query.options(
-            joinedload(CRT.remitente).joinedload(
-                Remitente.ciudad).joinedload(Ciudad.pais),
-            joinedload(CRT.transportadora).joinedload(
-                Transportadora.ciudad).joinedload(Ciudad.pais),
-            joinedload(CRT.destinatario).joinedload(
-                Remitente.ciudad).joinedload(Ciudad.pais),
-            joinedload(CRT.consignatario).joinedload(
-                Remitente.ciudad).joinedload(Ciudad.pais),
-            joinedload(CRT.moneda),
-            # ✅ IMPORTANTE: Cargar gastos con monedas
-            joinedload(CRT.gastos).joinedload(CRT_Gasto.moneda_remitente),
-            joinedload(CRT.gastos).joinedload(CRT_Gasto.moneda_destinatario),
-            joinedload(CRT.ciudad_emision).joinedload(Ciudad.pais)
-        ).get_or_404(crt_id)
+        # Mapear campo_38 a campo_38_datos_campo11_crt para compatibilidad
+        if 'campo_38' in datos:
+            datos['campo_38_datos_campo11_crt'] = datos.pop('campo_38')
 
-        print(f"✅ CRT CARGADO: {crt.numero_crt}")
-        print(
-            f"🚛 Transportadora: {crt.transportadora.nombre if crt.transportadora else 'N/A'}")
-        print(
-            f"📤 Remitente: {crt.remitente.nombre if crt.remitente else 'N/A'}")
-        print(
-            f"📥 Destinatario: {crt.destinatario.nombre if crt.destinatario else 'N/A'}")
-        print(
-            f"📦 Consignatario: {crt.consignatario.nombre if crt.consignatario else 'N/A'}")
-        print(f"💰 Gastos: {len(crt.gastos) if crt.gastos else 0} items")
-        print()
+        # Generar PDF
+        filename = os.path.join(os.getcwd(), f"mic_{crt_id}.pdf")
+        print(f"DEBUG: Generando archivo: {filename}")
 
-        # ✅ FORMATEAR DATOS COMPLETOS CON LA FUNCIÓN EXISTENTE
-        print("🎯 INICIANDO FORMATEO COMPLETO DE ENTIDADES...")
-        print("-
+        from app.utils.layout_mic import generar_micdta_pdf_con_datos
+        generar_micdta_pdf_con_datos(datos, filename)
+
+        # Verificar que el archivo existe antes de enviarlo
+        if not os.path.exists(filename):
+            print(f"ERROR: Archivo {filename} no fue generado")
+            return {"error": "PDF no generado"}, 500
+
+        file_size = os.path.getsize(filename)
+        print(f"DEBUG: Enviando archivo de {file_size} bytes")
+
+        # Enviar archivo
+        return send_file(
+            filename,
+            as_attachment=True,
+            download_name=f"mic_{crt_id}.pdf",
+            mimetype='application/pdf'
+        )
+
+    except Exception as e:
+        print(f"ERROR COMPLETO en endpoint: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return {"error": str(e)}, 500
