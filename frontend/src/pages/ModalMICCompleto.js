@@ -26,7 +26,7 @@ const ModalMICCompleto = ({
     campo_15_placa_semi: '',
 
     // SECCIÓN 3: Información Aduanera
-    campo_24_aduana: '',
+    campo_24_aduana: 'BRASIL - MULTILOG - FOZ DO IGUAZU 508 - 030',
     campo_26_pais: '520-PARAGUAY',
 
     // SECCIÓN 4: Valores y Montos (editables)
@@ -256,7 +256,7 @@ const ModalMICCompleto = ({
       campo_12_modelo_chasis: crt?.marca_modelo || crt?.modelo_vehiculo || '',
       campo_14_anio: crt?.anio_vehiculo || new Date().getFullYear().toString(),
       campo_15_placa_semi: crt?.placa_semi || '',
-      campo_24_aduana: crt?.aduana || '',
+      campo_24_aduana: crt?.aduana || 'BRASIL - MULTILOG - FOZ DO IGUAZU 508 - 030',
       campo_26_pais: '520-PARAGUAY',
       campo_27_valor_campo16: crt?.declaracion_mercaderia || '',
       campo_28_total: totalFleteFormatted,
@@ -408,16 +408,50 @@ const ModalMICCompleto = ({
                     className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
                   >
                     <option value="">Seleccionar aduana</option>
-                    <option value="ASUNCIÓN, PARAGUAY">ASUNCIÓN, PARAGUAY</option>
-                    <option value="CIUDAD DEL ESTE, PARAGUAY">CIUDAD DEL ESTE, PARAGUAY</option>
-                    <option value="ENCARNACIÓN, PARAGUAY">ENCARNACIÓN, PARAGUAY</option>
-                    <option value="PEDRO JUAN CABALLERO, PARAGUAY">PEDRO JUAN CABALLERO, PARAGUAY</option>
-                    <option value="PUERTO FALCÓN, PARAGUAY">PUERTO FALCÓN, PARAGUAY</option>
-                    <option value="CAMPESTRE S.A. - CIUDAD DEL ESTE - PARAGUAY">CAMPESTRE S.A. - CIUDAD DEL ESTE - PARAGUAY</option>
-                    <option value="BUENOS AIRES, ARGENTINA">BUENOS AIRES, ARGENTINA</option>
-                    <option value="SÃO PAULO, BRASIL">SÃO PAULO, BRASIL</option>
-                    <option value="RIO DE JANEIRO, BRASIL">RIO DE JANEIRO, BRASIL</option>
-                    <option value="SANTOS, BRASIL">SANTOS, BRASIL</option>
+                    <option value="000">ADM. CENTRAL</option>
+                    <option value="001">CAPITAL</option>
+                    <option value="002">AEROP. PETTIROSSI</option>
+                    <option value="003">JOSE FALCON</option>
+                    <option value="004">VILLETA</option>
+                    <option value="005">CIUDAD DEL ESTE</option>
+                    <option value="006">CONCEPCION</option>
+                    <option value="007">ENCARNACION</option>
+                    <option value="008">PILAR</option>
+                    <option value="009">SALTOS DEL GUAIRA</option>
+                    <option value="010">PEDRO JUAN CABALLERO</option>
+                    <option value="012">ITA ENRAMADA</option>
+                    <option value="013">AEROPUERTO GUARANI</option>
+                    <option value="014">CHACO</option>
+                    <option value="015">PAKSA</option>
+                    <option value="016">MCAL.ESTIGARRIBIA</option>
+                    <option value="017">CAACUPEMI</option>
+                    <option value="018">TER. DE CARGAS KM.12</option>
+                    <option value="019">TERPORT</option>
+                    <option value="020">SANTA HELENA</option>
+                    <option value="021">ZA FRCA GLOBAL</option>
+                    <option value="022">ZA FRCA TRANS TRADE</option>
+                    <option value="023">CAMPESTRE S.A.</option>
+                    <option value="024">PUERTOS Y ESTIBAJES</option>
+                    <option value="025">CHACOI</option>
+                    <option value="026">GICAL</option>
+                    <option value="027">CEREGRAL SAECA</option>
+                    <option value="028">CARMELO PERALTA</option>
+                    <option value="029">CODESA</option>
+                    <option value="030">SOLUCION LOGISTICA</option>
+                    <option value="031">EMPEDRIL S.A.</option>
+                    <option value="032">PTO SEGURO FLUVIAL</option>
+                    <option value="033">LOGISTIC GROUP</option>
+                    <option value="035">NANAWA</option>
+                    <option value="036">ZOFRAMAQ</option>
+                    <option value="037">INFANTE RIVAROLA</option>
+                    <option value="038">TERPORT - VILLETA</option>
+                    <option value="039">POZO HONDO - MCAL</option>
+                    <option value="040">CAACUPEMI - PILAR</option>
+                    <option value="041">PUERTO SECO BOREAL</option>
+                    <option value="042">TROCIUK PUERTOS S.A.</option>
+                    <option value="043">AYOLAS</option>
+                    <option value="044">ALGESA SALTOS GUAIRA</option>
+                    <option value="046">AEROP TTE RAMON AYUB</option>
                   </select>
                   <small className="text-gray-500 mt-1 block">
                     Selecciona una aduana de la lista
@@ -535,9 +569,22 @@ const ModalMICCompleto = ({
                     type="text"
                     value={formData.campo_12_modelo_chasis}
                     onChange={(e) => handleInputChange('campo_12_modelo_chasis', e.target.value)}
+                    list="marcas-camiones"
                     className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-colors"
-                    placeholder="Marca y número del vehículo"
+                    placeholder="Selecciona marca o escribe modelo/chasis"
                   />
+                  <datalist id="marcas-camiones">
+                    <option value="VOLVO" />
+                    <option value="SCANIA" />
+                    <option value="MERCEDES-BENZ" />
+                    <option value="MAN" />
+                    <option value="DAF" />
+                    <option value="IVECO" />
+                    <option value="RENAULT" />
+                  </datalist>
+                  <small className="text-gray-500 mt-1 block">
+                    Selecciona de la lista o escribe manualmente el modelo/chasis completo
+                  </small>
                 </div>
 
                 {/* Campo 13 */}
@@ -594,11 +641,8 @@ const ModalMICCompleto = ({
                     className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-colors"
                   >
                     <option value="">Seleccionar aduana</option>
-                    <option value="ASUNCIÓN">ASUNCIÓN</option>
-                    <option value="CIUDAD DEL ESTE">CIUDAD DEL ESTE</option>
-                    <option value="ENCARNACIÓN">ENCARNACIÓN</option>
-                    <option value="PEDRO JUAN CABALLERO">PEDRO JUAN CABALLERO</option>
-                    <option value="PUERTO FALCÓN">PUERTO FALCÓN</option>
+                    <option value="PONTO FRONTEIRA ACI-DIONISIO CERQUEIRA/SC">PONTO FRONTEIRA ACI-DIONISIO CERQUEIRA/SC</option>
+                    <option value="BRASIL - MULTILOG - FOZ DO IGUAZU 508 - 030">BRASIL - MULTILOG - FOZ DO IGUAZU 508 - 030</option>
                   </select>
                 </div>
 

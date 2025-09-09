@@ -221,7 +221,11 @@ function CRT() {
           paisesRes.data.length,
           paisesRes.data
         );
-        setPaises(paisesRes.data);
+        // Ordenar países alfabéticamente por nombre
+        const paisesOrdenados = paisesRes.data.sort((a, b) =>
+          a.nombre.localeCompare(b.nombre, 'es', { sensitivity: 'base' })
+        );
+        setPaises(paisesOrdenados);
 
         // ✅ CIUDADES - SIN /api/ porque ya está en baseURL
         console.log("📡 Cargando ciudades desde /ciudades/...");
@@ -231,7 +235,11 @@ function CRT() {
           ciudadesRes.data.length,
           ciudadesRes.data
         );
-        setCiudades(ciudadesRes.data);
+        // Ordenar ciudades alfabéticamente por nombre
+        const ciudadesOrdenadas = ciudadesRes.data.sort((a, b) =>
+          a.nombre.localeCompare(b.nombre, 'es', { sensitivity: 'base' })
+        );
+        setCiudades(ciudadesOrdenadas);
 
         // ✅ REMITENTES - SIN /api/ porque ya está en baseURL
         console.log("📡 Cargando remitentes desde /remitentes/...");
@@ -244,7 +252,10 @@ function CRT() {
           "📋 Estructura remitentes:",
           remitentesRes.data.items?.[0] || remitentesRes.data[0]
         );
-        setRemitentes(remitentesRes.data.items || remitentesRes.data);
+        // Ordenar remitentes alfabéticamente por nombre
+        const remitentesOrdenados = (remitentesRes.data.items || remitentesRes.data)
+          .sort((a, b) => a.nombre.localeCompare(b.nombre, 'es', { sensitivity: 'base' }));
+        setRemitentes(remitentesOrdenados);
 
         // ✅ TRANSPORTADORAS - Usar ruta correcta con /api/
         console.log("📡 Cargando transportadoras...");
@@ -255,9 +266,10 @@ function CRT() {
             transportadorasRes.data.items?.length ||
               transportadorasRes.data.length
           );
-          setTransportadoras(
-            transportadorasRes.data.items || transportadorasRes.data
-          );
+          // Ordenar transportadoras alfabéticamente por nombre
+          const transportadorasOrdenadas = (transportadorasRes.data.items || transportadorasRes.data)
+            .sort((a, b) => a.nombre.localeCompare(b.nombre, 'es', { sensitivity: 'base' }));
+          setTransportadoras(transportadorasOrdenadas);
         } catch (error) {
           console.log("❌ Error en transportadoras:", error);
           // Fallback: intentar con URL absoluta
@@ -279,21 +291,29 @@ function CRT() {
         try {
           const monedasRes = await api.get("/monedas/");
           console.log("✅ Monedas cargadas:", monedasRes.data.length);
-          setMonedas(monedasRes.data);
+          // Ordenar monedas alfabéticamente por nombre
+          const monedasOrdenadas = monedasRes.data.sort((a, b) =>
+            a.nombre.localeCompare(b.nombre, 'es', { sensitivity: 'base' })
+          );
+          setMonedas(monedasOrdenadas);
         } catch (error) {
           console.log("❌ Error en monedas:", error);
           // Fallback: intentar con URL absoluta
           try {
             const response = await fetch("http://localhost:5000/api/monedas/");
             const data = await response.json();
-            setMonedas(data);
+            // Ordenar monedas alfabéticamente por nombre
+            const monedasOrdenadas = data.sort((a, b) =>
+              a.nombre.localeCompare(b.nombre, 'es', { sensitivity: 'base' })
+            );
+            setMonedas(monedasOrdenadas);
             console.log("✅ Monedas cargadas con fetch fallback");
           } catch (fetchError) {
             console.log("❌ Fallback monedas falló:", fetchError);
-            // Fallback final con datos básicos
+            // Fallback final con datos básicos (ya ordenados)
             const monedasBackup = [
-              { id: 1, codigo: "USD", nombre: "Dólar Americano" },
               { id: 2, codigo: "PYG", nombre: "Guaraní Paraguayo" },
+              { id: 1, codigo: "USD", nombre: "Dólar Americano" },
             ];
             setMonedas(monedasBackup);
             console.log("✅ Monedas cargadas desde backup:", monedasBackup);

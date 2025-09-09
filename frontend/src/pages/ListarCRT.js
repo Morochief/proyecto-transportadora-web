@@ -178,27 +178,42 @@ const autocompletarValorFleteExterno = (campo15Items) => {
       const responseTransportadoras = await axios.get(
         "http://localhost:5000/api/crts/data/transportadoras"
       );
-      setTransportadoras(responseTransportadoras.data.items || []);
+      // Ordenar transportadoras alfabéticamente por nombre
+      const transportadorasOrdenadas = (responseTransportadoras.data.items || [])
+        .sort((a, b) => a.nombre.localeCompare(b.nombre, 'es', { sensitivity: 'base' }));
+      setTransportadoras(transportadorasOrdenadas);
 
       const responseEntidades = await axios.get(
         "http://localhost:5000/api/crts/data/entidades"
       );
-      setEntidades(responseEntidades.data.items || []);
+      // Ordenar entidades alfabéticamente por nombre
+      const entidadesOrdenadas = (responseEntidades.data.items || [])
+        .sort((a, b) => a.nombre.localeCompare(b.nombre, 'es', { sensitivity: 'base' }));
+      setEntidades(entidadesOrdenadas);
 
       const responseMonedas = await axios.get(
         "http://localhost:5000/api/crts/data/monedas"
       );
-      setMonedas(responseMonedas.data.items || []);
+      // Ordenar monedas alfabéticamente por nombre
+      const monedasOrdenadas = (responseMonedas.data.items || [])
+        .sort((a, b) => a.nombre.localeCompare(b.nombre, 'es', { sensitivity: 'base' }));
+      setMonedas(monedasOrdenadas);
 
       const responseCiudades = await axios.get(
         "http://localhost:5000/api/ciudades/"
       );
-      setCiudades(responseCiudades.data || []);
+      // Ordenar ciudades alfabéticamente por nombre
+      const ciudadesOrdenadas = (responseCiudades.data || [])
+        .sort((a, b) => a.nombre.localeCompare(b.nombre, 'es', { sensitivity: 'base' }));
+      setCiudades(ciudadesOrdenadas);
 
       const responsePaises = await axios.get(
         "http://localhost:5000/api/paises/"
       );
-      setPaises(responsePaises.data || []);
+      // Ordenar países alfabéticamente por nombre
+      const paisesOrdenados = (responsePaises.data || [])
+        .sort((a, b) => a.nombre.localeCompare(b.nombre, 'es', { sensitivity: 'base' }));
+      setPaises(paisesOrdenados);
 
       console.log("✅ Datos auxiliares cargados:", {
         estados: responseEstados.data.estados?.length || 0,
