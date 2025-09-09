@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import axios from "axios";
 import { toast, ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
@@ -30,11 +30,11 @@ export default function MICsGuardados() {
   });
 
   // Cargar MICs
-  const cargarMics = async (page = 1, filtros = {}) => {
+  const cargarMics = useCallback(async (page = 1, filtros = {}) => {
     setLoading(true);
     try {
       console.log('🔍 Cargando MICs guardados...', { page, filtros });
-      
+
       const params = {
         page,
         per_page: perPage,
@@ -42,14 +42,14 @@ export default function MICsGuardados() {
       };
 
       const response = await axios.get('http://localhost:5000/api/mic-guardados/', { params });
-      
+
       setMics(response.data.mics);
       setCurrentPage(response.data.pagination.page);
       setTotalPages(response.data.pagination.pages);
       setTotalItems(response.data.pagination.total);
 
       console.log(`✅ ${response.data.mics.length} MICs cargados de ${response.data.pagination.total} totales`);
-      
+
       if (response.data.mics.length === 0 && Object.values(filtros).some(v => v)) {
         toast.info("🔍 No se encontraron MICs con los filtros aplicados");
       }
@@ -59,7 +59,7 @@ export default function MICsGuardados() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [perPage]);
 
   // Cargar estadísticas
   const cargarEstadisticas = async () => {
@@ -78,7 +78,7 @@ export default function MICsGuardados() {
   useEffect(() => {
     cargarMics();
     cargarEstadisticas();
-  }, []);
+  }, [cargarMics]);
 
   // Aplicar filtros
   const aplicarFiltros = () => {

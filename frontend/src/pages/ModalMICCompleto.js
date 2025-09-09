@@ -54,22 +54,6 @@ const ModalMICCompleto = ({
 
   const [transportadoras, setTransportadoras] = useState([]);
 
-  // ✅ FUNCIÓN HELPER: Obtener datos completos de transportadora por ID (memoizada)
-  const getTransportadoraCompleta = useCallback((id) => {
-    if (!id) return '';
-    const transportadora = transportadoras.find(t => t.id.toString() === id.toString());
-    if (!transportadora) return '';
-
-    // Formatear datos completos de la transportadora
-    const partes = [
-      transportadora.nombre,
-      transportadora.direccion,
-      transportadora.ciudad ? `${transportadora.ciudad.nombre}, ${transportadora.ciudad.pais?.nombre || ''}` : '',
-      transportadora.telefono ? `Tel: ${transportadora.telefono}` : ''
-    ].filter(Boolean);
-
-    return partes.join('\n');
-  }, [transportadoras]);
 
   // ✅ FUNCIÓN HELPER: Obtener solo nombre de transportadora por ID (memoizada)
   const getTransportadoraNombre = useCallback((id) => {
@@ -165,8 +149,6 @@ const ModalMICCompleto = ({
       return;
     }
 
-    // ✅ MAPEO ORIGINAL: Campos 1 y 9 con el mismo valor (como funcionaba antes)
-    const transportadoraSeleccionada = getTransportadoraNombre(formData.campo_1_porteador) || '';
 
     const datosPDF = {
       // ✅ CAMPO 1: Datos completos del transportista (solo lectura)

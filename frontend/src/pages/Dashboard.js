@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import api from "../api/api"; // Asumiendo que tienes tu configuración de API
-import { 
-  Users, Globe, Building2, UserCheck, Truck, FileText, 
-  ArrowLeftRight, Coins, DollarSign, Activity, 
-  BarChart3, Settings, ChevronRight, Sparkles,
+import {
+  Users, Globe, Building2, UserCheck, Truck, FileText,
+  ArrowLeftRight, Coins, DollarSign,
+  ChevronRight, Sparkles,
   TrendingUp, Clock, Star
 } from "lucide-react";
 
