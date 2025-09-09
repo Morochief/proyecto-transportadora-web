@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import api from "../api/api";
 import Select from "react-select";
 import ModalMICCompleto from "./ModalMICCompleto";
+import CRTPreview from "../components/CRTPreview";
 
 function hoyISO() {
   const d = new Date();
@@ -41,6 +42,77 @@ function CRT() {
   const [modalMICOpen, setModalMICOpen] = useState(false); // Estado para controlar el modal MIC
   const [loadingMIC, setLoadingMIC] = useState(false); // Estado para loading del MIC
   const [diagnosticoMIC, setDiagnosticoMIC] = useState(null);
+  const [loadingEmitir, setLoadingEmitir] = useState(false);
+  const [previewOpen, setPreviewOpen] = useState(false); // Estado para controlar la vista previa
+  const [previewData, setPreviewData] = useState(null); // Datos para la vista previa
+
+  // Función para mostrar vista previa
+  const mostrarVistaPrevia = () => {
+    // Preparar datos para la vista previa
+    const previewData = {
+      ...form,
+      // Agregar información de entidades relacionadas
+      remitente: remitentes.find(r => r.id === form.remitente_id)?.nombre || '',
+      destinatario: remitentes.find(r => r.id === form.destinatario_id)?.nombre || '',
+      consignatario: remitentes.find(r => r.id === form.consignatario_id)?.nombre || '',
+      notificar_a: remitentes.find(r => r.id === form.notificar_a_id)?.nombre || '',
+      transportadora: transportadoras.find(t => t.id === form.transportadora_id)?.nombre || '',
+      moneda: monedas.find(m => m.id === form.moneda_id)?.codigo || '',
+      ciudad_emision: ciudades.find(c => c.id === form.ciudad_emision_id)?.nombre || '',
+      pais_emision: paises.find(p => p.id === form.pais_emision_id)?.nombre || '',
+      gastos: gastoActual.tramo ? [gastoActual] : [],
+      numero_crt: form.numero_crt || 'Sin asignar',
+      estado: form.estado || 'BORRADOR',
+      fecha_emision: form.fecha_emision,
+      // Agregar direcciones y ciudades
+      remitente_direccion: remitentes.find(r => r.id === form.remitente_id)?.direccion || '',
+      remitente_ciudad: ciudades.find(c => c.id === remitentes.find(r => r.id === form.remitente_id)?.ciudad_id)?.nombre || '',
+      remitente_pais: paises.find(p => p.id === ciudades.find(c => c.id === remitentes.find(r => r.id === form.remitente_id)?.ciudad_id)?.pais_id)?.nombre || '',
+      destinatario_direccion: remitentes.find(r => r.id === form.destinatario_id)?.direccion || '',
+      destinatario_ciudad: ciudades.find(c => c.id === remitentes.find(r => r.id === form.destinatario_id)?.ciudad_id)?.nombre || '',
+      destinatario_pais: paises.find(p => p.id === ciudades.find(c => c.id === remitentes.find(r => r.id === form.destinatario_id)?.ciudad_id)?.pais_id)?.nombre || '',
+      consignatario_direccion: remitentes.find(r => r.id === form.consignatario_id)?.direccion || '',
+      consignatario_ciudad: ciudades.find(c => c.id === remitentes.find(r => r.id === form.consignatario_id)?.ciudad_id)?.nombre || '',
+      consignatario_pais: paises.find(p => p.id === ciudades.find(c => c.id === remitentes.find(r => r.id === form.consignatario_id)?.ciudad_id)?.pais_id)?.nombre || '',
+      transportadora_direccion: transportadoras.find(t => t.id === form.transportadora_id)?.direccion || '',
+      transportadora_ciudad: ciudades.find(c => c.id === transportadoras.find(t => t.id === form.transportadora_id)?.ciudad_id)?.nombre || '',
+      transportadora_pais: paises.find(p => p.id === ciudades.find(c => c.id === transportadoras.find(t => t.id === form.transportadora_id)?.ciudad_id)?.pais_id)?.nombre || '',
+    };
+
+    setPreviewData(previewData);
+    setPreviewOpen(true);
+  };
+
+  // Función para descargar PDF desde vista previa
+  const descargarPDFFromPreview = async () => {
+    if (!crtEmitido) {
+      alert("Primero debe emitir el CRT antes de descargar el PDF");
+      return;
+    }
+
+    try {
+      const response = await fetch(`http://localhost:5000/api/crts/${crtEmitido.id}/pdf`, {
+        method: "POST",
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}`);
+      }
+
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `CRT_${crtEmitido.numero_crt}.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error("Error descargando PDF:", error);
+      alert("Error descargando PDF: " + error.message);
+    }
+  };
 
   const optCiudadPais = (ciudades, paises) =>
     ciudades.map((c) => {
@@ -879,6 +951,8 @@ Si ves algún error o mensaje ❌, compártelo conmigo.
 
     if (monedaObligatoria) return;
 
+    setLoadingEmitir(true);
+
     try {
       const response = await api.post("/crts/", {
         ...form,
@@ -955,12 +1029,43 @@ Si ves algún error o mensaje ❌, compártelo conmigo.
 
       console.log('✅ CRT emitido con datos para MIC:', crtData);
 
-      alert("CRT emitido correctamente");
+      // Después de emitir el CRT, generar y abrir el PDF automáticamente
+      try {
+        console.log('📄 Generando PDF del CRT emitido...');
+        const pdfResponse = await fetch(`http://localhost:5000/api/crts/${crtData.id}/pdf`, {
+          method: "POST",
+        });
+
+        if (!pdfResponse.ok) {
+          throw new Error(`HTTP ${pdfResponse.status}`);
+        }
+
+        const blob = await pdfResponse.blob();
+        const url = window.URL.createObjectURL(blob);
+
+        // Abrir el PDF en una nueva pestaña
+        window.open(url, '_blank');
+
+        console.log('✅ PDF generado y abierto en nueva pestaña');
+
+        // Limpiar el URL después de un tiempo
+        setTimeout(() => {
+          window.URL.revokeObjectURL(url);
+        }, 1000);
+
+      } catch (pdfError) {
+        console.error('❌ Error generando PDF:', pdfError);
+        alert("CRT emitido correctamente, pero hubo un error generando el PDF: " + pdfError.message);
+      }
+
+      alert("CRT emitido correctamente - PDF generado y abierto en nueva pestaña");
       setForm((f) => ({ ...f, gastos: [] }));
       setMonedaTouched(false);
       setFormErrors({});
     } catch (e) {
       alert("Error al emitir CRT: " + (e.response?.data?.error || e.message));
+    } finally {
+      setLoadingEmitir(false);
     }
   };
 
@@ -1759,10 +1864,29 @@ Si ves algún error o mensaje ❌, compártelo conmigo.
             )}
 
             <button
-              type="submit"
-              className="bg-indigo-700 hover:bg-indigo-800 text-white font-bold py-3 px-10 rounded-xl shadow-lg transition"
+              type="button"
+              onClick={mostrarVistaPrevia}
+              className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-8 rounded-xl shadow-lg transition flex items-center gap-2"
             >
-              Emitir CRT
+              👁️ Vista Previa
+            </button>
+            <button
+              type="submit"
+              disabled={loadingEmitir}
+              className={`font-bold py-3 px-10 rounded-xl shadow-lg transition flex items-center gap-2 ${
+                loadingEmitir
+                  ? 'bg-gray-400 cursor-not-allowed'
+                  : 'bg-indigo-700 hover:bg-indigo-800 text-white'
+              }`}
+            >
+              {loadingEmitir ? (
+                <>
+                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                  <span>Generando PDF...</span>
+                </>
+              ) : (
+                <span>Emitir CRT + PDF</span>
+              )}
             </button>
             <button
               type="button"
@@ -1792,6 +1916,14 @@ Si ves algún error o mensaje ❌, compártelo conmigo.
         onGenerate={handleGenerateMIC}
         loading={loadingMIC}
         diagnostico={diagnosticoMIC}
+      />
+
+      {/* Modal de Vista Previa CRT */}
+      <CRTPreview
+        crtData={previewData}
+        onClose={() => setPreviewOpen(false)}
+        onDownloadPDF={descargarPDFFromPreview}
+        isOpen={previewOpen}
       />
     </div>
   );

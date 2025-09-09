@@ -5,6 +5,7 @@ import { toast } from "react-toastify";
 import Modal from "./Modal";
 import MIC from "./MIC";
 import ModalMICCompleto from "./ModalMICCompleto";
+import CRTPreview from "../components/CRTPreview";
 
 function ListarCRT() {
   // ========== ESTADOS EXISTENTES (MANTENIDOS) ==========
@@ -37,10 +38,14 @@ function ListarCRT() {
     isOpen: false,
     crt: null,
   });
+  const [previewOpen, setPreviewOpen] = useState(false);
+  const [previewData, setPreviewData] = useState(null);
 
   // ========== NUEVOS ESTADOS PARA ENTIDADES Y CAMPO 15 ==========
   const [entidades, setEntidades] = useState([]);
   const [monedas, setMonedas] = useState([]);
+  const [ciudades, setCiudades] = useState([]);
+  const [paises, setPaises] = useState([]);
   const [campo15Items, setCampo15Items] = useState([]);
 
   const itemsPerPage = 10;
@@ -185,11 +190,23 @@ const autocompletarValorFleteExterno = (campo15Items) => {
       );
       setMonedas(responseMonedas.data.items || []);
 
+      const responseCiudades = await axios.get(
+        "http://localhost:5000/api/ciudades/"
+      );
+      setCiudades(responseCiudades.data || []);
+
+      const responsePaises = await axios.get(
+        "http://localhost:5000/api/paises/"
+      );
+      setPaises(responsePaises.data || []);
+
       console.log("✅ Datos auxiliares cargados:", {
         estados: responseEstados.data.estados?.length || 0,
         transportadoras: responseTransportadoras.data.items?.length || 0,
         entidades: responseEntidades.data.items?.length || 0,
         monedas: responseMonedas.data.items?.length || 0,
+        ciudades: responseCiudades.data?.length || 0,
+        paises: responsePaises.data?.length || 0,
       });
     } catch (error) {
       console.log("⚠️ Error cargando datos auxiliares:", error.message);
@@ -375,6 +392,76 @@ const autocompletarValorFleteExterno = (campo15Items) => {
   // FUNCIÓN PARA CERRAR MODAL
   const cerrarModalMIC = () => {
     setModalMIC({ isOpen: false, crt: null });
+  };
+
+  // FUNCIÓN PARA MOSTRAR VISTA PREVIA
+  const mostrarVistaPrevia = async (crt) => {
+    try {
+      // Obtener datos completos del CRT desde el backend
+      const response = await axios.get(`http://localhost:5000/api/crts/${crt.id}`);
+      const crtData = response.data;
+
+      // Preparar datos para la vista previa
+      const previewData = {
+        ...crtData,
+        // Agregar información de entidades relacionadas
+        remitente: entidades.find(e => e.id === crtData.remitente_id)?.nombre || crtData.remitente || '',
+        destinatario: entidades.find(e => e.id === crtData.destinatario_id)?.nombre || crtData.destinatario || '',
+        consignatario: entidades.find(e => e.id === crtData.consignatario_id)?.nombre || crtData.consignatario || '',
+        notificar_a: entidades.find(e => e.id === crtData.notificar_a_id)?.nombre || crtData.notificar_a || '',
+        transportadora: transportadoras.find(t => t.id === crtData.transportadora_id)?.nombre || crtData.transportadora || '',
+        moneda: monedas.find(m => m.id === crtData.moneda_id)?.codigo || '',
+        ciudad_emision: ciudades.find(c => c.id === crtData.ciudad_emision_id)?.nombre || '',
+        pais_emision: paises.find(p => p.id === crtData.pais_emision_id)?.nombre || '',
+        // Agregar direcciones y ciudades
+        remitente_direccion: entidades.find(e => e.id === crtData.remitente_id)?.direccion || '',
+        remitente_ciudad: ciudades.find(c => c.id === entidades.find(e => e.id === crtData.remitente_id)?.ciudad_id)?.nombre || '',
+        remitente_pais: paises.find(p => p.id === ciudades.find(c => c.id === entidades.find(e => e.id === crtData.remitente_id)?.ciudad_id)?.pais_id)?.nombre || '',
+        destinatario_direccion: entidades.find(e => e.id === crtData.destinatario_id)?.direccion || '',
+        destinatario_ciudad: ciudades.find(c => c.id === entidades.find(e => e.id === crtData.destinatario_id)?.ciudad_id)?.nombre || '',
+        destinatario_pais: paises.find(p => p.id === ciudades.find(c => c.id === entidades.find(e => e.id === crtData.destinatario_id)?.ciudad_id)?.pais_id)?.nombre || '',
+        transportadora_direccion: transportadoras.find(t => t.id === crtData.transportadora_id)?.direccion || '',
+        transportadora_ciudad: ciudades.find(c => c.id === transportadoras.find(t => t.id === crtData.transportadora_id)?.ciudad_id)?.nombre || '',
+        transportadora_pais: paises.find(p => p.id === ciudades.find(c => c.id === transportadoras.find(t => t.id === crtData.transportadora_id)?.ciudad_id)?.pais_id)?.nombre || '',
+      };
+
+      setPreviewData(previewData);
+      setPreviewOpen(true);
+    } catch (error) {
+      console.error('Error obteniendo datos para vista previa:', error);
+      toast.error('Error obteniendo datos para vista previa');
+    }
+  };
+
+  // FUNCIÓN PARA DESCARGAR PDF DESDE VISTA PREVIA
+  const descargarPDFFromPreview = async () => {
+    if (!previewData) {
+      alert("No hay datos para descargar PDF");
+      return;
+    }
+
+    try {
+      const response = await fetch(`http://localhost:5000/api/crts/${previewData.id}/pdf`, {
+        method: "POST",
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}`);
+      }
+
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `CRT_${previewData.numero_crt}.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error("Error descargando PDF:", error);
+      alert("Error descargando PDF: " + error.message);
+    }
   };
 
   // ========== NUEVAS FUNCIONES PARA MEJORAS ==========
@@ -884,6 +971,14 @@ const autocompletarValorFleteExterno = (campo15Items) => {
                     >
                       📋
                     </button>
+
+                    <button
+                      onClick={() => mostrarVistaPrevia(crt)}
+                      className="bg-blue-500 hover:bg-blue-600 text-white px-2 rounded text-xs"
+                      title="Vista Previa CRT"
+                    >
+                      👁️
+                    </button>
                   </td>
                 </tr>
               ))}
@@ -947,6 +1042,14 @@ const autocompletarValorFleteExterno = (campo15Items) => {
             crt={modalMIC.crt}
             onGenerate={generarPDFMIC}
             loading={loadingMIC === modalMIC.crt?.id}
+          />
+
+          {/* MODAL DE VISTA PREVIA CRT */}
+          <CRTPreview
+            crtData={previewData}
+            onClose={() => setPreviewOpen(false)}
+            onDownloadPDF={descargarPDFFromPreview}
+            isOpen={previewOpen}
           />
 
           {/* MODAL PARA EDICIÓN RÁPIDA CON FORMATEO NUMÉRICO MEJORADO */}
