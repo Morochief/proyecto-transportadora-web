@@ -97,7 +97,11 @@ def generar_pdf_crt(crt_id):
     page.merge_page(overlay.pages[0])
     output.add_page(page)
 
-    output_filename = f"CRT_{crt.numero_crt}.pdf"
+    # Generar nombre de archivo según formato: CRT + últimos 4 dígitos del código + remitente + destinatario
+    last_four = crt.numero_crt[-4:] if len(crt.numero_crt or "") >= 4 else (crt.numero_crt or "")
+    sender = crt.remitente.nombre.replace(' ', '_').replace('/', '_').replace('\\', '_') if crt.remitente and crt.remitente.nombre else ""
+    recipient = crt.destinatario.nombre.replace(' ', '_').replace('/', '_').replace('\\', '_') if crt.destinatario and crt.destinatario.nombre else ""
+    output_filename = f"CRT_{last_four}_{sender}_{recipient}.pdf"
     with open(output_filename, "wb") as f:
         output.write(f)
 

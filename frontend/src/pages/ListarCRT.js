@@ -324,8 +324,15 @@ const autocompletarValorFleteExterno = (campo15Items) => {
       });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const blob = await res.blob();
-      window.open(URL.createObjectURL(blob), "_blank");
-      toast.success("📄 PDF CRT generado");
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      // No establecer download name para usar el nombre del servidor
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+      toast.success("📄 PDF CRT descargado");
     } catch (err) {
       toast.error("❌ Error generando PDF CRT");
     } finally {
@@ -468,7 +475,7 @@ const autocompletarValorFleteExterno = (campo15Items) => {
       const url = window.URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
-      link.download = `CRT_${previewData.numero_crt}.pdf`;
+      // No establecer download name para usar el nombre del servidor
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);

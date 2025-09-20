@@ -1,6 +1,6 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import api from "../api/api";
-import { Search, Plus, Edit3, Trash2, Users, FileText, MapPin, Building2, CreditCard, ChevronLeft, ChevronRight } from "lucide-react";
+import { Search, Plus, Edit3, Trash2, Users, FileText, MapPin, Building2, CreditCard, ChevronLeft, ChevronRight, ChevronUp, ChevronDown } from "lucide-react";
 
 // Componente de Paginación
 const Pagination = ({ currentPage, totalPages, onPageChange }) => {
@@ -71,13 +71,19 @@ const Pagination = ({ currentPage, totalPages, onPageChange }) => {
 };
 
 // Componente Table con paginación
-const EnhancedTable = ({ columns, data, onEdit, onDelete, pagination, onPageChange, onSearch }) => {
+const EnhancedTable = ({ columns, data, onEdit, onDelete, pagination, onPageChange, onSearch, onSort, sortBy, sortOrder }) => {
   const [searchTerm, setSearchTerm] = useState("");
 
   const handleSearch = (value) => {
     setSearchTerm(value);
     if (onSearch) {
       onSearch(value);
+    }
+  };
+
+  const handleSort = (field) => {
+    if (onSort) {
+      onSort(field);
     }
   };
 
@@ -112,9 +118,20 @@ const EnhancedTable = ({ columns, data, onEdit, onDelete, pagination, onPageChan
               {columns.map((column) => (
                 <th
                   key={column.field}
-                  className="px-6 py-4 text-left text-sm font-semibold text-gray-700 uppercase tracking-wider"
+                  className="px-6 py-4 text-left text-sm font-semibold text-gray-700 uppercase tracking-wider cursor-pointer hover:bg-gray-100 transition-colors duration-200"
+                  onClick={() => handleSort(column.field)}
                 >
-                  {column.label}
+                  <div className="flex items-center space-x-1">
+                    <span>{column.label}</span>
+                    <div className="flex flex-col">
+                      <ChevronUp
+                        className={`w-3 h-3 ${sortBy === column.field && sortOrder === 'asc' ? 'text-purple-600' : 'text-gray-400'}`}
+                      />
+                      <ChevronDown
+                        className={`w-3 h-3 -mt-1 ${sortBy === column.field && sortOrder === 'desc' ? 'text-purple-600' : 'text-gray-400'}`}
+                      />
+                    </div>
+                  </div>
                 </th>
               ))}
               <th className="px-6 py-4 text-center text-sm font-semibold text-gray-700 uppercase tracking-wider">
@@ -357,6 +374,8 @@ function Remitentes() {
     total: 0
   });
   const [currentSearch, setCurrentSearch] = useState("");
+  const [sortBy, setSortBy] = useState("nombre");
+  const [sortOrder, setSortOrder] = useState("asc");
 
   const formFields = [
     {
@@ -396,11 +415,6 @@ function Remitentes() {
     },
   ];
 
-  useEffect(() => {
-    fetchCiudades();
-    fetchRemitentes(1, "");
-  }, []);
-
   const fetchCiudades = async () => {
     try {
       const res = await api.get("/ciudades/");
@@ -410,18 +424,20 @@ function Remitentes() {
     }
   };
 
-  const fetchRemitentes = async (page = 1, search = "") => {
+  const fetchRemitentes = useCallback(async (page = 1, search = "", sortField = sortBy, sortDirection = sortOrder) => {
     setIsLoading(true);
     try {
       const queryParams = new URLSearchParams({
         page: page.toString(),
-        per_page: '50' // Aumentar para mostrar más registros
+        per_page: '50', // Aumentar para mostrar más registros
+        sort_by: sortField,
+        sort_order: sortDirection
       });
-      
+
       if (search) {
         queryParams.set('q', search);
       }
-      
+
       const res = await api.get(`/remitentes/?${queryParams}`);
       setRemitentes(Array.isArray(res.data.items) ? res.data.items : []);
       setPagination({
@@ -437,20 +453,35 @@ function Remitentes() {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [sortBy, sortOrder]);
+
+  useEffect(() => {
+    fetchCiudades();
+    fetchRemitentes(1, "", sortBy, sortOrder);
+  }, [fetchRemitentes, sortBy, sortOrder]);
 
   const handlePageChange = (page) => {
-    fetchRemitentes(page, currentSearch);
+    fetchRemitentes(page, currentSearch, sortBy, sortOrder);
   };
 
   const handleSearch = (searchTerm) => {
     setCurrentSearch(searchTerm);
     // Debounce la búsqueda
     const timeoutId = setTimeout(() => {
-      fetchRemitentes(1, searchTerm);
+      fetchRemitentes(1, searchTerm, sortBy, sortOrder);
     }, 500);
 
     return () => clearTimeout(timeoutId);
+  };
+
+  const handleSort = (field) => {
+    let newSortOrder = 'asc';
+    if (sortBy === field) {
+      newSortOrder = sortOrder === 'asc' ? 'desc' : 'asc';
+    }
+    setSortBy(field);
+    setSortOrder(newSortOrder);
+    fetchRemitentes(1, currentSearch, field, newSortOrder);
   };
 
   const handleAdd = () => {
@@ -468,7 +499,7 @@ function Remitentes() {
       try {
         await api.delete(`/remitentes/${id}`);
         alert("Remitente eliminado correctamente.");
-        fetchRemitentes(pagination.current_page, currentSearch);
+        fetchRemitentes(pagination.current_page, currentSearch, sortBy, sortOrder);
       } catch (e) {
         alert("Error al eliminar: " + (e.response?.data?.error || e.message));
       }
@@ -496,7 +527,7 @@ function Remitentes() {
         await api.post("/remitentes/", data);
       }
       setModalOpen(false);
-      fetchRemitentes(pagination.current_page, currentSearch);
+      fetchRemitentes(pagination.current_page, currentSearch, sortBy, sortOrder);
     } catch (e) {
       alert("Error al guardar remitente: " + (e.response?.data?.error || e.message));
     }
@@ -593,6 +624,9 @@ function Remitentes() {
             pagination={pagination}
             onPageChange={handlePageChange}
             onSearch={handleSearch}
+            onSort={handleSort}
+            sortBy={sortBy}
+            sortOrder={sortOrder}
           />
         )}
 

@@ -103,7 +103,7 @@ function CRT() {
       const url = window.URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
-      link.download = `CRT_${crtEmitido.numero_crt}.pdf`;
+      // No establecer download name para usar el nombre del servidor
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
@@ -940,7 +940,7 @@ Si ves algún error o mensaje ❌, compártelo conmigo.
       const url = window.URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
-      link.download = `MIC_${crtEmitido.numero_crt}.pdf`;
+      // No establecer download name para usar el nombre del servidor
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
@@ -1049,7 +1049,7 @@ Si ves algún error o mensaje ❌, compártelo conmigo.
 
       console.log('✅ CRT emitido con datos para MIC:', crtData);
 
-      // Después de emitir el CRT, generar y abrir el PDF automáticamente
+      // Después de emitir el CRT, generar y descargar el PDF automáticamente
       try {
         console.log('📄 Generando PDF del CRT emitido...');
         const pdfResponse = await fetch(`http://localhost:5000/api/crts/${crtData.id}/pdf`, {
@@ -1062,23 +1062,22 @@ Si ves algún error o mensaje ❌, compártelo conmigo.
 
         const blob = await pdfResponse.blob();
         const url = window.URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        // No establecer download name para usar el nombre del servidor
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        window.URL.revokeObjectURL(url);
 
-        // Abrir el PDF en una nueva pestaña
-        window.open(url, '_blank');
-
-        console.log('✅ PDF generado y abierto en nueva pestaña');
-
-        // Limpiar el URL después de un tiempo
-        setTimeout(() => {
-          window.URL.revokeObjectURL(url);
-        }, 1000);
+        console.log('✅ PDF generado y descargado');
 
       } catch (pdfError) {
         console.error('❌ Error generando PDF:', pdfError);
         alert("CRT emitido correctamente, pero hubo un error generando el PDF: " + pdfError.message);
       }
 
-      alert("CRT emitido correctamente - PDF generado y abierto en nueva pestaña");
+      alert("CRT emitido correctamente - PDF generado y descargado");
       setForm((f) => ({ ...f, gastos: [] }));
       setMonedaTouched(false);
       setFormErrors({});
@@ -1736,8 +1735,9 @@ Si ves algún error o mensaje ❌, compártelo conmigo.
                   step="0.01"
                   name="valor_flete_externo"
                   value={form.valor_flete_externo}
-                  className="block w-full rounded border px-2 py-1 bg-gray-100"
-                  disabled
+                  onChange={handleInput}
+                  className="block w-full rounded border px-2 py-1 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                  placeholder="0.00"
                 />
               </label>
             </div>

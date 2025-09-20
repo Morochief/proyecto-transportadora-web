@@ -1422,11 +1422,17 @@ def generar_pdf_crt(crt_id):
 
         print(f"✅ PDF CRT {crt.numero_crt} generado exitosamente")
 
+        # Generar nombre de archivo según formato: CRT + últimos 4 dígitos del código + remitente + destinatario
+        last_four = crt.numero_crt[-4:] if len(crt.numero_crt or "") >= 4 else (crt.numero_crt or "")
+        sender = crt.remitente.nombre.replace(' ', '_').replace('/', '_').replace('\\', '_') if crt.remitente and crt.remitente.nombre else ""
+        recipient = crt.destinatario.nombre.replace(' ', '_').replace('/', '_').replace('\\', '_') if crt.destinatario and crt.destinatario.nombre else ""
+        download_filename = f"CRT_{last_four}_{sender}_{recipient}.pdf"
+
         return send_file(
             output,
             mimetype="application/pdf",
             as_attachment=True,
-            download_name=f"CRT_{crt.numero_crt}.pdf"
+            download_name=download_filename
         )
 
     except Exception as e:

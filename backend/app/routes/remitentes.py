@@ -12,6 +12,8 @@ def listar_remitentes():
     page = request.args.get('page', 1, type=int)
     per_page = request.args.get('per_page', 50, type=int)  # Cambiar de 10 a 50
     q = request.args.get('q', '', type=str).strip()
+    sort_by = request.args.get('sort_by', 'nombre', type=str)
+    sort_order = request.args.get('sort_order', 'asc', type=str)
 
     query = Remitente.query
 
@@ -24,7 +26,34 @@ def listar_remitentes():
             )
         )
 
-    remitentes = query.order_by(Remitente.id.desc()).paginate(
+    # Definir campos válidos para ordenar
+    valid_sort_fields = {
+        'id': Remitente.id,
+        'nombre': Remitente.nombre,
+        'tipo_documento': Remitente.tipo_documento,
+        'numero_documento': Remitente.numero_documento,
+        'direccion': Remitente.direccion,
+        'ciudad_nombre': Ciudad.nombre
+    }
+
+    # Aplicar ordenamiento
+    if sort_by in valid_sort_fields:
+        order_column = valid_sort_fields[sort_by]
+        if sort_order == 'desc':
+            order_column = order_column.desc()
+        else:
+            order_column = order_column.asc()
+
+        # Si ordena por ciudad, necesitamos hacer join
+        if sort_by == 'ciudad_nombre':
+            query = query.join(Ciudad)
+
+        query = query.order_by(order_column)
+    else:
+        # Orden por defecto
+        query = query.order_by(Remitente.nombre.asc())
+
+    remitentes = query.paginate(
         page=page,
         per_page=per_page,
         error_out=False  # Evitar errores si la página no existe

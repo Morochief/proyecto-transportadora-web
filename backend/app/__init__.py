@@ -121,7 +121,7 @@ def create_app():
         }), 500
 
     # ✅ Activa el modo debug
-    app.debug = True
+    app.debug = app.config.get("DEBUG", False)
 
     # ✅ NUEVO: Log de inicialización
     print("Sistema Logistico CRT/MIC inicializado")
