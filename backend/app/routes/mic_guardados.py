@@ -1,10 +1,11 @@
 # ========== RUTAS PARA MICs GUARDADOS ==========
 from flask import Blueprint, request, jsonify, send_file
 from sqlalchemy.orm import joinedload
-from datetime import datetime
+from datetime import datetime, timedelta
 from app.models import db, MIC, CRT
 from app.utils.layout_mic import generar_micdta_pdf_con_datos
 import tempfile
+import logging
 import os
 
 # Blueprint para MICs guardados
@@ -17,21 +18,23 @@ mic_guardados_bp = Blueprint(
 @mic_guardados_bp.route('/', methods=['POST'])
 def crear_mic_guardado():
     """
-    ✅ Crea un MIC completo desde datos del formulario y lo guarda en BD
+    âœ… Crea un MIC completo desde datos del formulario y lo guarda en BD
     """
     try:
         data = request.json
 
-        print(f"🔄 CREANDO MIC GUARDADO...")
-        print(f"📊 Datos recibidos: {len(data)} campos")
+        logger.info("Creating stored MIC")
+        if logger.isEnabledFor(logging.DEBUG):
+            payload_keys = sorted(data.keys()) if isinstance(data, dict) else []
+            logger.debug("Payload keys: %s", payload_keys)
 
-        # Validar campos requeridos básicos
+        # Validar campos requeridos bÃ¡sicos
         campos_requeridos = ['campo_23_numero_campo2_crt']
         for campo in campos_requeridos:
             if not data.get(campo):
                 return jsonify({"error": f"Campo requerido: {campo}"}), 400
 
-        # Auto-completar campos 16-22 con ****** si están vacíos
+        # Auto-completar campos 16-22 con ****** si estÃ¡n vacÃ­os
         campos_asteriscos = [16, 17, 18, 19, 20, 21, 22]
         for num in campos_asteriscos:
             campo_key = f'campo_{num}_asteriscos_{num-15}'
@@ -110,7 +113,6 @@ def crear_mic_guardado():
         db.session.add(mic)
         db.session.commit()
 
-        print(f"✅ MIC guardado con ID: {mic.id}")
 
         return jsonify({
             "message": "MIC creado y guardado exitosamente",
@@ -122,14 +124,9 @@ def crear_mic_guardado():
         }), 201
 
     except Exception as e:
-        import traceback
         db.session.rollback()
-        print(f"❌ Error creando MIC guardado: {e}")
-        print(traceback.format_exc())
-        return jsonify({
-            "error": str(e),
-            "trace": traceback.format_exc()
-        }), 500
+        logger.exception("Error creating stored MIC")
+        return jsonify({"error": str(e)}), 500
 
 # ========== LISTAR MICs GUARDADOS ==========
 
@@ -137,23 +134,21 @@ def crear_mic_guardado():
 @mic_guardados_bp.route('/', methods=['GET'])
 def listar_mics_guardados():
     """
-    ✅ Lista todos los MICs guardados con paginación y filtros
+    âœ… Lista todos los MICs guardados con paginaciÃ³n y filtros
     """
     try:
-        # Parámetros de consulta
+        # ParÃ¡metros de consulta
         page = request.args.get('page', 1, type=int)
         per_page = min(request.args.get(
-            'per_page', 20, type=int), 100)  # Máximo 100
+            'per_page', 20, type=int), 100)  # MÃ¡ximo 100
         estado = request.args.get('estado', '').strip()
         numero_carta = request.args.get('numero_carta', '').strip()
         fecha_desde = request.args.get('fecha_desde', '').strip()
         fecha_hasta = request.args.get('fecha_hasta', '').strip()
 
-        print(f"📋 LISTANDO MICs GUARDADOS...")
-        print(f"   📄 Página: {page}, Por página: {per_page}")
-        print(
-            f"   🔍 Filtros: estado='{estado}', numero_carta='{numero_carta}'")
-        print(f"   📅 Fechas: desde='{fecha_desde}', hasta='{fecha_hasta}'")
+        logger.info("Listing stored MICs", extra={'page': page, 'per_page': per_page})
+        if logger.isEnabledFor(logging.DEBUG):
+            logger.debug("Filters -> estado=%s numero=%s fecha_desde=%s fecha_hasta=%s", estado, numero_carta, fecha_desde, fecha_hasta)
 
         # Construir query base
         query = MIC.query.options(joinedload(MIC.crt))
@@ -182,7 +177,7 @@ def listar_mics_guardados():
             except ValueError:
                 pass
 
-        # Ordenar por fecha de creación (más recientes primero)
+        # Ordenar por fecha de creaciÃ³n (mÃ¡s recientes primero)
         query = query.order_by(MIC.id.desc())
 
         # Paginar
@@ -229,12 +224,11 @@ def listar_mics_guardados():
             }
         }
 
-        print(
-            f"✅ Enviados {len(mics_data)} MICs de {mics_paginados.total} totales")
+        logger.debug("Listing MICs page=%s total=%s", resultado['pagination']['page'], resultado['pagination']['total'])
         return jsonify(resultado)
 
     except Exception as e:
-        print(f"❌ Error listando MICs: {e}")
+        logger.exception("Error listing stored MICs")
         return jsonify({"error": str(e)}), 500
 
 # ========== OBTENER MIC POR ID ==========
@@ -243,14 +237,14 @@ def listar_mics_guardados():
 @mic_guardados_bp.route('/<int:mic_id>', methods=['GET'])
 def obtener_mic_por_id(mic_id):
     """
-    ✅ Obtiene un MIC específico por ID con todos sus datos
+    âœ… Obtiene un MIC especÃ­fico por ID con todos sus datos
     """
     try:
-        print(f"🔍 OBTENIENDO MIC ID: {mic_id}")
+        logger.info("Fetching stored MIC", extra={'mic_id': mic_id})
 
         mic = MIC.query.options(joinedload(MIC.crt)).get_or_404(mic_id)
 
-        # Función helper para convertir a string seguro
+        # FunciÃ³n helper para convertir a string seguro
         def safe_str(val):
             return "" if val is None else str(val)
 
@@ -300,11 +294,10 @@ def obtener_mic_por_id(mic_id):
             "crt_numero": mic.crt.numero_crt if mic.crt else "N/A"
         }
 
-        print(f"✅ MIC {mic_id} obtenido exitosamente")
         return jsonify(mic_data)
 
     except Exception as e:
-        print(f"❌ Error obteniendo MIC {mic_id}: {e}")
+        logger.exception("Error fetching stored MIC", extra={'mic_id': mic_id})
         return jsonify({"error": str(e)}), 404
 
 # ========== ACTUALIZAR MIC ==========
@@ -313,13 +306,17 @@ def obtener_mic_por_id(mic_id):
 @mic_guardados_bp.route('/<int:mic_id>', methods=['PUT'])
 def actualizar_mic(mic_id):
     """
-    ✅ Actualiza un MIC existente
+    âœ… Actualiza un MIC existente
     """
     try:
-        print(f"🔄 ACTUALIZANDO MIC ID: {mic_id}")
+        logger.info("Marking stored MIC as void", extra={'mic_id': mic_id})
 
         mic = MIC.query.get_or_404(mic_id)
         data = request.json
+
+        logger.info("Updating stored MIC", extra={'mic_id': mic_id})
+        if logger.isEnabledFor(logging.DEBUG):
+            logger.debug("Payload keys: %s", sorted(data.keys()) if isinstance(data, dict) else [])
 
         # Actualizar campos permitidos
         campos_actualizables = [
@@ -360,7 +357,6 @@ def actualizar_mic(mic_id):
 
         db.session.commit()
 
-        print(f"✅ MIC {mic_id} actualizado. Campos: {len(campos_actualizados)}")
         return jsonify({
             "message": "MIC actualizado exitosamente",
             "id": mic.id,
@@ -370,10 +366,8 @@ def actualizar_mic(mic_id):
         })
 
     except Exception as e:
-        import traceback
         db.session.rollback()
-        print(f"❌ Error actualizando MIC {mic_id}: {e}")
-        print(traceback.format_exc())
+        logger.exception("Error updating stored MIC", extra={'mic_id': mic_id})
         return jsonify({"error": str(e)}), 500
 
 # ========== ELIMINAR MIC ==========
@@ -382,19 +376,17 @@ def actualizar_mic(mic_id):
 @mic_guardados_bp.route('/<int:mic_id>', methods=['DELETE'])
 def eliminar_mic(mic_id):
     """
-    ✅ Elimina un MIC (soft delete cambiando estado a ANULADO)
+    âœ… Elimina un MIC (soft delete cambiando estado a ANULADO)
     """
     try:
-        print(f"🗑️ ELIMINANDO MIC ID: {mic_id}")
 
         mic = MIC.query.get_or_404(mic_id)
         numero_carta = mic.campo_23_numero_campo2_crt
 
-        # Soft delete: cambiar estado a ANULADO en lugar de eliminar físicamente
+        # Soft delete: cambiar estado a ANULADO en lugar de eliminar fÃ­sicamente
         mic.campo_4_estado = "ANULADO"
         db.session.commit()
 
-        print(f"✅ MIC {mic_id} marcado como ANULADO")
         return jsonify({
             "message": "MIC anulado exitosamente",
             "id": mic.id,
@@ -404,7 +396,7 @@ def eliminar_mic(mic_id):
 
     except Exception as e:
         db.session.rollback()
-        print(f"❌ Error eliminando MIC {mic_id}: {e}")
+        logger.exception("Error annulling stored MIC", extra={'mic_id': mic_id})
         return jsonify({"error": str(e)}), 500
 
 # ========== GENERAR PDF DESDE MIC GUARDADO ==========
@@ -413,10 +405,10 @@ def eliminar_mic(mic_id):
 @mic_guardados_bp.route('/<int:mic_id>/pdf', methods=['GET'])
 def generar_pdf_mic_guardado(mic_id):
     """
-    ✅ Genera PDF de un MIC guardado
+    âœ… Genera PDF de un MIC guardado
     """
     try:
-        print(f"📄 GENERANDO PDF MIC GUARDADO ID: {mic_id}")
+        logger.info("Generating stored MIC PDF", extra={'mic_id': mic_id})
 
         mic = MIC.query.get_or_404(mic_id)
 
@@ -474,6 +466,7 @@ def generar_pdf_mic_guardado(mic_id):
 
         # Nombre del archivo de descarga
         download_name = f"MIC_{mic.campo_23_numero_campo2_crt or mic.id}_{datetime.now().strftime('%Y%m%d')}.pdf"
+        logger.debug("Sending stored MIC PDF %s", download_name)
 
         response = send_file(
             filename,
@@ -482,98 +475,94 @@ def generar_pdf_mic_guardado(mic_id):
             mimetype='application/pdf'
         )
 
-        # Limpiar archivo temporal después de enviarlo
+        # Limpiar archivo temporal despuÃ©s de enviarlo
         response.call_on_close(lambda: os.unlink(filename))
 
-        print(f"✅ PDF generado para MIC {mic_id}: {download_name}")
         return response
 
     except Exception as e:
-        import traceback
-        print(f"❌ Error generando PDF para MIC {mic_id}: {e}")
-        print(traceback.format_exc())
+        logger.exception("Error generating stored MIC PDF", extra={'mic_id': mic_id})
         return jsonify({"error": str(e)}), 500
 
-# ========== ESTADÍSTICAS ==========
+# ========== ESTADÃSTICAS ==========
 
 
 @mic_guardados_bp.route('/stats', methods=['GET'])
 def obtener_estadisticas():
-    """
-    ✅ Obtiene estadísticas generales de MICs guardados
-    """
+    """Obtiene estadisticas generales de MICs guardados."""
     try:
-        print("📊 OBTENIENDO ESTADÍSTICAS DE MICs")
+        logger.info("Fetching stored MIC statistics")
 
-        # Contar por estado
-        stats_estado = db.session.query(
-            MIC.campo_4_estado,
-            db.func.count(MIC.id).label('cantidad')
-        ).group_by(MIC.campo_4_estado).all()
+        now = datetime.now()
+        today_start = datetime.combine(now.date(), datetime.min.time())
+        tomorrow_start = today_start + timedelta(days=1)
+        week_ago = now - timedelta(days=7)
+        six_months_ago = now - timedelta(days=180)
 
-        # Contar por mes (últimos 6 meses)
-        stats_mes = db.session.query(
-            db.func.date_trunc('month', MIC.creado_en).label('mes'),
-            db.func.count(MIC.id).label('cantidad')
-        ).filter(
-            MIC.creado_en >= datetime.now() - db.text("INTERVAL '6 months'")
-        ).group_by(
-            db.func.date_trunc('month', MIC.creado_en)
-        ).order_by('mes').all()
+        stats_estado = (
+            db.session.query(
+                MIC.campo_4_estado,
+                db.func.count(MIC.id).label('cantidad')
+            )
+            .group_by(MIC.campo_4_estado)
+            .all()
+        )
 
-        # Total general
         total_mics = MIC.query.count()
 
-        # MICs creados hoy
-        hoy = datetime.now().date()
-        mics_hoy = MIC.query.filter(
-            db.func.date(MIC.creado_en) == hoy
-        ).count()
+        mics_hoy = (
+            MIC.query
+            .filter(MIC.creado_en >= today_start, MIC.creado_en < tomorrow_start)
+            .count()
+        )
 
-        # MICs creados esta semana
-        desde_semana = datetime.now() - db.text("INTERVAL '7 days'")
-        mics_semana = MIC.query.filter(MIC.creado_en >= desde_semana).count()
+        mics_semana = MIC.query.filter(MIC.creado_en >= week_ago).count()
+
+        mics_recientes = MIC.query.filter(MIC.creado_en >= six_months_ago).all()
+        stats_por_mes = {}
+        for mic in mics_recientes:
+            if mic.creado_en:
+                mes_clave = mic.creado_en.strftime('%Y-%m')
+                stats_por_mes[mes_clave] = stats_por_mes.get(mes_clave, 0) + 1
+
+        por_mes = [
+            {'mes': mes, 'cantidad': stats_por_mes[mes]}
+            for mes in sorted(stats_por_mes.keys())
+        ]
 
         resultado = {
-            "total_mics": total_mics,
-            "mics_hoy": mics_hoy,
-            "mics_semana": mics_semana,
-            "por_estado": [
-                {"estado": estado, "cantidad": cantidad}
+            'total_mics': total_mics,
+            'mics_hoy': mics_hoy,
+            'mics_semana': mics_semana,
+            'por_estado': [
+                {'estado': estado, 'cantidad': cantidad}
                 for estado, cantidad in stats_estado
             ],
-            "por_mes": [
-                {
-                    "mes": mes.strftime('%Y-%m') if mes else "",
-                    "cantidad": cantidad
-                }
-                for mes, cantidad in stats_mes
-            ]
+            'por_mes': por_mes
         }
 
-        print(f"✅ Estadísticas obtenidas: {total_mics} MICs totales")
+        logger.debug("Stats summary: total=%s hoy=%s semana=%s", total_mics, mics_hoy, mics_semana)
+
         return jsonify(resultado)
 
     except Exception as e:
-        print(f"❌ Error obteniendo estadísticas: {e}")
-        return jsonify({"error": str(e)}), 500
-
-# ========== BÚSQUEDA AVANZADA ==========
-
-
+        logger.exception("Error fetching stored MIC statistics")
+        return jsonify({'error': str(e)}), 500
 @mic_guardados_bp.route('/search', methods=['POST'])
 def busqueda_avanzada():
     """
-    ✅ Búsqueda avanzada de MICs con múltiples criterios
+    âœ… BÃºsqueda avanzada de MICs con mÃºltiples criterios
     """
     try:
         data = request.json
-        print(f"🔍 BÚSQUEDA AVANZADA DE MICs")
-        print(f"📊 Criterios: {data}")
+
+        logger.info("Searching stored MICs")
+        if logger.isEnabledFor(logging.DEBUG):
+            logger.debug("Search criteria: %s", data)
 
         query = MIC.query.options(joinedload(MIC.crt))
 
-        # Aplicar filtros dinámicos
+        # Aplicar filtros dinÃ¡micos
         if data.get('numero_carta'):
             query = query.filter(MIC.campo_23_numero_campo2_crt.ilike(
                 f"%{data['numero_carta']}%"))
@@ -636,7 +625,7 @@ def busqueda_avanzada():
         else:
             query = query.order_by(MIC.id.desc())
 
-        # Paginación
+        # PaginaciÃ³n
         page = data.get('page', 1)
         per_page = min(data.get('per_page', 20), 100)
 
@@ -676,12 +665,10 @@ def busqueda_avanzada():
             "criterios_busqueda": data
         }
 
-        print(
-            f"✅ Búsqueda completada: {len(mics_data)} resultados de {mics_paginados.total} totales")
         return jsonify(resultado)
 
     except Exception as e:
-        print(f"❌ Error en búsqueda avanzada: {e}")
+        logger.exception("Error searching stored MICs")
         return jsonify({"error": str(e)}), 500
 
 # ========== CREAR DESDE CRT Y GUARDAR ==========
@@ -690,14 +677,14 @@ def busqueda_avanzada():
 @mic_guardados_bp.route('/crear-desde-crt/<int:crt_id>', methods=['POST'])
 def crear_mic_desde_crt_y_guardar(crt_id):
     """
-    ✅ Crea un MIC desde un CRT, permite edición y lo guarda en BD
+    âœ… Crea un MIC desde un CRT, permite ediciÃ³n y lo guarda en BD
     """
     try:
+        logger.info("Creating stored MIC from CRT", extra={'crt_id': crt_id})
         user_data = request.json if request.is_json else {}
 
-        print(f"🔄 CREANDO MIC DESDE CRT {crt_id} Y GUARDANDO...")
 
-        # Reutilizar la lógica existente del módulo MIC
+        # Reutilizar la lÃ³gica existente del mÃ³dulo MIC
         from app.routes.mic import formatear_entidad_completa_crt, procesar_gastos_crt_para_mic
         from sqlalchemy.orm import joinedload
 
@@ -855,7 +842,6 @@ def crear_mic_desde_crt_y_guardar(crt_id):
         db.session.add(mic)
         db.session.commit()
 
-        print(f"✅ MIC creado desde CRT {crt_id} y guardado con ID: {mic.id}")
 
         return jsonify({
             "message": "MIC creado desde CRT y guardado exitosamente",
@@ -873,11 +859,7 @@ def crear_mic_desde_crt_y_guardar(crt_id):
         }), 201
 
     except Exception as e:
-        import traceback
         db.session.rollback()
-        print(f"❌ Error creando MIC desde CRT {crt_id}: {e}")
-        print(traceback.format_exc())
-        return jsonify({
-            "error": str(e),
-            "trace": traceback.format_exc()
-        }), 500
+        logger.exception("Error creating stored MIC from CRT", extra={'crt_id': crt_id})
+        return jsonify({"error": str(e)}), 500
+

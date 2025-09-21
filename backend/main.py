@@ -12,6 +12,11 @@ import sys
 import re
 from pathlib import Path
 
+try:
+    from dotenv import load_dotenv
+except ImportError:  # pragma: no cover
+    load_dotenv = None
+
 
 def find_venv_python():
     """
@@ -35,6 +40,13 @@ def find_venv_python():
 
 
 def main():
+    # Load .env files from project root and backend directory if python-dotenv is available
+    if load_dotenv:
+        # backend/ directory
+        load_dotenv(Path(__file__).resolve().parent / ".env")
+        # proyecto-transportadora-web/.env
+        load_dotenv(Path(__file__).resolve().parent.parent / ".env")
+
     # Si ya estamos ejecutando desde el venv, sigue normal
     if sys.prefix != sys.base_prefix:
         from flask.cli import main as flask_main

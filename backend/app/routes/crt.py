@@ -1,11 +1,11 @@
-# ========== IMPORTS LIMPIOS ==========
+﻿# ========== IMPORTS LIMPIOS ==========
 from flask import Blueprint, request, jsonify, send_file
 from sqlalchemy import text, or_
 from sqlalchemy.orm import joinedload, aliased
 from datetime import datetime, timedelta
 from io import BytesIO
-import traceback
-import re  # ✅ necesario para _split_long_word y normalizaciones
+import logging
+import re  # âœ… necesario para _split_long_word y normalizaciones
 
 from app.models import db, CRT, CRT_Gasto, Remitente, Transportadora, Ciudad, Pais, Moneda
 
@@ -16,7 +16,7 @@ from reportlab.pdfbase.pdfmetrics import stringWidth
 from app.utils.layout_crt import dibujar_lineas_dinamicas, lineas
 
 
-crt_bp = Blueprint('crt', __name__, url_prefix='/api/crts')
+crt_bp = Blueprint('crt', __name__, url_prefix='/api/crts')\nlogger = logging.getLogger(__name__)
 
 # ========== FUNCIONES AUXILIARES UNIVERSALES ==========
 
@@ -100,7 +100,7 @@ def to_dict_crt(crt):
         "gastos": [to_dict_gasto(g) for g in crt.gastos],
     }
 
-# ========== SIGUIENTE NÚMERO CRT ==========
+# ========== SIGUIENTE NÃšMERO CRT ==========
 
 
 @crt_bp.route('/next_number', methods=['GET'])
@@ -108,7 +108,7 @@ def get_next_crt_number():
     transportadora_id = request.args.get('transportadora_id')
     codigo = request.args.get('codigo')
     if not transportadora_id or not codigo or len(codigo) != 11 or not codigo.startswith("PY") or not codigo[2:].isdigit():
-        return jsonify({'error': 'Código inválido'}), 400
+        return jsonify({'error': 'CÃ³digo invÃ¡lido'}), 400
 
     ultimo_crt = (
         CRT.query
@@ -138,7 +138,7 @@ def get_next_crt_number():
 
 @crt_bp.route('/', methods=['GET'])
 def listar_crts():
-    # Permite page_size o per_page (ambos válidos)
+    # Permite page_size o per_page (ambos vÃ¡lidos)
     page = request.args.get('page', type=int, default=None)
     page_size = request.args.get('page_size', type=int, default=None) \
         or request.args.get('per_page', type=int, default=None)
@@ -167,7 +167,7 @@ def listar_crts():
         return jsonify([to_dict_crt(c) for c in crts])
 
 
-# ========== ✅ NUEVO: LISTADO PAGINADO CON ACCIONES ==========
+# ========== âœ… NUEVO: LISTADO PAGINADO CON ACCIONES ==========
 
 
 @crt_bp.route('/paginated', methods=['GET'])
@@ -176,11 +176,11 @@ def listar_crts_paginated_con_acciones():
     Listado paginado con filtros, outerjoin + distinct, y fecha_hasta inclusivo.
     """
     try:
-        # Parámetros de paginación
+        # ParÃ¡metros de paginaciÃ³n
         page = request.args.get('page', 1, type=int)
         per_page = request.args.get('per_page', 20, type=int)
 
-        # Parámetros de filtrado
+        # ParÃ¡metros de filtrado
         buscar = request.args.get('q', '', type=str).strip()
         estado = request.args.get('estado', '', type=str)
         transportadora_id = request.args.get('transportadora_id', type=int)
@@ -209,7 +209,7 @@ def listar_crts_paginated_con_acciones():
             joinedload(CRT.pais_emision)
         )
 
-        # Filtro de búsqueda (outerjoin para no excluir nulos) + distinct para evitar duplicados
+        # Filtro de bÃºsqueda (outerjoin para no excluir nulos) + distinct para evitar duplicados
         if buscar:
             like = f"%{buscar}%"
             query = (query
@@ -234,12 +234,12 @@ def listar_crts_paginated_con_acciones():
             query = query.filter(CRT.fecha_emision >= fecha_desde_dt)
 
         if fecha_hasta:
-            # Inclusivo: hasta el final del día
+            # Inclusivo: hasta el final del dÃ­a
             fecha_hasta_dt = datetime.strptime(
                 fecha_hasta, '%Y-%m-%d') + timedelta(days=1) - timedelta(microseconds=1)
             query = query.filter(CRT.fecha_emision <= fecha_hasta_dt)
 
-        # Orden y paginación
+        # Orden y paginaciÃ³n
         query = query.order_by(CRT.id.desc())
         pagination = query.paginate(
             page=page, per_page=per_page, error_out=False)
@@ -302,30 +302,27 @@ def listar_crts_paginated_con_acciones():
             }
         }
 
-        print(
-            f"✅ Listado paginado: {len(crts_data)} CRTs en página {page}/{pagination.pages}")
         return jsonify(result)
 
     except Exception as e:
-        print(f"❌ Error en listado paginado: {e}")
-        traceback.print_exc()
+        logger.exception("Error listing CRTs with filters")
         return jsonify({"error": str(e)}), 500
 
 
-# ========== ✅ NUEVO: OBTENER ESTADOS DISPONIBLES ==========
+# ========== âœ… NUEVO: OBTENER ESTADOS DISPONIBLES ==========
 
 
 @crt_bp.route('/estados', methods=['GET'])
 def obtener_estados_disponibles():
     """
-    ✅ NUEVO: Obtener lista de estados disponibles para filtros
+    âœ… NUEVO: Obtener lista de estados disponibles para filtros
     """
     try:
-        # Obtener estados únicos de la base de datos
+        # Obtener estados Ãºnicos de la base de datos
         estados_query = db.session.query(CRT.estado.distinct()).all()
         estados = [estado[0] for estado in estados_query if estado[0]]
 
-        # Agregar estados estándar si no existen
+        # Agregar estados estÃ¡ndar si no existen
         estados_estandar = ["BORRADOR", "EMITIDO",
                             "EN_TRANSITO", "ENTREGADO", "FINALIZADO", "CANCELADO"]
         for estado in estados_estandar:
@@ -341,16 +338,16 @@ def obtener_estados_disponibles():
         })
 
     except Exception as e:
-        print(f"❌ Error obteniendo estados: {e}")
+        logger.exception("Error fetching transportadora catalog")
         return jsonify({"error": str(e)}), 500
 
-# ========== ✅ NUEVO: DUPLICAR CRT ==========
+# ========== âœ… NUEVO: DUPLICAR CRT ==========
 
 
 @crt_bp.route('/<int:crt_id>/duplicate', methods=['POST'])
 def duplicar_crt(crt_id):
     """
-    ✅ NUEVO: Duplicar un CRT existente con nuevo número
+    âœ… NUEVO: Duplicar un CRT existente con nuevo nÃºmero
     """
     try:
         # Cargar CRT original con todas las relaciones
@@ -358,10 +355,10 @@ def duplicar_crt(crt_id):
             joinedload(CRT.gastos)
         ).get_or_404(crt_id)
 
-        # Generar nuevo número CRT
+        # Generar nuevo nÃºmero CRT
         siguiente_numero = None
         if original_crt.transportadora:
-            # Usar la lógica existente para generar el siguiente número
+            # Usar la lÃ³gica existente para generar el siguiente nÃºmero
             ultimo_crt = (
                 CRT.query
                 .filter(
@@ -388,7 +385,7 @@ def duplicar_crt(crt_id):
         # Crear nuevo CRT copiando todos los campos
         nuevo_crt = CRT(
             numero_crt=siguiente_numero,
-            fecha_emision=datetime.now(),  # Nueva fecha de emisión
+            fecha_emision=datetime.now(),  # Nueva fecha de emisiÃ³n
             estado="BORRADOR",  # Estado borrador para que pueda ser editado
             remitente_id=original_crt.remitente_id,
             destinatario_id=original_crt.destinatario_id,
@@ -410,8 +407,8 @@ def duplicar_crt(crt_id):
             declaracion_mercaderia=original_crt.declaracion_mercaderia,
             valor_flete_externo=original_crt.valor_flete_externo,
             valor_reembolso=original_crt.valor_reembolso,
-            factura_exportacion=None,  # Limpiar número de factura
-            nro_despacho=None,  # Limpiar número de despacho
+            factura_exportacion=None,  # Limpiar nÃºmero de factura
+            nro_despacho=None,  # Limpiar nÃºmero de despacho
             transporte_sucesivos=original_crt.transporte_sucesivos,
             observaciones=f"Duplicado de CRT {original_crt.numero_crt}\n{original_crt.observaciones or ''}",
             formalidades_aduana=original_crt.formalidades_aduana,
@@ -445,9 +442,7 @@ def duplicar_crt(crt_id):
 
     except Exception as e:
         db.session.rollback()
-        print(f"❌ Error duplicando CRT {crt_id}: {e}")
-        import traceback
-        traceback.print_exc()
+        logger.exception("Error duplicating CRT %s", crt_id)
         return jsonify({"error": str(e)}), 500
 
 # ========== DETALLE CRT ==========
@@ -466,7 +461,7 @@ def detalle_crt(crt_id):
     ).filter_by(id=crt_id).first_or_404()
     return jsonify(to_dict_crt(crt))
 
-# ========== DETALLE POR NÚMERO CRT ==========
+# ========== DETALLE POR NÃšMERO CRT ==========
 
 
 @crt_bp.route('/by_numero/<string:numero_crt>', methods=['GET'])
@@ -499,7 +494,7 @@ def crear_crt():
         data = limpiar_numericos(data, NUMERIC_FIELDS)
         existe = CRT.query.filter_by(numero_crt=data.get("numero_crt")).first()
         if existe:
-            return jsonify({"error": "Número de CRT ya existe, recargue la página."}), 400
+            return jsonify({"error": "NÃºmero de CRT ya existe, recargue la pÃ¡gina."}), 400
 
         crt = CRT(
             numero_crt=data.get("numero_crt"),
@@ -551,26 +546,25 @@ def crear_crt():
         db.session.commit()
         return jsonify({"message": "CRT creado", "id": crt.id}), 201
     except Exception as e:
-        print("\nERROR EN CREAR CRT".center(80, "-"))
-        print(traceback.format_exc())
-        return jsonify({"error": str(e), "trace": traceback.format_exc()}), 500
+        logger.exception("Error creating CRT")
+        return jsonify({"error": str(e)}), 500
 
-# ========== ✅ EDITAR CRT MEJORADO ==========
+# ========== âœ… EDITAR CRT MEJORADO ==========
 
 
-# ========== SOLUCIÓN 1: MEJORAR DETECCIÓN DE CAMBIOS ==========
+# ========== SOLUCIÃ“N 1: MEJORAR DETECCIÃ“N DE CAMBIOS ==========
 
 @crt_bp.route('/<int:crt_id>', methods=['PUT'])
 def editar_crt(crt_id):
     """
-    ✅ MEJORADO: Editar CRT con detección de cambios reales mejorada
+    âœ… MEJORADO: Editar CRT con detecciÃ³n de cambios reales mejorada
     """
     try:
         crt = CRT.query.options(joinedload(CRT.gastos)).filter_by(
             id=crt_id).first_or_404()
         data = request.json
 
-        # ✅ Validaciones de estado (mantener igual)
+        # âœ… Validaciones de estado (mantener igual)
         if crt.estado in ["FINALIZADO"]:
             return jsonify({
                 "error": "No se puede editar un CRT finalizado",
@@ -579,12 +573,12 @@ def editar_crt(crt_id):
 
         if crt.estado == "EN_TRANSITO" and not data.get("permitir_edicion_en_transito"):
             return jsonify({
-                "error": "CRT en tránsito. ¿Está seguro que desea editarlo?",
+                "error": "CRT en trÃ¡nsito. Â¿EstÃ¡ seguro que desea editarlo?",
                 "requiere_confirmacion": True,
                 "estado_actual": crt.estado
             }), 409
 
-        # Procesar campos numéricos
+        # Procesar campos numÃ©ricos
         NUMERIC_FIELDS = [
             "peso_bruto", "peso_neto", "volumen",
             "valor_incoterm", "valor_mercaderia", "declaracion_mercaderia",
@@ -592,17 +586,17 @@ def editar_crt(crt_id):
         ]
         data = limpiar_numericos(data, NUMERIC_FIELDS)
 
-        # ✅ MEJORAR: Detectar cambios REALES solamente
+        # âœ… MEJORAR: Detectar cambios REALES solamente
         cambios_realizados = []
 
         def detectar_cambio_real(campo_db, valor_nuevo, nombre_campo):
             """Detecta si hay un cambio real entre el valor de BD y el nuevo"""
-            # Convertir ambos valores a string para comparación consistente
+            # Convertir ambos valores a string para comparaciÃ³n consistente
             valor_db = str(campo_db) if campo_db is not None else ""
             valor_nuevo_str = str(
                 valor_nuevo) if valor_nuevo is not None else ""
 
-            # Para IDs numéricos, convertir a int para comparación
+            # Para IDs numÃ©ricos, convertir a int para comparaciÃ³n
             if campo_db.__class__.__name__ in ['int', 'Integer'] or '_id' in str(campo_db):
                 try:
                     valor_db_int = int(campo_db) if campo_db else None
@@ -611,10 +605,10 @@ def editar_crt(crt_id):
                 except (ValueError, TypeError):
                     pass
 
-            # Para otros campos, comparación de strings
+            # Para otros campos, comparaciÃ³n de strings
             return valor_db.strip() != valor_nuevo_str.strip()
 
-        # ✅ EXCLUIR CREACIÓN DE BORRADORES
+        # âœ… EXCLUIR CREACIÃ“N DE BORRADORES
         es_creacion_borrador = (
             crt.estado == "BORRADOR" and
             not crt.numero_crt and
@@ -622,19 +616,17 @@ def editar_crt(crt_id):
             not crt.destinatario_id
         )
 
-        # ✅ NO AUDITAR SI ES CREACIÓN DE BORRADOR
+        # âœ… NO AUDITAR SI ES CREACIÃ“N DE BORRADOR
         if es_creacion_borrador:
-            print(
-                f"🔇 Omitiendo auditoría: creación de borrador para CRT {crt_id}")
         else:
             # Detectar cambios importantes SOLAMENTE si hay cambio real
             campos_importantes = {
-                'numero_crt': 'Número CRT',
+                'numero_crt': 'NÃºmero CRT',
                 'estado': 'Estado',
                 'remitente_id': 'Remitente',
                 'destinatario_id': 'Destinatario',
                 'transportadora_id': 'Transportadora',
-                'valor_mercaderia': 'Valor Mercadería',
+                'valor_mercaderia': 'Valor MercaderÃ­a',
                 'peso_bruto': 'Peso Bruto'
             }
 
@@ -643,10 +635,10 @@ def editar_crt(crt_id):
                     valor_anterior = getattr(crt, campo, None)
                     valor_nuevo = data[campo]
 
-                    # ✅ SOLO REGISTRAR SI HAY CAMBIO REAL
+                    # âœ… SOLO REGISTRAR SI HAY CAMBIO REAL
                     if detectar_cambio_real(valor_anterior, valor_nuevo, campo):
                         cambios_realizados.append(
-                            f"{nombre}: {valor_anterior} → {valor_nuevo}")
+                            f"{nombre}: {valor_anterior} â†’ {valor_nuevo}")
 
         # Aplicar cambios (mantener igual)
         crt.numero_crt = data.get("numero_crt", crt.numero_crt)
@@ -688,7 +680,7 @@ def editar_crt(crt_id):
         crt.transporte_sucesivos = data.get(
             "transporte_sucesivos", crt.transporte_sucesivos)
 
-        # ✅ PRESERVAR OBSERVACIONES ORIGINALES
+        # âœ… PRESERVAR OBSERVACIONES ORIGINALES
         observaciones_originales = crt.observaciones
         crt.observaciones = data.get("observaciones", crt.observaciones)
         crt.fecha_firma = datetime.strptime(data.get(
@@ -711,17 +703,13 @@ def editar_crt(crt_id):
                 )
                 db.session.add(g)
 
-        # ✅ SOLO AGREGAR LOG SI HAY CAMBIOS REALES Y SIGNIFICATIVOS
+        # âœ… SOLO AGREGAR LOG SI HAY CAMBIOS REALES Y SIGNIFICATIVOS
         if cambios_realizados and not es_creacion_borrador:
             timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
             log_cambios = f"\n--- Editado {timestamp} ---\nCambios: {', '.join(cambios_realizados)}"
             crt.observaciones = (observaciones_originales or "") + log_cambios
 
-            print(
-                f"✅ CRT {crt.numero_crt} editado - Cambios registrados: {', '.join(cambios_realizados)}")
         else:
-            print(
-                f"🔇 CRT {crt.numero_crt} editado - Sin cambios significativos para auditar")
 
         db.session.commit()
 
@@ -735,9 +723,7 @@ def editar_crt(crt_id):
 
     except Exception as e:
         db.session.rollback()
-        print(f"❌ Error editando CRT {crt_id}: {e}")
-        import traceback
-        traceback.print_exc()
+        logger.exception("Error duplicating CRT %s", crt_id)
         return jsonify({"error": str(e)}), 500
 
 # ========== ELIMINAR CRT ==========
@@ -754,9 +740,8 @@ def eliminar_crt(crt_id):
         db.session.commit()
         return jsonify({"message": "CRT eliminado"})
     except Exception as e:
-        print("\nERROR EN ELIMINAR CRT".center(80, "-"))
-        print(traceback.format_exc())
-        return jsonify({"error": str(e), "trace": traceback.format_exc()}), 500
+        logger.exception("Error deleting CRT %s", crt_id)
+        return jsonify({"error": str(e)}), 500
 
 # ========== LISTAR CRTs SIMPLE ==========
 
@@ -767,12 +752,10 @@ def listar_crts_simple():
         sql = text("SELECT c.numero_crt FROM crts c ORDER BY c.id DESC")
         result = db.session.execute(sql).mappings().all()
         crts = [{"numero_crt": row["numero_crt"]} for row in result]
-        print("✅ Listado simple CRTs:", crts[:5])
         return jsonify(crts)
     except Exception as e:
-        print("\nERROR EN LISTAR NÚMEROS CRT".center(80, "-"))
-        print(traceback.format_exc())
-        return jsonify({"error": str(e), "trace": traceback.format_exc()}), 500
+        logger.exception("Error listing CRT numbers")
+        return jsonify({"error": str(e)}), 500
 
 # ========== PDF CRT ==========
 
@@ -782,7 +765,8 @@ def listar_crts_simple():
 @crt_bp.route('/<int:crt_id>/pdf', methods=['POST'])
 def generar_pdf_crt(crt_id):
     try:
-        # ✅ CARGAR CRT CON TODAS LAS RELACIONES
+        logger.info("Generating CRT PDF", extra={'crt_id': crt_id})
+        # âœ… CARGAR CRT CON TODAS LAS RELACIONES
         crt = CRT.query.options(
             joinedload(CRT.remitente).joinedload(
                 Remitente.ciudad).joinedload(Ciudad.pais),
@@ -803,7 +787,7 @@ def generar_pdf_crt(crt_id):
             joinedload(CRT.pais_emision)
         ).get_or_404(crt_id)
 
-        # ✅ AHORA SÍ TENEMOS TODOS LOS DATOS CARGADOS
+        # âœ… AHORA SÃ TENEMOS TODOS LOS DATOS CARGADOS
         remitente = crt.remitente
         transportadora = crt.transportadora
         destinatario = crt.destinatario
@@ -811,15 +795,7 @@ def generar_pdf_crt(crt_id):
         notificar_a = crt.notificar_a
         firma_destinatario = crt.firma_destinatario
 
-        # ✅ DEBUG: Verificar que los datos estén cargados
-        print(f"🔍 Generando PDF CRT {crt.numero_crt}")
-        print(f"   Remitente: {remitente.nombre if remitente else 'NO ENCONTRADO'}")
-        print(f"   Transportadora: {transportadora.nombre if transportadora else 'NO ENCONTRADO'}")
-        print(f"   Destinatario: {destinatario.nombre if destinatario else 'NO ENCONTRADO'}")
-        print(f"   Consignatario: {consignatario.nombre if consignatario else 'NO ENCONTRADO'}")
-        print(f"   Notificar a: {notificar_a.nombre if notificar_a else 'NO ENCONTRADO'}")
-        print(f"   Firma Destinatario: {firma_destinatario.nombre if firma_destinatario else 'NO ENCONTRADO'}")
-        print(f"   Gastos: {len(crt.gastos)} items")
+        # âœ… DEBUG: Verificar que los datos estÃ©n cargados
 
         output = BytesIO()
         c = canvas.Canvas(output, pagesize=A4)
@@ -886,9 +862,9 @@ def generar_pdf_crt(crt_id):
             except Exception:
                 return str(num) if num not in [None, "None"] else ""
 
-        # ✅ VERIFICACIÓN ADICIONAL DE DATOS ANTES DE USAR
+        # âœ… VERIFICACIÃ“N ADICIONAL DE DATOS ANTES DE USAR
         def safe_get_attr(obj, attr, default=""):
-            """Función segura para obtener atributos con fallback"""
+            """FunciÃ³n segura para obtener atributos con fallback"""
             if obj is None:
                 return default
             return getattr(obj, attr, default) or default
@@ -897,7 +873,7 @@ def generar_pdf_crt(crt_id):
         max_width_trans = 250
         x_trans = 300
 
-        # ===== Helpers de texto con partición de palabras largas y centrado =====
+        # ===== Helpers de texto con particiÃ³n de palabras largas y centrado =====
         def _split_long_word(word, fontName, fontSize, max_width):
             from reportlab.pdfbase.pdfmetrics import stringWidth
             if stringWidth(word, fontName, fontSize) <= max_width:
@@ -1052,7 +1028,7 @@ def generar_pdf_crt(crt_id):
             if nombre:
                 c.setFont("Helvetica-Bold", 9)
                 c.drawCentredString(x_trans + max_width_trans/2, y_trans_top, nombre)
-                y_trans_top -= 12   # bajar la posición para no chocar con el resto
+                y_trans_top -= 12   # bajar la posiciÃ³n para no chocar con el resto
 
             # --- Resto de datos ---
             direccion = safe_get_attr(transportadora, 'direccion').strip()
@@ -1074,7 +1050,7 @@ def generar_pdf_crt(crt_id):
 
             bloque = "\n".join(bloque_lineas)
 
-            # resto en tamaño 7
+            # resto en tamaÃ±o 7
             draw_text_fit_area_centered(
                 c,
                 text=bloque,
@@ -1165,7 +1141,7 @@ def generar_pdf_crt(crt_id):
             num_doc_notif = safe_get_attr(notificar_a, 'numero_documento')
             c.drawString(x_notif, y_notif, f"{tipo_doc_notif}: {num_doc_notif}")
 
-        # ========== Campo 2: Número CRT ==========
+        # ========== Campo 2: NÃºmero CRT ==========
         x_num_crt = 400
         y_num_crt_ill = 92
         y_num_crt_pdf = 842 - y_num_crt_ill
@@ -1175,7 +1151,7 @@ def generar_pdf_crt(crt_id):
         # ========== Campo 5 ==========
         x_emision = 300
         y_emision = 842 - 168 - 20
-        texto_emision = "ASUNCIÓN - PARAGUAY"
+        texto_emision = "ASUNCIÃ“N - PARAGUAY"
         c.setFont("Helvetica", 8)
         w_emision = stringWidth(texto_emision, "Helvetica", 8)
         c.drawString(x_emision + (max_width_trans - w_emision) / 2, y_emision, texto_emision)
@@ -1215,7 +1191,7 @@ def generar_pdf_crt(crt_id):
             c.drawString(x_campo10 + (max_width_trans - w_line) / 2, y_campo10, linea)
             y_campo10 -= 10
 
-        # ========== CAMPO 11: DETALLES DE MERCADERÍA ==========
+        # ========== CAMPO 11: DETALLES DE MERCADERÃA ==========
         x11 = 34
         y11 = 498
         width11 = 375
@@ -1312,7 +1288,7 @@ def generar_pdf_crt(crt_id):
         c.setFont("Helvetica", 10)
         c.drawString(x_incoterm, y_incoterm, incoterm)
 
-        # ========== CAMPO 16: Declaración del valor ==========
+        # ========== CAMPO 16: DeclaraciÃ³n del valor ==========
         x16 = 450
         y16 = 842 - 442 - 8
         c.setFont("Helvetica-Bold", 8)
@@ -1420,13 +1396,13 @@ def generar_pdf_crt(crt_id):
         c.save()
         output.seek(0)
 
-        print(f"✅ PDF CRT {crt.numero_crt} generado exitosamente")
 
-        # Generar nombre de archivo según formato: CRT + últimos 4 dígitos del código + remitente + destinatario
+        # Generar nombre de archivo segÃºn formato: CRT + Ãºltimos 4 dÃ­gitos del cÃ³digo + remitente + destinatario
         last_four = crt.numero_crt[-4:] if len(crt.numero_crt or "") >= 4 else (crt.numero_crt or "")
         sender = crt.remitente.nombre.replace(' ', '_').replace('/', '_').replace('\\', '_') if crt.remitente and crt.remitente.nombre else ""
         recipient = crt.destinatario.nombre.replace(' ', '_').replace('/', '_').replace('\\', '_') if crt.destinatario and crt.destinatario.nombre else ""
         download_filename = f"CRT_{last_four}_{sender}_{recipient}.pdf"
+        logger.debug("Sending CRT PDF %s", download_filename)
 
         return send_file(
             output,
@@ -1436,13 +1412,8 @@ def generar_pdf_crt(crt_id):
         )
 
     except Exception as e:
-        print(f"\n❌ ERROR EN GENERAR PDF CRT {crt_id}".center(80, "-"))
-        print(f"Error: {str(e)}")
-        print(traceback.format_exc())
-        return jsonify({
-            "error": f"Error generando PDF: {str(e)}",
-            "trace": traceback.format_exc()
-        }), 500
+        logger.exception("Error generating CRT PDF", extra={'crt_id': crt_id})
+        return jsonify({"error": f"Error generando PDF: {str(e)}"}), 500
 
 
 @crt_bp.route('/<int:crt_id>/campo15', methods=['GET'])
@@ -1455,15 +1426,16 @@ def obtener_campo15(crt_id):
         id=crt_id).first_or_404()
     return jsonify({"items": [to_dict_gasto(g) for g in crt.gastos]})
 
-# ========== ✅ NUEVOS ENDPOINTS PARA DATOS AUXILIARES ==========
+# ========== âœ… NUEVOS ENDPOINTS PARA DATOS AUXILIARES ==========
 
 
 @crt_bp.route('/data/transportadoras', methods=['GET'])
 def obtener_transportadoras():
     """
-    ✅ NUEVO: Obtener lista de transportadoras para filtros y formularios
+    âœ… NUEVO: Obtener lista de transportadoras para filtros y formularios
     """
     try:
+        logger.info("Fetching transportadora catalog")
         transportadoras = Transportadora.query.options(
             joinedload(Transportadora.ciudad).joinedload(Ciudad.pais)
         ).order_by(Transportadora.nombre).all()
@@ -1487,16 +1459,17 @@ def obtener_transportadoras():
         })
 
     except Exception as e:
-        print(f"❌ Error obteniendo transportadoras: {e}")
+        logger.exception("Error fetching entity catalog")
         return jsonify({"error": str(e)}), 500
 
 
 @crt_bp.route('/data/entidades', methods=['GET'])
 def obtener_entidades():
     """
-    ✅ NUEVO: Obtener lista de entidades (remitentes/destinatarios) para formularios
+    âœ… NUEVO: Obtener lista de entidades (remitentes/destinatarios) para formularios
     """
     try:
+        logger.info("Fetching entity catalog")
         entidades = Remitente.query.options(
             joinedload(Remitente.ciudad).joinedload(Ciudad.pais)
         ).order_by(Remitente.nombre).all()
@@ -1519,16 +1492,17 @@ def obtener_entidades():
         })
 
     except Exception as e:
-        print(f"❌ Error obteniendo entidades: {e}")
+        logger.exception("Error fetching currency catalog")
         return jsonify({"error": str(e)}), 500
 
 
 @crt_bp.route('/data/monedas', methods=['GET'])
 def obtener_monedas():
     """
-    ✅ NUEVO: Obtener lista de monedas para formularios
+    âœ… NUEVO: Obtener lista de monedas para formularios
     """
     try:
+        logger.info("Fetching currency catalog")
         monedas = Moneda.query.order_by(Moneda.nombre).all()
 
         items = []
@@ -1545,16 +1519,17 @@ def obtener_monedas():
         })
 
     except Exception as e:
-        print(f"❌ Error obteniendo monedas: {e}")
+        logger.exception("Error fetching city catalog")
         return jsonify({"error": str(e)}), 500
 
 
 @crt_bp.route('/data/ciudades', methods=['GET'])
 def obtener_ciudades():
     """
-    ✅ NUEVO: Obtener lista de ciudades con países
+    âœ… NUEVO: Obtener lista de ciudades con paÃ­ses
     """
     try:
+        logger.info("Fetching city catalog")
         ciudades = Ciudad.query.options(
             joinedload(Ciudad.pais)
         ).order_by(Ciudad.nombre).all()
@@ -1574,16 +1549,17 @@ def obtener_ciudades():
         })
 
     except Exception as e:
-        print(f"❌ Error obteniendo ciudades: {e}")
+        logger.exception("Error fetching country catalog")
         return jsonify({"error": str(e)}), 500
 
 
 @crt_bp.route('/data/paises', methods=['GET'])
 def obtener_paises():
     """
-    ✅ NUEVO: Obtener lista de países
+    âœ… NUEVO: Obtener lista de paÃ­ses
     """
     try:
+        logger.info("Fetching country catalog")
         paises = Pais.query.order_by(Pais.nombre).all()
 
         items = []
@@ -1599,10 +1575,10 @@ def obtener_paises():
         })
 
     except Exception as e:
-        print(f"❌ Error obteniendo países: {e}")
         return jsonify({"error": str(e)}), 500
 
 
 # Recuerda registrar el blueprint en tu app principal:
 # from app.routes.crt import crt_bp
 # app.register_blueprint(crt_bp)
+
