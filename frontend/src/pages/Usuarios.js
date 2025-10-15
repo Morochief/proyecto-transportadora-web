@@ -1,37 +1,37 @@
-import React, { useEffect, useState } from "react";
-import api from "../api/api";
-import Table from "../components/Table";
-import FormModal from "../components/FormModal";
+import React, { useEffect, useState } from 'react';
+
+import api from '../api/api';
+import FormModal from '../components/FormModal';
+import Table from '../components/Table';
 
 function Usuarios() {
   const [usuarios, setUsuarios] = useState([]);
-  const [paginacion, setPaginacion] = useState({});
   const [modalOpen, setModalOpen] = useState(false);
   const [editUser, setEditUser] = useState(null);
-  const [formFields] = useState([
-    { name: "nombre_completo", label: "Nombre Completo", type: "text", required: true },
-    { name: "usuario", label: "Usuario", type: "text", required: true },
-    { name: "email", label: "Email", type: "email", required: false },
-    { name: "telefono", label: "Teléfono", type: "tel", required: false },
-    { name: "rol", label: "Rol", type: "text", required: false },
-    { name: "estado", label: "Estado", type: "text", required: false },
-    { name: "clave", label: "Contraseña", type: "password", required: false },
-  ]);
-  const [page, setPage] = useState(1);
+  const [error, setError] = useState('');
+
+  const formFields = [
+    { name: 'nombre_completo', label: 'Nombre completo', type: 'text', required: true },
+    { name: 'email', label: 'Email', type: 'email', required: true },
+    { name: 'telefono', label: 'Telefono', type: 'tel', required: false },
+    { name: 'rol', label: 'Rol principal', type: 'text', required: true },
+    { name: 'estado', label: 'Estado', type: 'text', required: false },
+    { name: 'clave', label: 'Clave (solo nuevo usuario o cambio)', type: 'password', required: false },
+  ];
+
+  const loadUsuarios = async () => {
+    setError('');
+    try {
+      const response = await api.get('/auth/admin/users');
+      setUsuarios(response.data);
+    } catch (err) {
+      setError(err.response?.data?.error || 'No se pudieron cargar los usuarios');
+    }
+  };
 
   useEffect(() => {
-    fetchUsuarios(page);
-  }, [page]);
-
-  const fetchUsuarios = async (page) => {
-    const res = await api.get(`/usuarios/?page=${page}`);
-    setUsuarios(res.data.items);
-    setPaginacion({
-      total: res.data.total,
-      pages: res.data.pages,
-      current: res.data.current_page,
-    });
-  };
+    loadUsuarios();
+  }, []);
 
   const handleAdd = () => {
     setEditUser(null);
@@ -39,74 +39,91 @@ function Usuarios() {
   };
 
   const handleEdit = (user) => {
-    setEditUser(user);
+    setEditUser({
+      ...user,
+      nombre_completo: user.display_name || user.usuario,
+      rol: user.roles?.[0] || 'operador',
+    });
     setModalOpen(true);
   };
 
   const handleDelete = async (id) => {
-    if (window.confirm("¿Seguro que deseas eliminar este usuario?")) {
+    if (!window.confirm('Seguro que desea eliminar al usuario?')) {
+      return;
+    }
+    try {
       await api.delete(`/usuarios/${id}`);
-      fetchUsuarios(page);
+      loadUsuarios();
+    } catch (err) {
+      setError(err.response?.data?.error || 'No se pudo eliminar');
     }
   };
 
   const handleSubmit = async (data) => {
+    setError('');
     try {
+      if (!editUser && !data.clave) {
+        setError('La clave es obligatoria para nuevos usuarios');
+        return;
+      }
       if (editUser) {
-        await api.put(`/usuarios/${editUser.id}`, data);
+        const payload = {
+          nombre: data.nombre_completo,
+          telefono: data.telefono,
+          estado: data.estado,
+          email: data.email,
+          roles: [data.rol],
+        };
+        if (data.clave) {
+          payload.clave = data.clave;
+        }
+        await api.patch(`/auth/admin/users/${editUser.id}`, payload);
       } else {
-        await api.post("/usuarios/", data);
+        await api.post('/auth/register', {
+          nombre: data.nombre_completo,
+          email: data.email,
+          usuario: data.email.split('@')[0],
+          password: data.clave,
+          telefono: data.telefono,
+          role: data.rol,
+        });
       }
       setModalOpen(false);
-      fetchUsuarios(page);
-    } catch (e) {
-      alert("Error al guardar usuario: " + (e.response?.data?.error || e.message));
+      loadUsuarios();
+    } catch (err) {
+      setError(err.response?.data?.error || 'No se pudo guardar');
     }
   };
 
   return (
-    <div style={{ padding: "2rem" }}>
-      <h2>Usuarios</h2>
-      <button onClick={handleAdd}>Agregar Usuario</button>
+    <div>
+      <div className="page-header">
+        <h2>Usuarios</h2>
+        <button onClick={handleAdd}>Nuevo usuario</button>
+      </div>
+      {error && <div style={{ color: 'red', marginBottom: '8px' }}>{error}</div>}
       <Table
-        columns={[
-          { field: "nombre_completo", label: "Nombre Completo" },
-          { field: "usuario", label: "Usuario" },
-          { field: "email", label: "Email" },
-          { field: "telefono", label: "Teléfono" },
-          { field: "rol", label: "Rol" },
-          { field: "estado", label: "Estado" },
-          { field: "creado_en", label: "Creado" },
-        ]}
         data={usuarios}
+        columns={[
+          { field: 'display_name', label: 'Nombre' },
+          { field: 'email', label: 'Email' },
+          { field: 'roles', label: 'Roles', render: (value = []) => (Array.isArray(value) ? value.join(', ') : '') },
+          { field: 'estado', label: 'Estado' },
+          { field: 'mfa_enabled', label: 'MFA', render: (value) => (value ? 'Activo' : 'Inactivo') },
+        ]}
         onEdit={handleEdit}
         onDelete={handleDelete}
       />
-      <div style={{ marginTop: 16 }}>
-        Página: {paginacion.current || 1} de {paginacion.pages || 1}
-        <button
-          onClick={() => setPage(Math.max(1, (paginacion.current || 1) - 1))}
-          disabled={paginacion.current <= 1}
-          style={{ marginLeft: 8 }}
-        >
-          Anterior
-        </button>
-        <button
-          onClick={() => setPage(Math.min((paginacion.pages || 1), (paginacion.current || 1) + 1))}
-          disabled={paginacion.current >= paginacion.pages}
-          style={{ marginLeft: 8 }}
-        >
-          Siguiente
-        </button>
-      </div>
-      <FormModal
-        open={modalOpen}
-        onClose={() => setModalOpen(false)}
-        onSubmit={handleSubmit}
-        initialValues={editUser}
-        fields={formFields}
-        title={editUser ? "Editar Usuario" : "Nuevo Usuario"}
-      />
+      {modalOpen && (
+        <FormModal
+          isOpen={modalOpen}
+          onClose={() => setModalOpen(false)}
+          onSubmit={handleSubmit}
+          fields={formFields}
+          initialValues={editUser || {}}
+          title={editUser ? 'Editar usuario' : 'Crear usuario'}
+        />
+      )}
     </div>
   );
 }

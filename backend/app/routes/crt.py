@@ -16,7 +16,8 @@ from reportlab.pdfbase.pdfmetrics import stringWidth
 from app.utils.layout_crt import dibujar_lineas_dinamicas, lineas
 
 
-crt_bp = Blueprint('crt', __name__, url_prefix='/api/crts')\nlogger = logging.getLogger(__name__)
+crt_bp = Blueprint('crt', __name__, url_prefix='/api/crts')
+logger = logging.getLogger(__name__)
 
 # ========== FUNCIONES AUXILIARES UNIVERSALES ==========
 
@@ -618,6 +619,7 @@ def editar_crt(crt_id):
 
         # âœ… NO AUDITAR SI ES CREACIÃ“N DE BORRADOR
         if es_creacion_borrador:
+            pass
         else:
             # Detectar cambios importantes SOLAMENTE si hay cambio real
             campos_importantes = {
@@ -708,8 +710,6 @@ def editar_crt(crt_id):
             timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
             log_cambios = f"\n--- Editado {timestamp} ---\nCambios: {', '.join(cambios_realizados)}"
             crt.observaciones = (observaciones_originales or "") + log_cambios
-
-        else:
 
         db.session.commit()
 

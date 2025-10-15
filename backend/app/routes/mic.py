@@ -1,4 +1,4 @@
-# ========== IMPORTS COMPLETOS Y ORDENADOS ==========
+﻿# ========== IMPORTS COMPLETOS Y ORDENADOS ==========
 import os
 import tempfile
 import logging
@@ -8,16 +8,17 @@ from datetime import datetime
 from app.models import db, MIC, CRT, CRT_Gasto, Ciudad, Transportadora, Remitente
 from app.utils.layout_mic import generar_micdta_pdf_con_datos_y_diagnostico
 
-mic_bp = Blueprint('mic', __name__, url_prefix='/api/mic')\nlogger = logging.getLogger(__name__)
+mic_bp = Blueprint('mic', __name__, url_prefix='/api/mic')
+logger = logging.getLogger(__name__)
 
-# ========== UTIL MULTILÃƒÆ’Ã†â€™Ãƒâ€šÃ‚ÂNEA ========== 
+# ========== UTIL MULTILINEA ==========
 
 
 def join_lines(*parts):
-    """Une los campos con salto de lÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â­nea solo si existen."""
+    """Une los campos con salto de linea solo si existen."""
     return "\n".join([str(p) for p in parts if p])
 
-# ÃƒÆ’Ã‚Â¢Ãƒâ€¦Ã¢â‚¬Å“ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¦ NUEVA FUNCIÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…â€œN MEJORADA: Formatear entidad COMPLETA con todos los datos del CRT
+# NUEVA FUNCION MEJORADA: Formatear entidad COMPLETA con todos los datos del CRT
 
 
 def formatear_entidad_completa_crt(entidad):
@@ -77,7 +78,9 @@ def formatear_entidad_completa_crt(entidad):
             len(resultado),
         )
 
-    return resultadodef procesar_gastos_crt_para_mic(gastos_crt):
+    return resultado
+
+def procesar_gastos_crt_para_mic(gastos_crt):
     """Procesa gastos del CRT y separa montos de flete y seguro."""
     if not gastos_crt:
         return {
@@ -145,7 +148,9 @@ def formatear_entidad_completa_crt(entidad):
         resultado["campo_29_seguro"],
     )
 
-    return resultadodef to_dict_mic(mic):
+    return resultado
+
+def to_dict_mic(mic):
     def safe_str(val):
         return "" if val is None else str(val)
 

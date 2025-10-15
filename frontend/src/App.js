@@ -1,36 +1,36 @@
-import React from "react";
-import {
-  BrowserRouter as Router,
-  Routes,
-  Route,
-  Navigate,
-} from "react-router-dom";
 
-import Login from "./pages/Login";
-import Dashboard from "./pages/Dashboard";
-import Usuarios from "./pages/Usuarios";
-import Paises from "./pages/Paises";
-import Ciudades from "./pages/Ciudades";
-import Remitentes from "./pages/Remitentes";
-import Transportadoras from "./pages/Transportadoras";
-import Monedas from "./pages/Monedas";
-import Honorarios from "./pages/Honorarios";
-import CRT from "./pages/CRT";
-import ListarCRT from "./pages/ListarCRT";
+import React from 'react';
+import { BrowserRouter as Router, Navigate, Route, Routes } from 'react-router-dom';
 
-import MICNuevo from "./pages/MICNuevo"; // <- crea este archivo
-import MICDetalle from "./pages/MICDetalle"; // <- crea este archivo
-import ListarMIC from "./pages/ListarMIC"; // <- crea este archivo
-import MICsGuardados from "./pages/MICsGuardados";
+import Layout from './components/Layout';
+import PrivateRoute from './components/PrivateRoute';
 
-import PrivateRoute from "./components/PrivateRoute";
-import Layout from "./components/Layout";
+import Dashboard from './pages/Dashboard';
+import Login from './pages/Login';
+import ForgotPassword from './pages/ForgotPassword';
+import ResetPassword from './pages/ResetPassword';
+import Profile from './pages/Profile';
+import Usuarios from './pages/Usuarios';
+import Paises from './pages/Paises';
+import Ciudades from './pages/Ciudades';
+import Remitentes from './pages/Remitentes';
+import Transportadoras from './pages/Transportadoras';
+import Monedas from './pages/Monedas';
+import Honorarios from './pages/Honorarios';
+import CRT from './pages/CRT';
+import ListarCRT from './pages/ListarCRT';
+import MICNuevo from './pages/MICNuevo';
+import MICDetalle from './pages/MICDetalle';
+import ListarMIC from './pages/ListarMIC';
+import MICsGuardados from './pages/MICsGuardados';
 
 function App() {
   return (
     <Router>
       <Routes>
         <Route path="/login" element={<Login />} />
+        <Route path="/forgot-password" element={<ForgotPassword />} />
+        <Route path="/reset-password" element={<ResetPassword />} />
 
         <Route
           path="/"
@@ -42,16 +42,29 @@ function App() {
             </PrivateRoute>
           }
         />
+
+        <Route
+          path="/perfil"
+          element={
+            <PrivateRoute>
+              <Layout>
+                <Profile />
+              </Layout>
+            </PrivateRoute>
+          }
+        />
+
         <Route
           path="/usuarios"
           element={
-            <PrivateRoute>
+            <PrivateRoute roles={['admin']}>
               <Layout>
                 <Usuarios />
               </Layout>
             </PrivateRoute>
           }
         />
+
         <Route
           path="/paises"
           element={
@@ -62,6 +75,7 @@ function App() {
             </PrivateRoute>
           }
         />
+
         <Route
           path="/ciudades"
           element={
@@ -72,6 +86,7 @@ function App() {
             </PrivateRoute>
           }
         />
+
         <Route
           path="/remitentes"
           element={
@@ -82,6 +97,7 @@ function App() {
             </PrivateRoute>
           }
         />
+
         <Route
           path="/transportadoras"
           element={
@@ -92,6 +108,7 @@ function App() {
             </PrivateRoute>
           }
         />
+
         <Route
           path="/monedas"
           element={
@@ -102,6 +119,7 @@ function App() {
             </PrivateRoute>
           }
         />
+
         <Route
           path="/honorarios"
           element={
@@ -112,6 +130,7 @@ function App() {
             </PrivateRoute>
           }
         />
+
         <Route
           path="/crt"
           element={
@@ -122,6 +141,7 @@ function App() {
             </PrivateRoute>
           }
         />
+
         <Route
           path="/listar-crt"
           element={
@@ -133,7 +153,6 @@ function App() {
           }
         />
 
-        {/* MIC - FLUJO COMPLETO */}
         <Route
           path="/mic/nuevo"
           element={
@@ -144,6 +163,7 @@ function App() {
             </PrivateRoute>
           }
         />
+
         <Route
           path="/mic/:id"
           element={
@@ -154,6 +174,7 @@ function App() {
             </PrivateRoute>
           }
         />
+
         <Route
           path="/mic"
           element={
@@ -164,6 +185,7 @@ function App() {
             </PrivateRoute>
           }
         />
+
         <Route
           path="/mics-guardados"
           element={
@@ -175,7 +197,7 @@ function App() {
           }
         />
 
-        <Route path="*" element={<Navigate to="/" />} />
+        <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </Router>
   );

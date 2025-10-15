@@ -1,17 +1,46 @@
-// src/utils/auth.js
+import useAuthStore from '../store/authStore';
 
-export function login(token) {
-  localStorage.setItem("token", token);
+const ACCESS_EVENT = 'auth:change';
+
+const dispatchAuthChange = () => {
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new Event(ACCESS_EVENT));
+  }
+};
+
+export function login({ user, accessToken, refreshToken }) {
+  const { setSession } = useAuthStore.getState();
+  setSession({ user, accessToken, refreshToken });
+  dispatchAuthChange();
 }
 
 export function logout() {
-  localStorage.removeItem("token");
+  const { clearSession } = useAuthStore.getState();
+  clearSession();
+  dispatchAuthChange();
 }
 
 export function getToken() {
-  return localStorage.getItem("token");
+  return useAuthStore.getState().accessToken;
 }
 
 export function isLoggedIn() {
-  return !!localStorage.getItem("token");
+  return Boolean(getToken());
+}
+
+export function getCurrentUser() {
+  return useAuthStore.getState().user;
+}
+
+export function onAuthChange(callback) {
+  if (typeof window === 'undefined') {
+    return () => {};
+  }
+  const handler = () => callback(isLoggedIn());
+  window.addEventListener(ACCESS_EVENT, handler);
+  const unsubscribe = useAuthStore.subscribe(() => handler());
+  return () => {
+    window.removeEventListener(ACCESS_EVENT, handler);
+    unsubscribe();
+  };
 }

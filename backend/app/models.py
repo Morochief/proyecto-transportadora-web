@@ -23,16 +23,236 @@ class Ciudad(db.Model):
 class Usuario(db.Model):
     __tablename__ = 'usuarios'
     id = db.Column(db.Integer, primary_key=True)
-    nombre_completo = db.Column(db.String(100), nullable=False)
+    nombre_completo = db.Column(db.String(120), nullable=False)
+    display_name = db.Column(db.String(120), nullable=True)
     usuario = db.Column(db.String(50), unique=True, nullable=False)
+    email = db.Column(db.String(255), unique=True, nullable=False)
+    telefono = db.Column(db.String(30), nullable=True)
     clave_hash = db.Column(db.String(256), nullable=False)
-    rol = db.Column(db.String(20), nullable=False, default='operador')
-    estado = db.Column(db.String(15), nullable=False, default='activo')
-    email = db.Column(db.String(100), unique=True, nullable=True)
-    telefono = db.Column(db.String(20), nullable=True)
+    rol = db.Column(db.String(20), nullable=False,
+                    default='operador')  # legado
+    estado = db.Column(db.String(15), nullable=False,
+                       default='activo')  # legado
+    is_active = db.Column(db.Boolean, nullable=False, default=True)
+    is_locked = db.Column(db.Boolean, nullable=False, default=False)
+    locked_until = db.Column(db.DateTime, nullable=True)
+    failed_login_attempts = db.Column(db.Integer, nullable=False, default=0)
+    password_changed_at = db.Column(
+        db.DateTime, nullable=False, default=datetime.utcnow)
+    password_expires_at = db.Column(db.DateTime, nullable=True)
+    mfa_enabled = db.Column(db.Boolean, nullable=False, default=False)
+    mfa_secret_encrypted = db.Column(db.LargeBinary, nullable=True)
+    mfa_backup_codes_salt = db.Column(db.String(128), nullable=True)
+    last_login_at = db.Column(db.DateTime, nullable=True)
+    last_login_ip = db.Column(db.String(45), nullable=True)
+    last_login_user_agent = db.Column(db.String(255), nullable=True)
     creado_en = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, nullable=False,
+                           default=datetime.utcnow, onupdate=datetime.utcnow)
+
     movimientos = db.relationship('Movimiento', backref='usuario', lazy=True)
     reportes = db.relationship('Reporte', backref='usuario', lazy=True)
+    roles = db.relationship('Role', secondary='user_roles',
+                            back_populates='users', lazy='selectin')
+    refresh_tokens = db.relationship(
+        'RefreshToken', backref='user', lazy=True, cascade='all, delete-orphan')
+    password_history = db.relationship(
+        'PasswordHistory', backref='user', lazy=True, cascade='all, delete-orphan')
+    login_attempts = db.relationship(
+        'LoginAttempt', backref='user', lazy=True, cascade='all, delete-orphan')
+    audit_logs = db.relationship(
+        'AuditLog', backref='user', lazy=True, cascade='all, delete-orphan')
+    backup_codes = db.relationship(
+        'BackupCode', backref='user', lazy=True, cascade='all, delete-orphan')
+
+    def primary_role(self):
+        return self.roles[0].name if self.roles else self.rol
+
+    @property
+    def created_at(self):
+        return self.creado_en
+
+    def __repr__(self) -> str:
+        return f"<Usuario id={self.id} email={self.email} activo={self.is_active}>"
+
+
+class Role(db.Model):
+    __tablename__ = 'roles'
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(50), unique=True, nullable=False)
+    description = db.Column(db.String(255), nullable=True)
+    created_at = db.Column(db.DateTime, nullable=False,
+                           default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, nullable=False,
+                           default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    users = db.relationship('Usuario', secondary='user_roles',
+                            back_populates='roles', lazy='selectin')
+    permissions = db.relationship(
+        'Permission', secondary='role_permissions', back_populates='roles', lazy='selectin')
+
+    def __repr__(self) -> str:
+        return f"<Role {self.name}>"
+
+
+class Permission(db.Model):
+    __tablename__ = 'permissions'
+    id = db.Column(db.Integer, primary_key=True)
+    key = db.Column(db.String(100), unique=True, nullable=False)
+    description = db.Column(db.String(255), nullable=True)
+    created_at = db.Column(db.DateTime, nullable=False,
+                           default=datetime.utcnow)
+
+    roles = db.relationship('Role', secondary='role_permissions',
+                            back_populates='permissions', lazy='selectin')
+
+    def __repr__(self) -> str:
+        return f"<Permission {self.key}>"
+
+
+class UserRole(db.Model):
+    __tablename__ = 'user_roles'
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey(
+        'usuarios.id', ondelete='CASCADE'), nullable=False)
+    role_id = db.Column(db.Integer, db.ForeignKey(
+        'roles.id', ondelete='CASCADE'), nullable=False)
+    # Removed FK to avoid ambiguity
+    assigned_by = db.Column(db.Integer, nullable=True)
+    assigned_at = db.Column(db.DateTime, nullable=False,
+                            default=datetime.utcnow)
+
+    user = db.relationship('Usuario', foreign_keys=[user_id], backref=db.backref(
+        'user_role_links', cascade='all, delete-orphan'))
+    role = db.relationship('Role', foreign_keys=[role_id], backref=db.backref(
+        'role_user_links', cascade='all, delete-orphan'))
+
+    __table_args__ = (db.UniqueConstraint(
+        'user_id', 'role_id', name='uq_user_role'),)
+
+
+class RolePermission(db.Model):
+    __tablename__ = 'role_permissions'
+    id = db.Column(db.Integer, primary_key=True)
+    role_id = db.Column(db.Integer, db.ForeignKey(
+        'roles.id', ondelete='CASCADE'), nullable=False)
+    permission_id = db.Column(db.Integer, db.ForeignKey(
+        'permissions.id', ondelete='CASCADE'), nullable=False)
+    created_at = db.Column(db.DateTime, nullable=False,
+                           default=datetime.utcnow)
+
+    role = db.relationship('Role', foreign_keys=[role_id], backref=db.backref(
+        'role_permission_links', cascade='all, delete-orphan'))
+    permission = db.relationship('Permission', foreign_keys=[permission_id], backref=db.backref(
+        'permission_role_links', cascade='all, delete-orphan'))
+
+    __table_args__ = (db.UniqueConstraint(
+        'role_id', 'permission_id', name='uq_role_permission'),)
+
+
+class PasswordHistory(db.Model):
+    __tablename__ = 'password_history'
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey(
+        'usuarios.id', ondelete='CASCADE'), nullable=False)
+    password_hash = db.Column(db.String(256), nullable=False)
+    created_at = db.Column(db.DateTime, nullable=False,
+                           default=datetime.utcnow)
+
+    __table_args__ = (
+        db.Index('ix_password_history_user_created', 'user_id', 'created_at'),)
+
+
+class LoginAttempt(db.Model):
+    __tablename__ = 'login_attempts'
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey(
+        'usuarios.id', ondelete='SET NULL'), nullable=True)
+    email = db.Column(db.String(255), nullable=False)
+    ip = db.Column(db.String(45), nullable=False)
+    user_agent = db.Column(db.String(255), nullable=True)
+    success = db.Column(db.Boolean, nullable=False)
+    mfa_required = db.Column(db.Boolean, nullable=False, default=False)
+    created_at = db.Column(db.DateTime, nullable=False,
+                           default=datetime.utcnow)
+
+    __table_args__ = (
+        db.Index('ix_login_attempts_email_created', 'email', 'created_at'),
+        db.Index('ix_login_attempts_ip_created', 'ip', 'created_at'),
+    )
+
+
+class AuditLog(db.Model):
+    __tablename__ = 'audit_logs'
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey(
+        'usuarios.id', ondelete='SET NULL'), nullable=True)
+    action = db.Column(db.String(120), nullable=False)
+    metadata_json = db.Column(db.JSON, nullable=True)
+    ip = db.Column(db.String(45), nullable=True)
+    user_agent = db.Column(db.String(255), nullable=True)
+    created_at = db.Column(db.DateTime, nullable=False,
+                           default=datetime.utcnow)
+    level = db.Column(db.String(20), nullable=False, default='INFO')
+
+    __table_args__ = (db.Index('ix_audit_logs_created', 'created_at'),)
+
+
+class RefreshToken(db.Model):
+    __tablename__ = 'refresh_tokens'
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey(
+        'usuarios.id', ondelete='CASCADE'), nullable=False)
+    token_id = db.Column(db.String(64), nullable=False)
+    token_hash = db.Column(db.String(256), nullable=False)
+    created_at = db.Column(db.DateTime, nullable=False,
+                           default=datetime.utcnow)
+    expires_at = db.Column(db.DateTime, nullable=False)
+    revoked_at = db.Column(db.DateTime, nullable=True)
+    replaced_by_token_id = db.Column(db.String(64), nullable=True)
+    ip = db.Column(db.String(45), nullable=True)
+    user_agent = db.Column(db.String(255), nullable=True)
+
+    __table_args__ = (
+        db.UniqueConstraint('token_id', name='uq_refresh_token_id'),
+        db.Index('ix_refresh_tokens_user_active', 'user_id', 'revoked_at'),
+    )
+
+
+class PasswordResetToken(db.Model):
+    __tablename__ = 'password_reset_tokens'
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey(
+        'usuarios.id', ondelete='CASCADE'), nullable=False)
+    token_hash = db.Column(db.String(256), nullable=False)
+    created_at = db.Column(db.DateTime, nullable=False,
+                           default=datetime.utcnow)
+    expires_at = db.Column(db.DateTime, nullable=False)
+    used_at = db.Column(db.DateTime, nullable=True)
+
+    __table_args__ = (
+        db.UniqueConstraint('token_hash', name='uq_password_reset_token_hash'),
+        db.Index('ix_password_reset_user', 'user_id'),
+    )
+
+
+class BackupCode(db.Model):
+    __tablename__ = 'backup_codes'
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey(
+        'usuarios.id', ondelete='CASCADE'), nullable=False)
+    salt = db.Column(db.String(64), nullable=False)
+    code_hash = db.Column(db.String(256), nullable=False)
+    used = db.Column(db.Boolean, nullable=False, default=False)
+    used_at = db.Column(db.DateTime, nullable=True)
+    created_at = db.Column(db.DateTime, nullable=False,
+                           default=datetime.utcnow)
+
+    __table_args__ = (
+        db.Index('ix_backup_codes_user', 'user_id'),
+        db.UniqueConstraint('user_id', 'code_hash',
+                            name='uq_backup_code_hash'),
+    )
 
 
 class Moneda(db.Model):
@@ -73,7 +293,8 @@ class Transportadora(db.Model):
         'Honorario', backref='transportadora', lazy=True)
     movimientos = db.relationship(
         'Movimiento', backref='transportadora', lazy=True)
-    moneda_honorarios = db.relationship('Moneda', foreign_keys=[moneda_honorarios_id])
+    moneda_honorarios = db.relationship(
+        'Moneda', foreign_keys=[moneda_honorarios_id])
 
 
 class Honorario(db.Model):
@@ -179,7 +400,7 @@ class CRT(db.Model):
     consignatario = db.relationship(
         'Remitente', foreign_keys=[consignatario_id])
     notificar_a = db.relationship('Remitente', foreign_keys=[
-                                   notificar_a_id])  # NUEVO
+        notificar_a_id])  # NUEVO
     firma_destinatario = db.relationship('Remitente', foreign_keys=[
                                          firma_destinatario_id])  # Campo 24
     transportadora = db.relationship('Transportadora')

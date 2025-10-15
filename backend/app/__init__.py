@@ -1,8 +1,14 @@
-from flask import Flask, jsonify
+from flask import Flask, jsonify, request
 from flask_sqlalchemy import SQLAlchemy
 from flask_cors import CORS
 from flask_migrate import Migrate
+
+from app.security.rbac import ensure_roles_permissions
+from app.utils.logging_config import configure_logging
+from .seeds import ensure_admin_user
+
 import traceback
+
 
 db = SQLAlchemy()
 
@@ -10,126 +16,107 @@ db = SQLAlchemy()
 def create_app():
     app = Flask(__name__)
     app.config.from_object('config.Config')
+    configure_logging(app)
     db.init_app(app)
-    CORS(app, resources={r"/*": {"origins": "*"}}, supports_credentials=True)
-    migrate = Migrate(app, db)
+    CORS(
+        app,
+        resources={
+            r'/api/*': {'origins': app.config.get('CORS_ALLOW_ORIGINS', ['*'])}},
+        supports_credentials=True,
+    )
+    Migrate(app, db)
 
     with app.app_context():
-        # 🔹 Se eliminó import y registro de auth_bp
-        # 🔹 Puedes quitar usuarios_bp si no lo necesitas
         from .routes.paises import paises_bp
         from .routes.ciudades import ciudades_bp
         from .routes.remitentes import remitentes_bp
         from .routes.transportadoras import transportadoras_bp
         from .routes.monedas import monedas_bp
         from .routes.honorarios import honorarios_bp
-        from app.routes.crt import crt_bp
-        from app.routes.mic import mic_bp
-        from app.routes.mic_guardados import mic_guardados_bp
-        from app.routes.usuarios import usuarios_bp
+        from .routes.crt import crt_bp
+        from .routes.mic import mic_bp
+        from .routes.mic_guardados import mic_guardados_bp
+        from .routes.usuarios import usuarios_bp
+        from .routes.auth import auth_bp
+        from .docs import docs_bp
 
-        # ✅ Se registran solo los módulos necesarios
-        app.register_blueprint(paises_bp)
-        app.register_blueprint(ciudades_bp)
-        app.register_blueprint(remitentes_bp)
-        app.register_blueprint(transportadoras_bp)
-        app.register_blueprint(monedas_bp)
-        app.register_blueprint(honorarios_bp)
-        app.register_blueprint(crt_bp)
-        app.register_blueprint(mic_bp)
-        app.register_blueprint(mic_guardados_bp)
-        app.register_blueprint(usuarios_bp)
+        for bp in [
+            paises_bp,
+            ciudades_bp,
+            remitentes_bp,
+            transportadoras_bp,
+            monedas_bp,
+            honorarios_bp,
+            crt_bp,
+            mic_bp,
+            mic_guardados_bp,
+            auth_bp,
+            usuarios_bp,
+            docs_bp,
+        ]:
+            app.register_blueprint(bp)
 
-    # 🚀 CORRIGE HEADERS DE CORS DESPUÉS DE CADA RESPUESTA
+        try:
+            ensure_roles_permissions()
+            ensure_admin_user()
+        except Exception as e:
+            # Tables may not exist yet during first migration
+            app.logger.warning(f'Could not initialize roles/admin: {e}')
+
     @app.after_request
-    def add_cors_headers(response):
-        response.headers["Access-Control-Allow-Origin"] = "*"
-        response.headers["Access-Control-Allow-Methods"] = "GET, POST, PUT, DELETE, OPTIONS"
-        response.headers["Access-Control-Allow-Headers"] = "Content-Type, Authorization"
+    def add_security_headers(response):
+        allowed_origins = app.config.get('CORS_ALLOW_ORIGINS', ['*'])
+        origin = request.headers.get('Origin')
+        if '*' in allowed_origins:
+            cors_origin = '*' if origin is None else origin
+        elif origin in allowed_origins:
+            cors_origin = origin
+        else:
+            cors_origin = allowed_origins[0] if allowed_origins else '*'
+        response.headers['Access-Control-Allow-Origin'] = cors_origin
+        response.headers['Access-Control-Allow-Methods'] = app.config.get(
+            'CORS_ALLOW_METHODS', 'GET,POST,PUT,PATCH,DELETE,OPTIONS')
+        response.headers['Access-Control-Allow-Headers'] = app.config.get(
+            'CORS_ALLOW_HEADERS', 'Content-Type, Authorization')
+        response.headers['Access-Control-Allow-Credentials'] = 'true'
+        response.headers['X-Content-Type-Options'] = 'nosniff'
+        response.headers['X-Frame-Options'] = 'DENY'
+        response.headers['Content-Security-Policy'] = (
+            f"default-src {app.config.get('CSP_DEFAULT_SRC', "'self'")}; "
+            f"script-src {app.config.get('CSP_SCRIPT_SRC', "'self'")}; "
+            f"style-src {app.config.get('CSP_STYLE_SRC', "'self'")};"
+        )
         return response
 
-    # 🚀 RUTA para OPTIONS de cualquier ruta /api/*
-    @app.route("/api/<path:path>", methods=["OPTIONS"])
+    @app.route('/api/<path:path>', methods=['OPTIONS'])
     def options_api(path):
         return '', 204
 
-    # 🚀 RUTA para favicon
     @app.route('/favicon.ico')
     def favicon():
         return '', 204
 
-    # ✅ NUEVO: RUTA DE SALUD DEL API
     @app.route('/api/health', methods=['GET'])
     def health_check():
-        """
-        ✅ Endpoint de salud para verificar que el API esté funcionando
-        """
         return jsonify({
-            "status": "ok",
-            "message": "Sistema Logístico CRT/MIC funcionando correctamente",
-            "version": "2.0",
-            "endpoints": {
-                "crts": "/api/crts",
-                "crts_paginated": "/api/crts/paginated",  # ✅ NUEVO
-                "crts_estados": "/api/crts/estados",      # ✅ NUEVO
-                "mic": "/api/mic",
-                "transportadoras": "/api/transportadoras",
-                "remitentes": "/api/remitentes",
-                "monedas": "/api/monedas",
-                "paises": "/api/paises",
-                "ciudades": "/api/ciudades"
-            }
+            'status': 'ok',
+            'message': 'Sistema logistico en linea',
+            'version': '2.0',
         })
 
-    # ✅ MEJORADO: HANDLER PARA 404
     @app.errorhandler(404)
-    def not_found(e):
-        return jsonify({
-            "error": "Endpoint no encontrado",
-            "message": "La ruta solicitada no existe",
-            "available_endpoints": [
-                "/api/health",
-                "/api/crts",
-                "/api/crts/paginated",  # ✅ NUEVO
-                "/api/crts/estados",    # ✅ NUEVO
-                "/api/mic",
-                "/api/transportadoras",
-                "/api/remitentes"
-            ]
-        }), 404
+    def not_found(_):
+        return jsonify({'error': 'Endpoint no encontrado'}), 404
 
-    # ✅ MEJORADO: HANDLER PARA 500
     @app.errorhandler(500)
-    def internal_error(e):
-        return jsonify({
-            "error": "Error interno del servidor",
-            "message": "Ocurrió un error inesperado"
-        }), 500
+    def internal_error(_):
+        return jsonify({'error': 'Error interno del servidor'}), 500
 
-    # 🚀 HANDLER GLOBAL PARA ERRORES (MEJORADO)
     @app.errorhandler(Exception)
     def handle_exception(e):
         trace = traceback.format_exc()
-        print("\n" + "="*50)
-        print("❌ ERROR GLOBAL CAPTURADO:")
-        print(trace)
-        print("="*50)
-        return jsonify({
-            "error": str(e),
-            "trace": trace if app.debug else None,  # ✅ Solo mostrar trace en debug
-            "message": "Error interno del servidor"
-        }), 500
+        app.logger.error('Unhandled exception', extra={'trace': trace})
+        return jsonify({'error': 'Error interno del servidor'}), 500
 
-    # ✅ Activa el modo debug
-    app.debug = app.config.get("DEBUG", False)
-
-    # ✅ NUEVO: Log de inicialización
-    print("Sistema Logistico CRT/MIC inicializado")
-    print("Endpoints disponibles:")
-    print("   - /api/crts (CRUD CRTs)")
-    print("   - /api/crts/paginated (Lista con filtros)")  # ✅ NUEVO
-    print("   - /api/crts/estados (Estados disponibles)")   # ✅ NUEVO
-    print("   - /api/mic (Generacion MIC)")
-    print("   - /api/health (Salud del sistema)")           # ✅ NUEVO
-
+    app.debug = app.config.get('DEBUG', False)
     return app

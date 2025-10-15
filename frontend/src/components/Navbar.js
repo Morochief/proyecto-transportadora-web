@@ -1,110 +1,76 @@
-import React from "react";
-import { Link, useNavigate, useLocation } from "react-router-dom";
-import { logout } from "../utils/auth";
-import {
-  FaHome,
-  FaUser,
-  FaGlobe,
-  FaCity,
-  FaTruck,
-  FaDollarSign,
-  FaMoneyCheckAlt,
-  FaFilePdf,
-} from "react-icons/fa";
+import React, { useEffect, useState } from 'react';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { FaCity, FaDollarSign, FaFilePdf, FaGlobe, FaHome, FaMoneyCheckAlt, FaTruck, FaUser } from 'react-icons/fa';
+
+import useAuthStore from '../store/authStore';
+import { isLoggedIn, logout, onAuthChange } from '../utils/auth';
+
+const navLinkClass = (isActive, extra = '') => {
+  const base = 'flex items-center gap-1 hover:text-yellow-300';
+  return [base, isActive, extra].filter(Boolean).join(' ');
+};
 
 function Navbar() {
   const navigate = useNavigate();
   const location = useLocation();
+  const { user } = useAuthStore();
+  const [loggedIn, setLoggedIn] = useState(isLoggedIn());
+
+  useEffect(() => onAuthChange(setLoggedIn), []);
+
+  if (!loggedIn) {
+    return null;
+  }
+
+  const isAdmin = (user?.roles || []).includes('admin');
 
   const handleLogout = () => {
     logout();
-    navigate("/login");
+    setLoggedIn(false);
+    navigate('/login', { replace: true });
   };
 
-  //if (!isLoggedIn()) return null;
-
-  const activeClass = (path) =>
-    location.pathname.startsWith(path) ? "font-bold underline" : "";
+  const activeClass = (path) => (location.pathname.startsWith(path) ? 'font-bold underline' : '');
 
   return (
     <nav className="bg-indigo-800 text-white px-6 py-3 flex items-center gap-4 flex-wrap">
-      <Link
-        to="/"
-        className={`${activeClass(
-          "/"
-        )} flex items-center gap-1 hover:text-yellow-300`}
-      >
+      <Link to="/" className={navLinkClass(activeClass('/'))}>
         <FaHome /> Dashboard
       </Link>
-      <Link
-        to="/usuarios"
-        className={`${activeClass(
-          "/usuarios"
-        )} flex items-center gap-1 hover:text-yellow-300`}
-      >
-        <FaUser /> Usuarios
+      {isAdmin && (
+        <Link to="/usuarios" className={navLinkClass(activeClass('/usuarios'))}>
+          <FaUser /> Usuarios
+        </Link>
+      )}
+      <Link to="/perfil" className={navLinkClass(activeClass('/perfil'))}>
+        <FaUser /> Perfil
       </Link>
-      <Link
-        to="/paises"
-        className={`${activeClass(
-          "/paises"
-        )} flex items-center gap-1 hover:text-yellow-300`}
-      >
-        <FaGlobe /> Países
+      <Link to="/paises" className={navLinkClass(activeClass('/paises'))}>
+        <FaGlobe /> Paises
       </Link>
-      <Link
-        to="/ciudades"
-        className={`${activeClass(
-          "/ciudades"
-        )} flex items-center gap-1 hover:text-yellow-300`}
-      >
+      <Link to="/ciudades" className={navLinkClass(activeClass('/ciudades'))}>
         <FaCity /> Ciudades
       </Link>
-      <Link
-        to="/remitentes"
-        className={`${activeClass(
-          "/remitentes"
-        )} flex items-center gap-1 hover:text-yellow-300`}
-      >
+      <Link to="/remitentes" className={navLinkClass(activeClass('/remitentes'))}>
         <FaUser /> Remitentes
       </Link>
-      <Link
-        to="/transportadoras"
-        className={`${activeClass(
-          "/transportadoras"
-        )} flex items-center gap-1 hover:text-yellow-300`}
-      >
+      <Link to="/transportadoras" className={navLinkClass(activeClass('/transportadoras'))}>
         <FaTruck /> Transportadoras
       </Link>
       <Link
         to="/crt"
-        className={`${activeClass(
-          "/crt"
-        )} flex items-center gap-1 text-yellow-300 bg-indigo-900 px-3 py-1 rounded`}
+        className={navLinkClass(activeClass('/crt'), 'text-yellow-300 bg-indigo-900 px-3 py-1 rounded')}
       >
         <FaFilePdf /> CRT
       </Link>
-      <Link
-        to="/monedas"
-        className={`${activeClass(
-          "/monedas"
-        )} flex items-center gap-1 hover:text-yellow-300`}
-      >
+      <Link to="/monedas" className={navLinkClass(activeClass('/monedas'))}>
         <FaDollarSign /> Monedas
       </Link>
-      <Link
-        to="/honorarios"
-        className={`${activeClass(
-          "/honorarios"
-        )} flex items-center gap-1 hover:text-yellow-300`}
-      >
+      <Link to="/honorarios" className={navLinkClass(activeClass('/honorarios'))}>
         <FaMoneyCheckAlt /> Honorarios
       </Link>
-      <span
-        onClick={handleLogout}
-        className="ml-auto cursor-pointer hover:text-red-300"
-      >
-        Cerrar sesión
+      <span onClick={handleLogout} className="ml-auto cursor-pointer hover:text-red-300">
+        Cerrar sesion
       </span>
     </nav>
   );

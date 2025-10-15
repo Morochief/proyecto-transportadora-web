@@ -1,46 +1,105 @@
-import React, { useState } from "react";
-import api from "../api/api";
-import { login as loginAuth } from "../utils/auth";
-import { useNavigate } from "react-router-dom";
+import React, { useState } from 'react';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
+
+import api from '../api/api';
+import { login as storeLogin } from '../utils/auth';
 
 function Login() {
-  const [usuario, setUsuario] = useState("");
-  const [clave, setClave] = useState("");
-  const [error, setError] = useState("");
+  const [identifier, setIdentifier] = useState('');
+  const [password, setPassword] = useState('');
+  const [mfaCode, setMfaCode] = useState('');
+  const [backupCode, setBackupCode] = useState('');
+  const [mfaRequired, setMfaRequired] = useState(false);
+  const [mfaMethods, setMfaMethods] = useState({});
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
+  const location = useLocation();
+  const from = location.state?.from?.pathname || '/';
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    setError("");
+  const handleSubmit = async (event) => {
+    event.preventDefault();
+    setError('');
+    setLoading(true);
     try {
-      const res = await api.post("/auth/login", { usuario, clave });
-      loginAuth(res.data.token);
-      navigate("/");
+      const payload = {
+        identifier,
+        password,
+      };
+      if (mfaRequired) {
+        if (mfaCode) {
+          payload.mfa_code = mfaCode;
+        }
+        if (backupCode) {
+          payload.backup_code = backupCode;
+        }
+      }
+      const response = await api.post('/auth/login', payload);
+      if (response.data?.mfa_required) {
+        setMfaRequired(true);
+        setMfaMethods(response.data.methods || {});
+        setError('Se requiere codigo MFA');
+        return;
+      }
+      const { access_token: accessToken, refresh_token: refreshToken, user } = response.data;
+      storeLogin({ user, accessToken, refreshToken });
+      navigate(from, { replace: true });
     } catch (err) {
-      setError("Usuario o clave incorrectos");
+      if (err.response?.data?.error) {
+        setError(err.response.data.error);
+      } else {
+        setError('No se pudo iniciar sesion');
+      }
+    } finally {
+      setLoading(false);
     }
   };
 
   return (
     <div className="login-container">
-      <h2>Iniciar sesión</h2>
+      <h2>Iniciar sesion</h2>
       <form onSubmit={handleSubmit}>
         <input
           type="text"
-          placeholder="Usuario"
-          value={usuario}
-          onChange={(e) => setUsuario(e.target.value)}
+          placeholder="Email o usuario"
+          value={identifier}
+          onChange={(e) => setIdentifier(e.target.value)}
           required
         />
         <input
           type="password"
           placeholder="Clave"
-          value={clave}
-          onChange={(e) => setClave(e.target.value)}
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
           required
         />
-        <button type="submit">Ingresar</button>
-        {error && <div style={{ color: "red", marginTop: "8px" }}>{error}</div>}
+        {mfaRequired && (
+          <>
+            {mfaMethods.totp && (
+              <input
+                type="text"
+                placeholder="Codigo TOTP"
+                value={mfaCode}
+                onChange={(e) => setMfaCode(e.target.value)}
+              />
+            )}
+            {mfaMethods.backup && (
+              <input
+                type="text"
+                placeholder="Codigo de respaldo"
+                value={backupCode}
+                onChange={(e) => setBackupCode(e.target.value)}
+              />
+            )}
+          </>
+        )}
+        <button type="submit" disabled={loading}>
+          {loading ? 'Verificando...' : 'Ingresar'}
+        </button>
+        <div style={{ marginTop: '12px' }}>
+          <Link to="/forgot-password">Olvide mi clave</Link>
+        </div>
+        {error && <div style={{ color: 'red', marginTop: '8px' }}>{error}</div>}
       </form>
     </div>
   );
