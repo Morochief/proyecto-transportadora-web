@@ -38,6 +38,7 @@ def create_app():
         from .routes.mic_guardados import mic_guardados_bp
         from .routes.usuarios import usuarios_bp
         from .routes.auth import auth_bp
+        from .routes.security import security_bp
         from .docs import docs_bp
 
         for bp in [
@@ -52,6 +53,7 @@ def create_app():
             mic_guardados_bp,
             auth_bp,
             usuarios_bp,
+            security_bp,
             docs_bp,
         ]:
             app.register_blueprint(bp)

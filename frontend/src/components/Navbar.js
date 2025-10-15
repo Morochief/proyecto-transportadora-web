@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { FaCity, FaDollarSign, FaFilePdf, FaGlobe, FaHome, FaMoneyCheckAlt, FaTruck, FaUser } from 'react-icons/fa';
+import { FaCity, FaDollarSign, FaFilePdf, FaGlobe, FaHome, FaMoneyCheckAlt, FaTruck, FaUser, FaShieldAlt, FaHistory } from 'react-icons/fa';
 
 import useAuthStore from '../store/authStore';
 import { isLoggedIn, logout, onAuthChange } from '../utils/auth';
@@ -69,6 +69,14 @@ function Navbar() {
       <Link to="/honorarios" className={navLinkClass(activeClass('/honorarios'))}>
         <FaMoneyCheckAlt /> Honorarios
       </Link>
+      <Link to="/sesiones" className={navLinkClass(activeClass('/sesiones'))}>
+        <FaShieldAlt /> Sesiones
+      </Link>
+      {isAdmin && (
+        <Link to="/audit-logs" className={navLinkClass(activeClass('/audit-logs'))}>
+          <FaHistory /> Auditoría
+        </Link>
+      )}
       <span onClick={handleLogout} className="ml-auto cursor-pointer hover:text-red-300">
         Cerrar sesion
       </span>

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 
-function FormModal({ open, onClose, onSubmit, initialValues, fields, title }) {
+function FormModal({ open, onClose, onSubmit, initialValues, fields, title, error }) {
   const [formData, setFormData] = useState(initialValues || {});
 
   useEffect(() => {
@@ -35,6 +35,11 @@ function FormModal({ open, onClose, onSubmit, initialValues, fields, title }) {
         className="bg-white rounded-lg p-6 min-w-[340px] shadow-xl"
       >
         <h3 className="text-lg font-semibold mb-4">{title}</h3>
+        {error && (
+          <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded mb-4">
+            {error}
+          </div>
+        )}
         <form onSubmit={handleSubmit} className="space-y-4">
           {fields.map((field) => (
             <div key={field.name}>

@@ -9,6 +9,7 @@ function Usuarios() {
   const [modalOpen, setModalOpen] = useState(false);
   const [editUser, setEditUser] = useState(null);
   const [error, setError] = useState('');
+  const [modalError, setModalError] = useState('');
 
   const formFields = [
     { name: 'nombre_completo', label: 'Nombre completo', type: 'text', required: true },
@@ -35,6 +36,7 @@ function Usuarios() {
 
   const handleAdd = () => {
     setEditUser(null);
+    setModalError('');
     setModalOpen(true);
   };
 
@@ -44,6 +46,7 @@ function Usuarios() {
       nombre_completo: user.display_name || user.usuario,
       rol: user.roles?.[0] || 'operador',
     });
+    setModalError('');
     setModalOpen(true);
   };
 
@@ -60,10 +63,10 @@ function Usuarios() {
   };
 
   const handleSubmit = async (data) => {
-    setError('');
+    setModalError('');
     try {
       if (!editUser && !data.clave) {
-        setError('La clave es obligatoria para nuevos usuarios');
+        setModalError('La clave es obligatoria para nuevos usuarios');
         return;
       }
       if (editUser) {
@@ -89,9 +92,12 @@ function Usuarios() {
         });
       }
       setModalOpen(false);
+      setModalError('');
       loadUsuarios();
     } catch (err) {
-      setError(err.response?.data?.error || 'No se pudo guardar');
+      const errorMsg = err.response?.data?.error || 'No se pudo guardar';
+      const details = err.response?.data?.details;
+      setModalError(details ? `${errorMsg}: ${details.join(', ')}` : errorMsg);
     }
   };
 
@@ -116,12 +122,16 @@ function Usuarios() {
       />
       {modalOpen && (
         <FormModal
-          isOpen={modalOpen}
-          onClose={() => setModalOpen(false)}
+          open={modalOpen}
+          onClose={() => {
+            setModalOpen(false);
+            setModalError('');
+          }}
           onSubmit={handleSubmit}
           fields={formFields}
           initialValues={editUser || {}}
           title={editUser ? 'Editar usuario' : 'Crear usuario'}
+          error={modalError}
         />
       )}
     </div>

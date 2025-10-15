@@ -23,6 +23,8 @@ import MICNuevo from './pages/MICNuevo';
 import MICDetalle from './pages/MICDetalle';
 import ListarMIC from './pages/ListarMIC';
 import MICsGuardados from './pages/MICsGuardados';
+import Sessions from './pages/Sessions';
+import AuditLogs from './pages/AuditLogs';
 
 function App() {
   return (
@@ -192,6 +194,28 @@ function App() {
             <PrivateRoute>
               <Layout>
                 <MICsGuardados />
+              </Layout>
+            </PrivateRoute>
+          }
+        />
+
+        <Route
+          path="/sesiones"
+          element={
+            <PrivateRoute>
+              <Layout>
+                <Sessions />
+              </Layout>
+            </PrivateRoute>
+          }
+        />
+
+        <Route
+          path="/audit-logs"
+          element={
+            <PrivateRoute roles={['admin']}>
+              <Layout>
+                <AuditLogs />
               </Layout>
             </PrivateRoute>
           }

@@ -13,7 +13,8 @@ else:
     NEW_PASSWORD = "Admin123!@#"
 
 # Generate hash
-password_hash = generate_password_hash(NEW_PASSWORD, method='pbkdf2:sha256', salt_length=16)
+password_hash = generate_password_hash(
+    NEW_PASSWORD, method='pbkdf2:sha256', salt_length=16)
 
 print("=" * 70)
 print("PASSWORD RESET SCRIPT")
