@@ -411,7 +411,10 @@ function Remitentes() {
       label: "Ciudad",
       required: true,
       type: "select",
-      options: ciudades.map((c) => ({ value: c.id, label: c.nombre })),
+      options: [
+        { value: "", label: "---Seleccionar Ciudad---" },
+        ...ciudades.map((c) => ({ value: c.id, label: c.nombre }))
+      ],
     },
   ];
 
@@ -520,11 +523,17 @@ function Remitentes() {
       return;
     }
     
+    // Convert ciudad_id to number
+    const submitData = {
+      ...data,
+      ciudad_id: parseInt(data.ciudad_id, 10)
+    };
+    
     try {
       if (editRemitente) {
-        await api.put(`/remitentes/${editRemitente.id}`, data);
+        await api.put(`/remitentes/${editRemitente.id}`, submitData);
       } else {
-        await api.post("/remitentes/", data);
+        await api.post("/remitentes/", submitData);
       }
       setModalOpen(false);
       fetchRemitentes(pagination.current_page, currentSearch, sortBy, sortOrder);
