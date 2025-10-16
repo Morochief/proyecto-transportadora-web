@@ -1,4 +1,6 @@
 import React, { useEffect, useState } from 'react';
+import { FiEdit2, FiTrash2, FiSearch, FiLock, FiUnlock, FiUser, FiMail } from 'react-icons/fi';
+import { HiOutlineUserAdd } from 'react-icons/hi';
 
 import api from '../api/api';
 import FormModal from '../components/FormModal';
@@ -126,6 +128,26 @@ function Usuarios() {
     return name.substring(0, 2).toUpperCase();
   };
 
+  // Get dynamic avatar color based on user name
+  const getAvatarColor = (name) => {
+    const colors = [
+      'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+      'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)',
+      'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)',
+      'linear-gradient(135deg, #43e97b 0%, #38f9d7 100%)',
+      'linear-gradient(135deg, #fa709a 0%, #fee140 100%)',
+      'linear-gradient(135deg, #ff6b6b 0%, #ee5a6f 100%)',
+      'linear-gradient(135deg, #38ef7d 0%, #11998e 100%)',
+      'linear-gradient(135deg, #fbc2eb 0%, #a6c1ee 100%)',
+    ];
+    
+    if (!name) return colors[0];
+    
+    // Generate index based on name characters
+    const index = name.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0) % colors.length;
+    return colors[index];
+  };
+
   // Get role class
   const getRoleClass = (role) => {
     const roleMap = {
@@ -175,6 +197,7 @@ function Usuarios() {
           </div>
         </div>
         <button className="btn-nuevo-usuario" onClick={handleAdd}>
+          <HiOutlineUserAdd size={20} />
           Nuevo Usuario
         </button>
       </div>
@@ -187,13 +210,16 @@ function Usuarios() {
         <div className="usuarios-table-header">
           <h3>Lista de Usuarios</h3>
           <div className="usuarios-search">
-            <input
-              type="text"
-              className="search-input"
-              placeholder="🔍 Buscar por nombre, email o rol..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-            />
+            <div className="search-input-wrapper">
+              <FiSearch className="search-icon" size={18} />
+              <input
+                type="text"
+                className="search-input"
+                placeholder="Buscar por nombre, email o rol..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+              />
+            </div>
           </div>
         </div>
 
@@ -204,7 +230,9 @@ function Usuarios() {
           </div>
         ) : filteredUsuarios.length === 0 ? (
           <div className="empty-state">
-            <div className="empty-state-icon">👥</div>
+            <div className="empty-state-icon">
+              <FiUser size={64} />
+            </div>
             <h3>No se encontraron usuarios</h3>
             <p>
               {searchTerm
@@ -228,10 +256,18 @@ function Usuarios() {
                 <tr key={user.id}>
                   <td>
                     <div className="user-cell">
-                      <div className="user-avatar">{getInitials(user.display_name || user.usuario)}</div>
+                      <div 
+                        className="user-avatar" 
+                        style={{ background: getAvatarColor(user.display_name || user.usuario) }}
+                      >
+                        {getInitials(user.display_name || user.usuario)}
+                      </div>
                       <div className="user-info">
                         <span className="user-name">{user.display_name || user.usuario}</span>
-                        <span className="user-email">{user.email}</span>
+                        <span className="user-email">
+                          <FiMail size={12} style={{ marginRight: '4px', verticalAlign: 'middle' }} />
+                          {user.email}
+                        </span>
                       </div>
                     </div>
                   </td>
@@ -249,16 +285,19 @@ function Usuarios() {
                   </td>
                   <td>
                     <span className={`mfa-badge ${user.mfa_enabled ? 'mfa-enabled' : 'mfa-disabled'}`}>
+                      {user.mfa_enabled ? <FiLock size={14} /> : <FiUnlock size={14} />}
                       {user.mfa_enabled ? 'Activo' : 'Inactivo'}
                     </span>
                   </td>
                   <td>
                     <div className="action-buttons">
                       <button className="btn-action btn-edit" onClick={() => handleEdit(user)}>
-                        ✏️ Editar
+                        <FiEdit2 size={16} />
+                        Editar
                       </button>
                       <button className="btn-action btn-delete" onClick={() => handleDelete(user.id)}>
-                        🗑️ Eliminar
+                        <FiTrash2 size={16} />
+                        Eliminar
                       </button>
                     </div>
                   </td>

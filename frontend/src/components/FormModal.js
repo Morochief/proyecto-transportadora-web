@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { FiX, FiSave, FiUserPlus } from 'react-icons/fi';
 
 function FormModal({ open, onClose, onSubmit, initialValues, fields, title, error }) {
   const [formData, setFormData] = useState(initialValues || {});
@@ -59,7 +60,7 @@ function FormModal({ open, onClose, onSubmit, initialValues, fields, title, erro
             onClick={onClose}
             className="text-gray-400 hover:text-gray-600 transition-colors text-2xl font-bold w-8 h-8 flex items-center justify-center rounded-full hover:bg-gray-100"
           >
-            ×
+            <FiX size={24} />
           </button>
         </div>
 
@@ -121,9 +122,19 @@ function FormModal({ open, onClose, onSubmit, initialValues, fields, title, erro
             <button
               type="submit"
               disabled={disabled}
-              className="px-6 py-3 rounded-xl font-semibold text-white bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 disabled:from-gray-300 disabled:to-gray-400 disabled:cursor-not-allowed transition-all shadow-lg hover:shadow-xl transform hover:-translate-y-0.5"
+              className="px-6 py-3 rounded-xl font-semibold text-white bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 disabled:from-gray-300 disabled:to-gray-400 disabled:cursor-not-allowed transition-all shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 flex items-center gap-2"
             >
-              {editUser ? '✓ Actualizar' : '+ Crear'}
+              {editUser ? (
+                <>
+                  <FiSave size={18} />
+                  Actualizar
+                </>
+              ) : (
+                <>
+                  <FiUserPlus size={18} />
+                  Crear
+                </>
+              )}
             </button>
           </div>
         </form>

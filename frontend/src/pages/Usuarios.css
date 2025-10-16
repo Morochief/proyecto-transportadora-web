@@ -2,6 +2,33 @@
    USUARIOS MODULE - ENHANCED INTERFACE
    ======================================== */
 
+/* CSS Variables for Theme Support */
+:root {
+  --usuarios-bg-primary: #ffffff;
+  --usuarios-bg-secondary: #f8f9ff;
+  --usuarios-bg-gradient-start: #667eea;
+  --usuarios-bg-gradient-end: #764ba2;
+  --usuarios-text-primary: #2d3748;
+  --usuarios-text-secondary: #718096;
+  --usuarios-border-color: #e2e8f0;
+  --usuarios-hover-bg: #f8f9ff;
+  --usuarios-shadow: rgba(0, 0, 0, 0.06);
+  --usuarios-shadow-hover: rgba(102, 126, 234, 0.08);
+}
+
+[data-theme="dark"] {
+  --usuarios-bg-primary: #1a202c;
+  --usuarios-bg-secondary: #2d3748;
+  --usuarios-bg-gradient-start: #4c51bf;
+  --usuarios-bg-gradient-end: #553c9a;
+  --usuarios-text-primary: #f7fafc;
+  --usuarios-text-secondary: #cbd5e0;
+  --usuarios-border-color: #4a5568;
+  --usuarios-hover-bg: #2d3748;
+  --usuarios-shadow: rgba(0, 0, 0, 0.3);
+  --usuarios-shadow-hover: rgba(102, 126, 234, 0.2);
+}
+
 .usuarios-container {
   max-width: 1400px;
   margin: 0 auto;
@@ -90,10 +117,7 @@
 }
 
 .btn-nuevo-usuario::before {
-  content: '+';
-  font-size: 1.4rem;
-  font-weight: 800;
-  line-height: 1;
+  display: none; /* Hide the + sign since we're using icon */
 }
 
 /* Error Alert */
@@ -145,8 +169,23 @@
   align-items: center;
 }
 
+/* Search Input Wrapper */
+.search-input-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.search-icon {
+  position: absolute;
+  left: 14px;
+  color: #718096;
+  pointer-events: none;
+  z-index: 1;
+}
+
 .search-input {
-  padding: 10px 16px;
+  padding: 10px 16px 10px 42px;
   border: 2px solid #e2e8f0;
   border-radius: 8px;
   font-size: 0.95rem;
@@ -168,7 +207,7 @@
 }
 
 .usuarios-table thead {
-  background: linear-gradient(135deg, #f7fafc 0%, #edf2f7 100%);
+  background: linear-gradient(135deg, var(--usuarios-bg-secondary) 0%, #edf2f7 100%);
 }
 
 .usuarios-table thead th {
@@ -176,27 +215,27 @@
   text-align: left;
   font-weight: 700;
   font-size: 0.85rem;
-  color: #4a5568;
+  color: var(--usuarios-text-primary);
   text-transform: uppercase;
   letter-spacing: 0.05em;
-  border-bottom: 2px solid #e2e8f0;
+  border-bottom: 2px solid var(--usuarios-border-color);
 }
 
 .usuarios-table tbody tr {
   transition: all 0.2s;
-  border-bottom: 1px solid #f0f0f5;
+  border-bottom: 1px solid var(--usuarios-border-color);
 }
 
 .usuarios-table tbody tr:hover {
-  background: linear-gradient(135deg, #f8f9ff 0%, #f5f7ff 100%);
+  background: var(--usuarios-hover-bg);
   transform: scale(1.01);
-  box-shadow: 0 2px 8px rgba(102, 126, 234, 0.08);
+  box-shadow: 0 2px 8px var(--usuarios-shadow-hover);
 }
 
 .usuarios-table tbody td {
   padding: 20px;
   font-size: 0.95rem;
-  color: #2d3748;
+  color: var(--usuarios-text-primary);
 }
 
 /* User Avatar */
@@ -230,13 +269,15 @@
 
 .user-name {
   font-weight: 700;
-  color: #2d3748;
+  color: var(--usuarios-text-primary);
   font-size: 1rem;
 }
 
 .user-email {
   font-size: 0.85rem;
-  color: #718096;
+  color: var(--usuarios-text-secondary);
+  display: flex;
+  align-items: center;
 }
 
 /* Status Badges */
@@ -334,11 +375,6 @@
   border: 1px solid #fc8181;
 }
 
-.mfa-badge::before {
-  content: '🔒';
-  font-size: 0.9rem;
-}
-
 /* Action Buttons */
 .action-buttons {
   display: flex;
@@ -385,25 +421,28 @@
 .empty-state {
   text-align: center;
   padding: 60px 20px;
-  color: #718096;
+  color: var(--usuarios-text-secondary);
 }
 
 .empty-state-icon {
-  font-size: 4rem;
+  display: flex;
+  justify-content: center;
+  align-items: center;
   margin-bottom: 16px;
   opacity: 0.5;
+  color: var(--usuarios-text-secondary);
 }
 
 .empty-state h3 {
   font-size: 1.3rem;
   font-weight: 700;
-  color: #4a5568;
+  color: var(--usuarios-text-primary);
   margin-bottom: 8px;
 }
 
 .empty-state p {
   font-size: 0.95rem;
-  color: #718096;
+  color: var(--usuarios-text-secondary);
 }
 
 /* Responsive Design */
