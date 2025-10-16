@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"os"
 
 	"github.com/gorilla/mux"
 	_ "github.com/lib/pq"
@@ -72,7 +73,12 @@ func printBanner() {
 
 func main() {
 	var err error
-	connStr := "postgres://postgres:Mjjagkaz012.@localhost/logistica?sslmode=disable"
+	// Leer DATABASE_URL desde variable de entorno o usar default
+	connStr := os.Getenv("DATABASE_URL")
+	if connStr == "" {
+		connStr = "postgres://postgres:postgres@db:5432/logistica?sslmode=disable"
+	}
+	log.Printf("🔗 Conectando a base de datos: %s\n", connStr)
 	db, err = sql.Open("postgres", connStr)
 	if err != nil {
 		log.Fatal("❌ Error opening database:", err)

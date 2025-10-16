@@ -1,0 +1,13 @@
+
+
+============================
+Username: admin
+Email:    admin@transportadora.local
+Password: hRL6Qf&kKnM@BNfg
+============================
+
+Default Credentials:
+Username: admin
+Email: admin@transportadora.local
+pgAdmin Email: admin@pgadmin.local
+pgAdmin Password: admin123

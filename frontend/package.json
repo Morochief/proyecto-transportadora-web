@@ -12,6 +12,7 @@
     "framer-motion": "^12.23.3",
     "i18next": "^23.16.8",
     "immer": "^10.0.4",
+    "lucide-react": "^0.263.1",
     "qrcode.react": "^4.2.0",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",

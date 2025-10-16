@@ -57,7 +57,7 @@ function Login() {
 
   return (
     <div className="login-container">
-      <h2>Iniciar sesion</h2>
+      <h2>Iniciar sesión</h2>
       <form onSubmit={handleSubmit}>
         <input
           type="text"
@@ -74,11 +74,11 @@ function Login() {
           required
         />
         {mfaRequired && (
-          <>
+          <div className="login-mfa-section">
             {mfaMethods.totp && (
               <input
                 type="text"
-                placeholder="Codigo TOTP"
+                placeholder="Código TOTP"
                 value={mfaCode}
                 onChange={(e) => setMfaCode(e.target.value)}
               />
@@ -86,20 +86,20 @@ function Login() {
             {mfaMethods.backup && (
               <input
                 type="text"
-                placeholder="Codigo de respaldo"
+                placeholder="Código de respaldo"
                 value={backupCode}
                 onChange={(e) => setBackupCode(e.target.value)}
               />
             )}
-          </>
+          </div>
         )}
         <button type="submit" disabled={loading}>
           {loading ? 'Verificando...' : 'Ingresar'}
         </button>
-        <div style={{ marginTop: '12px' }}>
-          <Link to="/forgot-password">Olvide mi clave</Link>
+        <div style={{ marginTop: '12px', textAlign: 'center' }}>
+          <Link to="/forgot-password">¿Olvidaste tu clave?</Link>
         </div>
-        {error && <div style={{ color: 'red', marginTop: '8px' }}>{error}</div>}
+        {error && <div className="login-error">{error}</div>}
       </form>
     </div>
   );

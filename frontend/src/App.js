@@ -1,6 +1,7 @@
 
 import React from 'react';
 import { BrowserRouter as Router, Navigate, Route, Routes } from 'react-router-dom';
+import './App.css';
 
 import Layout from './components/Layout';
 import PrivateRoute from './components/PrivateRoute';

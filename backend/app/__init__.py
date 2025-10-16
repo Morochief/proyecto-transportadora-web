@@ -83,10 +83,13 @@ def create_app():
         response.headers['Access-Control-Allow-Credentials'] = 'true'
         response.headers['X-Content-Type-Options'] = 'nosniff'
         response.headers['X-Frame-Options'] = 'DENY'
+        csp_default = app.config.get('CSP_DEFAULT_SRC', "'self'")
+        csp_script = app.config.get('CSP_SCRIPT_SRC', "'self'")
+        csp_style = app.config.get('CSP_STYLE_SRC', "'self'")
         response.headers['Content-Security-Policy'] = (
-            f"default-src {app.config.get('CSP_DEFAULT_SRC', "'self'")}; "
-            f"script-src {app.config.get('CSP_SCRIPT_SRC', "'self'")}; "
-            f"style-src {app.config.get('CSP_STYLE_SRC', "'self'")};"
+            f"default-src {csp_default}; "
+            f"script-src {csp_script}; "
+            f"style-src {csp_style};"
         )
         return response
 

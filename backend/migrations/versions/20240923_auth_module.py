@@ -6,7 +6,7 @@ from sqlalchemy.sql import table, column
 
 # revision identifiers, used by Alembic.
 revision = 'auth_module_rbac'
-down_revision = 'replace_codigo_interno'
+down_revision = '00_initial_schema'
 branch_labels = None
 depends_on = None
 
