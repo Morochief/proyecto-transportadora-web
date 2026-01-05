@@ -545,6 +545,10 @@ def crear_crt():
             )
             db.session.add(g)
         db.session.commit()
+        
+        # Verificar y crear honorario automÃ¡ticamente (NUEVO REQUISITO)
+        crear_honorario_desde_crt(crt)
+
         return jsonify({"message": "CRT creado", "id": crt.id}), 201
     except Exception as e:
         logger.exception("Error creating CRT")
@@ -1579,6 +1583,44 @@ def obtener_paises():
 
 
 # Recuerda registrar el blueprint en tu app principal:
+
+def crear_honorario_desde_crt(crt):
+    """
+    Crea automÃ¡ticamente un honorario para el CRT reciÃ©n creado.
+    Asigna monto de la transportadora vinculada y campos bÃ¡sicos.
+    Los campos del MIC se pueden llenar despuÃ©s manual o automÃ¡ticamente.
+    """
+    try:
+        from app.models import Honorario
+        
+        # Verificar si ya existe honorario para este CRT (por si acaso)
+        existe = Honorario.query.filter_by(crt_id=crt.id).first()
+        if existe:
+            return
+
+        # Verificar si tiene transportadora con honorarios
+        if not crt.transportadora or not crt.transportadora.honorarios:
+            logger.warning(f"CRT {crt.id} no tiene transportadora o transportadora sin honorarios definidos. No se crea honorario auto.")
+            return
+
+        # Crear Honorario
+        # Nota: mic_numero, chofer y placas quedarÃ¡n vacÃ­os hasta que:
+        # A) Se cree el MIC
+        # B) Se completen manualmente en el mÃ³dulo de Honorarios
+        nuevo_honorario = Honorario(
+            descripcion=f"Honorarios CRT {crt.numero_crt}",
+            monto=crt.transportadora.honorarios,
+            transportadora_id=crt.transportadora.id,
+            moneda_id=crt.transportadora.moneda_honorarios_id or 1, # Default USD
+            fecha=datetime.now().date(),
+            crt_id=crt.id
+        )
+        db.session.add(nuevo_honorario)
+        db.session.commit()
+        logger.info(f"Honorario auto-generated for CRT {crt.numero_crt}")
+        
+    except Exception as e:
+        logger.error(f"Error auto-generating honorario for CRT {crt.id}: {e}")
 # from app.routes.crt import crt_bp
 # app.register_blueprint(crt_bp)
 

@@ -277,14 +277,23 @@ function CRT() {
   const handleGenerateMIC = async (micData) => {
     setLoadingMIC(true); setDiagnosticoMIC(null);
     try {
-      const res = await api.post(`/mic/generate_pdf_from_crt/${crtEmitido.id}`, micData, { responseType: 'blob' });
-      const dh = res.headers['x-pdf-diagnostico'];
-      if (dh) setDiagnosticoMIC(JSON.parse(dh));
-      const b = new Blob([res.data], { type: 'application/pdf' });
+      // 1. Guardar el MIC en backend
+      const saveRes = await api.post(`/mic-guardados/crear-desde-crt/${crtEmitido.id}`, micData);
+      const { id, pdf_url } = saveRes.data;
+
+      alert("MIC Guardado con éxito. Descargando PDF...");
+
+      // 2. Descargar el PDF generado
+      const pdfRes = await api.get(pdf_url, { responseType: 'blob' });
+
+      const b = new Blob([pdfRes.data], { type: 'application/pdf' });
       const u = window.URL.createObjectURL(b);
       const l = document.createElement('a'); l.href = u; document.body.appendChild(l); l.click(); document.body.removeChild(l);
-      alert("MIC Generado");
-    } catch (e) { alert("Error generando MIC"); }
+
+    } catch (e) {
+      console.error(e);
+      alert("Error guardando/generando MIC: " + (e.response?.data?.error || e.message));
+    }
     finally { setLoadingMIC(false); }
   };
 

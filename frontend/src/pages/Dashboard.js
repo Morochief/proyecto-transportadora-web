@@ -59,6 +59,13 @@ const modules = [
     statsKey: "mic"
   },
   {
+    name: "Aduanas",
+    icon: Building2,
+    path: "/aduanas",
+    description: "Gestión de Aduanas",
+    statsKey: "aduanas"
+  },
+  {
     name: "Monedas",
     icon: Coins,
     path: "/monedas",
@@ -129,7 +136,7 @@ const ModuleCard = ({ module, stats }) => {
 function Dashboard() {
   const [stats, setStats] = useState({
     usuarios: 0, paises: 0, ciudades: 0, remitentes: 0,
-    transportadoras: 0, crt: 0, mic: 0, monedas: 0,
+    transportadoras: 0, crt: 0, mic: 0, monedas: 0, aduanas: 0,
     honorarios: 0, totalHonorarios: 0, usuariosConectados: 1
   });
   const [isLoading, setIsLoading] = useState(true);
@@ -143,7 +150,7 @@ function Dashboard() {
     try {
       const [
         paisesRes, ciudadesRes, remitentesRes,
-        transportadorasRes, monedasRes, honorariosRes, crtsRes
+        transportadorasRes, monedasRes, honorariosRes, crtsRes, aduanasRes
       ] = await Promise.all([
         api.get('/paises/').catch(() => ({ data: [] })),
         api.get('/ciudades/').catch(() => ({ data: [] })),
@@ -151,11 +158,14 @@ function Dashboard() {
         api.get('/transportadoras/').catch(() => ({ data: { items: [] } })),
         api.get('/monedas/').catch(() => ({ data: [] })),
         api.get('/honorarios/').catch(() => ({ data: [] })),
-        api.get('/crts/').catch(() => ({ data: [] }))
+        api.get('/crts/').catch(() => ({ data: [] })),
+        api.get('/aduanas/').catch(() => ({ data: [] }))
       ]);
 
       const honorariosData = Array.isArray(honorariosRes.data) ? honorariosRes.data : [];
       const totalHonorarios = honorariosData.reduce((acc, h) => acc + (parseFloat(h.monto) || 0), 0);
+
+      const aduanasCount = aduanasRes?.data?.length || 0;
 
       setStats({
         paises: paisesRes.data.length || 0,
@@ -167,6 +177,7 @@ function Dashboard() {
         crt: (Array.isArray(crtsRes.data) ? crtsRes.data : []).length,
         usuarios: 0,
         mic: 0,
+        aduanas: aduanasCount,
         totalHonorarios: totalHonorarios,
         usuariosConectados: 1
       });

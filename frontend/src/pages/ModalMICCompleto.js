@@ -10,12 +10,16 @@ const ModalMICCompleto = ({ isOpen, onClose, crt, onGenerate, loading = false, d
     campo_24_aduana: 'BRASIL - MULTILOG - FOZ DO IGUAZU 508 - 030', campo_26_pais: '520-PARAGUAY',
     campo_27_valor_campo16: '', campo_28_total: '', campo_29_seguro: '', campo_30_tipo_bultos: '',
     campo_31_cantidad: '', campo_32_peso_bruto: '', campo_37_valor_manual: '',
-    campo_36_factura_despacho: '', campo_40_tramo: '', campo_4_estado: 'PROVISORIO',
+    campo_36_factura_despacho: '', campo_40_tramo: '', campo_chofer: '', campo_4_estado: 'PROVISORIO',
     campo_5_hoja: '1 / 1', campo_6_fecha: new Date().toISOString().split('T')[0],
     campo_13_siempre_45: '45 TON', campo_25_moneda: '',
+    campo_16_asteriscos_1: '******', campo_17_asteriscos_2: '******', campo_18_asteriscos_3: '******',
+    campo_19_asteriscos_4: '******', campo_20_asteriscos_5: '******', campo_21_asteriscos_6: '******',
+    campo_22_asteriscos_7: '******',
   });
 
   const [transportadoras, setTransportadoras] = useState([]);
+
   const [aduanas, setAduanas] = useState([]); // Nuevo estado para aduanas
 
   const getTransportadoraNombre = useCallback((id) => {
@@ -49,6 +53,7 @@ const ModalMICCompleto = ({ isOpen, onClose, crt, onGenerate, loading = false, d
         .then(datos => {
           setFormData(prev => ({
             ...prev, ...datos,
+            campo_37_valor_manual: '', // Reset field 37 to empty on CRT load
             campo_9_datos_transporte: datos.campo_9_datos_transporte || getTransportadoraNombre(datos.campo_1_transporte?.split('\n')[0] || ''),
           }));
         })
@@ -91,7 +96,8 @@ const ModalMICCompleto = ({ isOpen, onClose, crt, onGenerate, loading = false, d
       campo_3_transporte: formData.campo_3_transporte || 'NO',
       campo_4_estado: formData.campo_4_estado || 'PROVISORIO',
       campo_5_hoja: formData.campo_5_hoja || '1 / 1',
-      campo_6_fecha: formData.campo_6_fecha,
+      campo_6_fecha: formData.campo_6_fecha ? formData.campo_6_fecha.split('-').reverse().join('/') : '',
+      campo_39: formData.campo_6_fecha ? formData.campo_6_fecha.split('-').reverse().join('/') : '',
       campo_7_pto_seguro: formData.campo_7_pto_seguro,
       campo_8_destino: formData.campo_8_destino,
       campo_10_numero: formData.campo_10_numero,
@@ -100,8 +106,10 @@ const ModalMICCompleto = ({ isOpen, onClose, crt, onGenerate, loading = false, d
       campo_13_siempre_45: formData.campo_13_siempre_45 || '45 TON',
       campo_14_anio: formData.campo_14_anio,
       campo_15_placa_semi: formData.campo_15_placa_semi,
-      campo_16_asteriscos_1: '******', campo_17_asteriscos_2: '******', campo_18_asteriscos_3: '******',
-      campo_19_asteriscos_4: '******', campo_20_asteriscos_5: '******', campo_21_asteriscos_6: '******', campo_22_asteriscos_7: '******',
+      campo_16_asteriscos_1: formData.campo_16_asteriscos_1, campo_17_asteriscos_2: formData.campo_17_asteriscos_2,
+      campo_18_asteriscos_3: formData.campo_18_asteriscos_3, campo_19_asteriscos_4: formData.campo_19_asteriscos_4,
+      campo_20_asteriscos_5: formData.campo_20_asteriscos_5, campo_21_asteriscos_6: formData.campo_21_asteriscos_6,
+      campo_22_asteriscos_7: formData.campo_22_asteriscos_7,
       campo_23_numero_campo2_crt: crt?.numero_crt || '',
       campo_24_aduana: formData.campo_24_aduana,
       campo_25_moneda: formData.campo_25_moneda || 'USD',
@@ -119,6 +127,7 @@ const ModalMICCompleto = ({ isOpen, onClose, crt, onGenerate, loading = false, d
       campo_36_factura_despacho: formData.campo_36_factura_despacho,
       campo_37_valor_manual: formData.campo_37_valor_manual,
       campo_40_tramo: formData.campo_40_tramo,
+      chofer: formData.chofer,
     };
 
     const datosPDFSeguros = {};
@@ -161,6 +170,9 @@ const ModalMICCompleto = ({ isOpen, onClose, crt, onGenerate, loading = false, d
       campo_6_fecha: new Date().toISOString().split('T')[0],
       campo_13_siempre_45: '45 TON',
       campo_25_moneda: crt?.moneda || '',
+      campo_16_asteriscos_1: '******', campo_17_asteriscos_2: '******', campo_18_asteriscos_3: '******',
+      campo_19_asteriscos_4: '******', campo_20_asteriscos_5: '******', campo_21_asteriscos_6: '******',
+      campo_22_asteriscos_7: '******',
     });
   };
 
@@ -349,12 +361,64 @@ const ModalMICCompleto = ({ isOpen, onClose, crt, onGenerate, loading = false, d
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Campo 26 - País de Destino</label>
+                  <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Campo 26 - Origen de las Mercaderías</label>
                   <input type="text" value={formData.campo_26_pais} onChange={(e) => handleInputChange('campo_26_pais', e.target.value)} className="w-full p-2 border border-slate-300 rounded-lg text-sm" />
                 </div>
                 <div className="md:col-span-2">
-                  <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Campo 40 - Ruta / Tramo</label>
+                  <div className="flex justify-between items-center mb-2">
+                    <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider">Campo 40 - Ruta / Tramo</label>
+                    <button
+                      onClick={() => {
+                        // 1. Origen (Campo 7 - Aduana)
+                        const selectedAduanaObj = aduanas.find(a => a.nombre === formData.campo_7_pto_seguro);
+                        const aduanaName = selectedAduanaObj ? selectedAduanaObj.nombre : (formData.campo_7_pto_seguro || '');
+                        const originCity = selectedAduanaObj ? selectedAduanaObj.ciudad : 'CIUDAD DEL ESTE';
+
+                        // 2. Destino (Campo 8 & 26)
+                        const destinoLugar = formData.campo_8_destino || '';
+                        const destinoPais = formData.campo_26_pais || '';
+                        const cleanCountry = (str) => str.replace(/^\d+-/, '').trim();
+                        const destCountryName = cleanCountry(destinoPais).toUpperCase();
+
+                        // 3. Aduana Destino (Campo 24)
+                        const aduanaDestino = formData.campo_24_aduana || '';
+
+                        // 4. Gateway Logic via Country
+                        let gateway = "";
+                        if (destCountryName.includes("BRASIL")) {
+                          gateway = "MULTILOG-FOZ DO IGUAZU";
+                        } else if (destCountryName.includes("ARGENTINA")) {
+                          gateway = "CLORINDA";
+                        } else if (destCountryName.includes("CHILE")) {
+                          gateway = "JAMA";
+                        } else {
+                          gateway = "FRONTERA";
+                        }
+
+                        // Construct String
+                        // FORMAT: ORIGEN:[AduanaName]-[OriginCity];SALIDA: [OriginCity]-[OriginCity]; DESTINO: [Country]-[DestCity]-[AduanaDest];DESTINO ENTRADA: [Country]-[DestCity]-[Gateway];
+                        const routeText = `ORIGEN:${aduanaName}-${originCity};SALIDA: ${originCity}-${originCity}; DESTINO: ${destCountryName}-${destinoLugar}-${aduanaDestino};DESTINO ENTRADA: ${destCountryName}-${destinoLugar}-${gateway};`;
+
+                        handleInputChange('campo_40_tramo', routeText);
+                      }}
+                      className="text-xs text-indigo-600 hover:text-indigo-800 font-bold bg-indigo-50 hover:bg-indigo-100 px-2 py-1 rounded transition-colors"
+                      type="button"
+                    >
+                      ⚡ Generar Ruta Automática
+                    </button>
+                  </div>
                   <textarea value={formData.campo_40_tramo} onChange={(e) => handleInputChange('campo_40_tramo', e.target.value)} rows="5" className="w-full p-2 border border-slate-300 rounded-lg text-sm resize-y font-mono" placeholder="Ej: ORIGEN: ... DESTINO: ... " />
+
+                  <div className="mt-4">
+                    <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Chofer</label>
+                    <input
+                      type="text"
+                      value={formData.campo_chofer || ''}
+                      onChange={(e) => handleInputChange('campo_chofer', e.target.value)}
+                      className="w-full p-2 border border-slate-300 rounded-lg text-sm"
+                      placeholder="Ingrese el nombre del chofer"
+                    />
+                  </div>
                 </div>
               </div>
             </div>
@@ -393,13 +457,12 @@ const ModalMICCompleto = ({ isOpen, onClose, crt, onGenerate, loading = false, d
                   <input type="text" value={formData.campo_32_peso_bruto} onChange={(e) => handleInputChange('campo_32_peso_bruto', e.target.value)} className="w-full p-2 border border-slate-300 rounded-lg text-sm text-right" />
                 </div>
                 <div>
-                  <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Campo 37 - Peso Neto/Vol (DEJAR EN BLANCO)</label>
+                  <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Campo 37 - Número de precintos</label>
                   <input
                     type="text"
                     value={formData.campo_37_valor_manual}
                     onChange={(e) => handleInputChange('campo_37_valor_manual', e.target.value)}
                     className="w-full p-2 border border-slate-300 rounded-lg text-sm text-right"
-                    placeholder="Manual"
                   />
                 </div>
               </div>
@@ -419,9 +482,26 @@ const ModalMICCompleto = ({ isOpen, onClose, crt, onGenerate, loading = false, d
                 </div>
               </div>
             </div>
-
           </div>
+
+          {/* SECCION: CAMPOS RESERVADOS */}
+          <div className="bg-white rounded-xl p-6 border border-slate-200 shadow-sm">
+            <h3 className="text-sm font-bold text-slate-800 border-b border-slate-100 pb-2 mb-4">Campos Reservados (16-22)</h3>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              {[1, 2, 3, 4, 5, 6, 7].map(i => {
+                const fieldName = `campo_${15 + i}_asteriscos_${i}`;
+                return (
+                  <div key={fieldName}>
+                    <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Campo {15 + i}</label>
+                    <input type="text" value={formData[fieldName] || ''} onChange={(e) => handleInputChange(fieldName, e.target.value)} className="w-full p-2 border border-slate-300 rounded-lg text-sm" />
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+
         </div>
+
 
         {/* FOOTER */}
         <div className="bg-slate-50 border-t border-slate-200 p-6 flex justify-between items-center">
@@ -440,7 +520,7 @@ const ModalMICCompleto = ({ isOpen, onClose, crt, onGenerate, loading = false, d
           </div>
         </div>
       </div>
-    </div>
+    </div >
   );
 };
 

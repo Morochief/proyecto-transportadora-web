@@ -51,6 +51,7 @@ function Navbar() {
     { path: '/transportadoras', label: 'Transportadoras', icon: Truck },
     { path: '/crt', label: 'Nuevo CRT', icon: FileText, highlight: true },
     { path: '/listar-crt', label: 'Historial CRT', icon: FileText },
+    { path: '/aduanas', label: 'Aduanas', icon: Building2 },
     { path: '/monedas', label: 'Monedas', icon: Coins },
     { path: '/honorarios', label: 'Honorarios', icon: Wallet },
     { path: '/sesiones', label: 'Sesiones', icon: ShieldCheck },

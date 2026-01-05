@@ -256,17 +256,25 @@ function ListarCRT() {
     if (!crt) return;
     setLoadingMIC(crt.id);
     try {
-      const response = await axios.post(`http://localhost:5000/api/mic/generate_pdf_from_crt/${crt.id}`, datosModal, {
-        responseType: "blob", timeout: 30000, headers: { "Content-Type": "application/json" },
+      // 1. Guardar MIC
+      const saveResponse = await axios.post(`http://localhost:5000/api/mic-guardados/crear-desde-crt/${crt.id}`, datosModal);
+      const { pdf_url } = saveResponse.data;
+
+      // 2. Descargar PDF
+      const pdfResponse = await axios.get(`http://localhost:5000${pdf_url}`, {
+        responseType: "blob", timeout: 30000
       });
-      const blob = new Blob([response.data], { type: "application/pdf" });
+
+      const blob = new Blob([pdfResponse.data], { type: "application/pdf" });
       const url = window.URL.createObjectURL(blob);
       window.open(url, "_blank");
       setTimeout(() => window.URL.revokeObjectURL(url), 1000);
-      toast.success(`✅ PDF MIC generado`);
+
+      toast.success(`✅ MIC Guardado y PDF generado`);
       setModalMIC({ isOpen: false, crt: null });
     } catch (error) {
-      toast.error(`❌ Error al generar MIC`);
+      console.error(error);
+      toast.error(`❌ Error al guardar/generar MIC: ${error.response?.data?.error || error.message}`);
     } finally {
       setLoadingMIC(null);
     }

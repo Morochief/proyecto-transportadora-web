@@ -2,11 +2,13 @@
 from flask import Blueprint, request, jsonify, send_file
 from sqlalchemy.orm import joinedload
 from datetime import datetime, timedelta
-from app.models import db, MIC, CRT
+from app.models import db, MIC, CRT, Ciudad, Transportadora, Remitente
 from app.utils.layout_mic import generar_micdta_pdf_con_datos
 import tempfile
 import logging
 import os
+
+logger = logging.getLogger(__name__)
 
 # Blueprint para MICs guardados
 mic_guardados_bp = Blueprint(
@@ -107,12 +109,15 @@ def crear_mic_guardado():
             campo_38_datos_campo11_crt=data.get(
                 'campo_38_datos_campo11_crt', ''),
             campo_40_tramo=data.get('campo_40_tramo', ''),
+            chofer=data.get('chofer', ''),
             creado_en=datetime.now()
         )
 
         db.session.add(mic)
         db.session.commit()
-
+        
+        # Verificar y crear honorario automÃ¡ticamente
+        verificar_crear_honorario(mic)
 
         return jsonify({
             "message": "MIC creado y guardado exitosamente",
@@ -127,6 +132,64 @@ def crear_mic_guardado():
         db.session.rollback()
         logger.exception("Error creating stored MIC")
         return jsonify({"error": str(e)}), 500
+
+def verificar_crear_honorario(mic):
+    """
+    ACTUALIZADO: Ahora busca el honorario existente (creado por el CRT) 
+    y actualiza los datos del MIC (Placa, Chofer, NÃºmero).
+    Si no existe, lo crea (fallback).
+    """
+    try:
+        from app.models import Honorario, Transportadora, CRT
+        
+        if not mic.crt_id:
+            return
+            
+        # Verificar si ya existe honorario para este CRT
+        honorario = Honorario.query.filter_by(crt_id=mic.crt_id).first()
+        
+        # Datos del MIC para actualizar
+        placas = f"{mic.campo_11_placa or ''} / {mic.campo_15_placa_semi or ''}"
+        
+        if honorario:
+            # Actualizar existente
+            honorario.mic_numero = mic.campo_23_numero_campo2_crt
+            honorario.chofer = mic.chofer
+            honorario.placas = placas
+            # Nota: Si el usuario ya editÃ³ manualmente estos campos, esto los sobreescribirÃ¡ ?
+            # Requerimiento: "AUTOCOMPLETADO". Asumimos que la generaciÃ³n de MIC manda sobre lo manual previo.
+            db.session.commit()
+            logger.info(f"Honorario updated for CRT {mic.crt_id} with MIC data")
+            return
+
+        # Si NO existe, aplicar lÃ³gica de creaciÃ³n (Fallback)
+        # Cargar CRT y Transportadora
+        crt = CRT.query.get(mic.crt_id)
+        if not crt or not crt.transportadora_id:
+            return
+            
+        transp = Transportadora.query.get(crt.transportadora_id)
+        if not transp or not transp.honorarios:
+            return
+            
+        # Crear Honorario
+        nuevo_honorario = Honorario(
+            descripcion=f"Honorarios CRT {crt.numero_crt} / MIC {mic.campo_23_numero_campo2_crt}",
+            monto=transp.honorarios,
+            transportadora_id=transp.id,
+            moneda_id=transp.moneda_honorarios_id or 1,
+            fecha=datetime.now().date(),
+            crt_id=crt.id,
+            mic_numero=mic.campo_23_numero_campo2_crt,
+            chofer=mic.chofer,
+            placas=placas
+        )
+        db.session.add(nuevo_honorario)
+        db.session.commit()
+        logger.info(f"Honorario auto-created (fallback) for CRT {crt.numero_crt}")
+        
+    except Exception as e:
+        logger.error(f"Error auto-updating/creating honorario: {e}")
 
 # ========== LISTAR MICs GUARDADOS ==========
 
@@ -290,6 +353,7 @@ def obtener_mic_por_id(mic_id):
             "campo_37_valor_manual": safe_str(mic.campo_37_valor_manual),
             "campo_38_datos_campo11_crt": safe_str(mic.campo_38_datos_campo11_crt),
             "campo_40_tramo": safe_str(mic.campo_40_tramo),
+            "chofer": safe_str(mic.chofer),
             "creado_en": mic.creado_en.strftime('%Y-%m-%d %H:%M:%S') if mic.creado_en else "",
             "crt_numero": mic.crt.numero_crt if mic.crt else "N/A"
         }
@@ -329,7 +393,8 @@ def actualizar_mic(mic_id):
             'campo_25_moneda', 'campo_26_pais', 'campo_27_valor_campo16', 'campo_28_total',
             'campo_29_seguro', 'campo_30_tipo_bultos', 'campo_31_cantidad', 'campo_32_peso_bruto',
             'campo_33_datos_campo1_crt', 'campo_34_datos_campo4_crt', 'campo_35_datos_campo6_crt',
-            'campo_36_factura_despacho', 'campo_37_valor_manual', 'campo_38_datos_campo11_crt', 'campo_40_tramo'
+            'campo_36_factura_despacho', 'campo_37_valor_manual', 'campo_38_datos_campo11_crt', 'campo_40_tramo',
+            'chofer'
         ]
 
         campos_actualizados = []
@@ -356,6 +421,9 @@ def actualizar_mic(mic_id):
                 campos_actualizados.append('campo_9_datos_transporte')
 
         db.session.commit()
+        
+        # Verificar y crear honorario automÃ¡ticamente
+        verificar_crear_honorario(mic)
 
         return jsonify({
             "message": "MIC actualizado exitosamente",
@@ -376,28 +444,70 @@ def actualizar_mic(mic_id):
 @mic_guardados_bp.route('/<int:mic_id>', methods=['DELETE'])
 def eliminar_mic(mic_id):
     """
-    âœ… Elimina un MIC (soft delete cambiando estado a ANULADO)
+    âœ… Elimina un MIC (opcional: soft delete o hard delete)
+    Param: ?hard_delete=true para eliminar fÃ­sicamente.
     """
     try:
-
         mic = MIC.query.get_or_404(mic_id)
         numero_carta = mic.campo_23_numero_campo2_crt
+        
+        hard_delete = request.args.get('hard_delete', 'false').lower() == 'true'
 
-        # Soft delete: cambiar estado a ANULADO en lugar de eliminar fÃ­sicamente
-        mic.campo_4_estado = "ANULADO"
+        if hard_delete:
+            # Eliminar fÃ­sicamente
+            db.session.delete(mic)
+            mensaje = "MIC eliminado definitivamente"
+            estado_final = "ELIMINADO"
+        else:
+            # Soft delete: cambiar estado a ANULADO
+            mic.campo_4_estado = "ANULADO"
+            mensaje = "MIC anulado exitosamente"
+            estado_final = "ANULADO"
+
         db.session.commit()
 
         return jsonify({
-            "message": "MIC anulado exitosamente",
-            "id": mic.id,
+            "message": mensaje,
+            "id": mic_id,
             "numero_carta_porte": numero_carta,
-            "estado": "ANULADO"
+            "estado": estado_final
         })
 
     except Exception as e:
         db.session.rollback()
-        logger.exception("Error annulling stored MIC", extra={'mic_id': mic_id})
+        logger.exception("Error deleting/annulling stored MIC", extra={'mic_id': mic_id})
         return jsonify({"error": str(e)}), 500
+
+
+# ========== RESTAURAR MIC ==========
+
+
+@mic_guardados_bp.route('/<int:mic_id>/restaurar', methods=['POST'])
+def restaurar_mic(mic_id):
+    """
+    âœ… Restaura un MIC anulado (cambia estado a PROVISORIO)
+    """
+    try:
+        mic = MIC.query.get_or_404(mic_id)
+        
+        if mic.campo_4_estado != "ANULADO":
+             return jsonify({"error": "Solo se pueden restaurar MICs anulados"}), 400
+
+        mic.campo_4_estado = "PROVISORIO"
+        db.session.commit()
+
+        return jsonify({
+            "message": "MIC restaurado exitosamente",
+            "id": mic.id,
+            "numero_carta_porte": mic.campo_23_numero_campo2_crt,
+            "estado": "PROVISORIO"
+        })
+
+    except Exception as e:
+        db.session.rollback()
+        logger.exception("Error restoring stored MIC", extra={'mic_id': mic_id})
+        return jsonify({"error": str(e)}), 500
+
 
 # ========== GENERAR PDF DESDE MIC GUARDADO ==========
 
@@ -455,7 +565,7 @@ def generar_pdf_mic_guardado(mic_id):
             "campo_36_factura_despacho": safe_str(mic.campo_36_factura_despacho),
             "campo_37_valor_manual": safe_str(mic.campo_37_valor_manual),
             "campo_38_datos_campo11_crt": safe_str(mic.campo_38_datos_campo11_crt),
-            "campo_40_tramo": safe_str(mic.campo_40_tramo)
+            "campo_40_tramo": safe_str(mic.campo_40_tramo) + (f"\nCHOFER: {mic.chofer}" if mic.chofer else "")
         }
 
         # Generar archivo temporal
@@ -674,6 +784,7 @@ def busqueda_avanzada():
 # ========== CREAR DESDE CRT Y GUARDAR ==========
 
 
+
 @mic_guardados_bp.route('/crear-desde-crt/<int:crt_id>', methods=['POST'])
 def crear_mic_desde_crt_y_guardar(crt_id):
     """
@@ -690,10 +801,10 @@ def crear_mic_desde_crt_y_guardar(crt_id):
 
         # Cargar CRT con todas las relaciones
         crt = CRT.query.options(
-            joinedload(CRT.remitente).joinedload(Ciudad.pais),
-            joinedload(CRT.transportadora).joinedload(Ciudad.pais),
-            joinedload(CRT.destinatario).joinedload(Ciudad.pais),
-            joinedload(CRT.consignatario).joinedload(Ciudad.pais),
+            joinedload(CRT.remitente).joinedload(Remitente.ciudad).joinedload(Ciudad.pais),
+            joinedload(CRT.transportadora).joinedload(Transportadora.ciudad).joinedload(Ciudad.pais),
+            joinedload(CRT.destinatario).joinedload(Remitente.ciudad).joinedload(Ciudad.pais),
+            joinedload(CRT.consignatario).joinedload(Remitente.ciudad).joinedload(Ciudad.pais),
             joinedload(CRT.moneda),
             joinedload(CRT.gastos),
             joinedload(CRT.ciudad_emision).joinedload(Ciudad.pais)
@@ -711,6 +822,43 @@ def crear_mic_desde_crt_y_guardar(crt_id):
         # Procesar gastos
         gastos_procesados = procesar_gastos_crt_para_mic(crt.gastos)
 
+        # Helper para limpiar decimales (1.200,50 -> 1200.50)
+        def clean_decimal(val):
+            if not val:
+                return 0.0
+            if isinstance(val, (int, float)):
+                return float(val)
+            try:
+                # Si es string, limpiamos posibles formatos
+                val_str = str(val).strip()
+                # Caso "1.200,50" (Europeo/Sudamericano)
+                if ',' in val_str and '.' in val_str:
+                     # Asumimos que el punto es miles y la coma decimal si ambos estÃ¡n
+                     # Ojo: podrÃ­a ser al revÃ©s "1,200.50".
+                     # Simple heurÃ­stica: el Ãºltimo separador es el decimal.
+                     last_comma = val_str.rfind(',')
+                     last_dot = val_str.rfind('.')
+                     if last_comma > last_dot: 
+                         # Caso 1.200,50 -> Quitamos puntos, reemplazamos coma
+                         val_str = val_str.replace('.', '').replace(',', '.')
+                     else:
+                         # Caso 1,200.50 -> Quitamos comas
+                         val_str = val_str.replace(',', '')
+                elif ',' in val_str:
+                    # Caso "1200,50" o "1,200"
+                    # Si tiene mÃ¡s de una coma, es separador de miles (inexacto pero comÃºn)
+                    if val_str.count(',') > 1:
+                        val_str = val_str.replace(',', '')
+                    else:
+                        val_str = val_str.replace(',', '.')
+                elif '.' in val_str:
+                    # Caso "1200.50" -> OK
+                    pass
+                
+                return float(val_str)
+            except ValueError:
+                return 0.0
+
         # Construir datos base del MIC
         mic_data_base = {
             "crt_id": crt.id,
@@ -719,8 +867,8 @@ def crear_mic_desde_crt_y_guardar(crt_id):
             "campo_33_datos_campo1_crt": campo_33_remitente,
             "campo_34_datos_campo4_crt": campo_34_destinatario,
             "campo_35_datos_campo6_crt": campo_35_consignatario,
-            "campo_28_total": gastos_procesados["campo_28_total"],
-            "campo_29_seguro": gastos_procesados["campo_29_seguro"],
+            "campo_28_total": clean_decimal(gastos_procesados["campo_28_total"]),
+            "campo_29_seguro": clean_decimal(gastos_procesados["campo_29_seguro"]),
             "campo_2_numero": "",
             "campo_3_transporte": "",
             "campo_4_estado": "PROVISORIO",
@@ -745,21 +893,28 @@ def crear_mic_desde_crt_y_guardar(crt_id):
             "campo_24_aduana": "",
             "campo_25_moneda": crt.moneda.nombre if crt.moneda else "",
             "campo_26_pais": "520-PARAGUAY",
-            "campo_27_valor_campo16": str(crt.declaracion_mercaderia or ""),
+            "campo_27_valor_campo16": clean_decimal(crt.declaracion_mercaderia),
             "campo_30_tipo_bultos": "",
-            "campo_31_cantidad": "",
+            "campo_31_cantidad": clean_decimal(getattr(crt, 'cantidad_bultos', 0)),
             "campo_32_peso_bruto": str(crt.peso_bruto or ""),
             "campo_36_factura_despacho": (
                 f"Factura: {crt.factura_exportacion or ''} | Despacho: {crt.nro_despacho or ''}"
                 if crt.factura_exportacion or crt.nro_despacho else ""
             ),
-            "campo_37_valor_manual": "",
+            "campo_37_valor_manual": 0.0,
             "campo_38_datos_campo11_crt": (crt.detalles_mercaderia or "")[:1500],
             "campo_40_tramo": "",
         }
 
         # Aplicar datos del usuario (sobrescribir campos base si se proporcionan)
         mic_data_final = {**mic_data_base, **user_data}
+        
+        # Limpiar numÃ©ricos en user_data si vinieron
+        if 'campo_27_valor_campo16' in user_data: mic_data_final['campo_27_valor_campo16'] = clean_decimal(user_data['campo_27_valor_campo16'])
+        if 'campo_28_total' in user_data: mic_data_final['campo_28_total'] = clean_decimal(user_data['campo_28_total'])
+        if 'campo_29_seguro' in user_data: mic_data_final['campo_29_seguro'] = clean_decimal(user_data['campo_29_seguro'])
+        if 'campo_31_cantidad' in user_data: mic_data_final['campo_31_cantidad'] = clean_decimal(user_data['campo_31_cantidad'])
+        if 'campo_37_valor_manual' in user_data: mic_data_final['campo_37_valor_manual'] = clean_decimal(user_data['campo_37_valor_manual'])
 
         # Procesar fecha
         fecha_emision = None
@@ -816,12 +971,12 @@ def crear_mic_desde_crt_y_guardar(crt_id):
             campo_25_moneda=mic_data_final.get('campo_25_moneda', ''),
             campo_26_pais=mic_data_final.get('campo_26_pais', '520-PARAGUAY'),
             campo_27_valor_campo16=mic_data_final.get(
-                'campo_27_valor_campo16', ''),
-            campo_28_total=mic_data_final.get('campo_28_total', ''),
-            campo_29_seguro=mic_data_final.get('campo_29_seguro', ''),
+                'campo_27_valor_campo16', 0.0),
+            campo_28_total=mic_data_final.get('campo_28_total', 0.0),
+            campo_29_seguro=mic_data_final.get('campo_29_seguro', 0.0),
             campo_30_tipo_bultos=mic_data_final.get(
                 'campo_30_tipo_bultos', ''),
-            campo_31_cantidad=mic_data_final.get('campo_31_cantidad', ''),
+            campo_31_cantidad=mic_data_final.get('campo_31_cantidad', 0.0),
             campo_32_peso_bruto=mic_data_final.get('campo_32_peso_bruto', ''),
             campo_33_datos_campo1_crt=mic_data_final.get(
                 'campo_33_datos_campo1_crt', ''),
@@ -832,16 +987,19 @@ def crear_mic_desde_crt_y_guardar(crt_id):
             campo_36_factura_despacho=mic_data_final.get(
                 'campo_36_factura_despacho', ''),
             campo_37_valor_manual=mic_data_final.get(
-                'campo_37_valor_manual', ''),
+                'campo_37_valor_manual', 0.0),
             campo_38_datos_campo11_crt=mic_data_final.get(
                 'campo_38_datos_campo11_crt', ''),
             campo_40_tramo=mic_data_final.get('campo_40_tramo', ''),
+            chofer=mic_data_final.get('chofer', ''),
             creado_en=datetime.now()
         )
-
+        
         db.session.add(mic)
         db.session.commit()
-
+        
+        # Verificar y crear honorario automÃ¡ticamente
+        verificar_crear_honorario(mic)
 
         return jsonify({
             "message": "MIC creado desde CRT y guardado exitosamente",
@@ -860,6 +1018,6 @@ def crear_mic_desde_crt_y_guardar(crt_id):
 
     except Exception as e:
         db.session.rollback()
-        logger.exception("Error creating stored MIC from CRT", extra={'crt_id': crt_id})
-        return jsonify({"error": str(e)}), 500
+        import traceback
+        return jsonify({"error": str(e), "trace": traceback.format_exc()}), 500
 

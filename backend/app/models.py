@@ -316,6 +316,14 @@ class Honorario(db.Model):
     fecha = db.Column(db.Date, nullable=False, default=datetime.utcnow)
     moneda_id = db.Column(db.Integer, db.ForeignKey(
         'monedas.id'), nullable=False)
+    crt_id = db.Column(db.Integer, db.ForeignKey('crts.id'), nullable=True) # Link to CRT
+    
+    # Nuevos campos para datos manuales/auto del MIC
+    mic_numero = db.Column(db.String(50))
+    chofer = db.Column(db.String(100))
+    placas = db.Column(db.String(100))
+
+    crt = db.relationship('CRT', backref='honorarios')
 
 
 class Movimiento(db.Model):
@@ -478,6 +486,7 @@ class MIC(db.Model):
     campo_37_valor_manual = db.Column(db.String(100))
     campo_38_datos_campo11_crt = db.Column(db.Text)
     campo_40_tramo = db.Column(db.Text)
+    chofer = db.Column(db.String(100))  # Nuevo campo Chofer
     creado_en = db.Column(db.DateTime, default=datetime.utcnow)
 
     crt = db.relationship('CRT', backref=db.backref('mics', lazy=True))

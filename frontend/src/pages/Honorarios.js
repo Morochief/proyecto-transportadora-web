@@ -252,7 +252,10 @@ function Honorarios() {
       options: [{ value: "", label: "-- Seleccionar --" }, ...monedas.map((m) => ({ value: m.id, label: m.nombre + " (" + m.simbolo + ")" }))]
     },
     { name: "fecha", label: "Fecha", required: false, type: "date" },
-    { name: "descripcion", label: "Descripción", required: false, type: "text" }
+    { name: "descripcion", label: "Descripción", required: false, type: "text" },
+    { name: "mic_numero", label: "Número MIC (Manual/Auto)", required: false, type: "text", placeholder: "Opcional" },
+    { name: "chofer", label: "Chofer", required: false, type: "text", placeholder: "Opcional" },
+    { name: "placas", label: "Placas (Camión / Semi)", required: false, type: "text", placeholder: "Opcional" }
   ];
 
   return (
@@ -303,7 +306,13 @@ function Honorarios() {
               </div>
             )
           },
-          { field: "descripcion", label: "Descripción" }
+          { field: "descripcion", label: "Descripción" },
+          { field: "crt_numero", label: "CRT" },
+          { field: "mic_numero", label: "MIC" },
+          { field: "placas", label: "Placas" },
+          { field: "chofer", label: "Chofer" },
+          { field: "exportador", label: "Exportador" },
+          { field: "importador", label: "Importador" }
         ]}
         data={honorarios}
         onEdit={handleEdit}

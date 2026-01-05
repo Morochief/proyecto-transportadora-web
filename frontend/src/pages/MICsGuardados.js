@@ -24,6 +24,37 @@ export default function MICsGuardados() {
     estado: '', numero_carta: '', fecha_desde: '', fecha_hasta: '', transportadora: '', placa: '', destino: ''
   });
 
+  // Modal de eliminaciÃ³n
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [micToDelete, setMicToDelete] = useState(null);
+
+  const confirmDelete = (mic) => {
+    setMicToDelete(mic);
+    setShowDeleteModal(true);
+  };
+
+  const executeDelete = async (hardDelete = false) => {
+    if (!micToDelete) return;
+    try {
+      await axios.delete(`http://localhost:5000/api/mic-guardados/${micToDelete.id}`, {
+        params: { hard_delete: hardDelete }
+      });
+      toast.success(hardDelete ? '✅ MIC eliminado definitivamente' : '✅ MIC anulado');
+      cargarMics(currentPage, filters);
+      setShowDeleteModal(false);
+      setMicToDelete(null);
+    } catch (error) { toast.error('Error al eliminar/anular'); }
+  };
+
+  const restaurarMic = async (mic) => {
+    if (!window.confirm(`¿Seguro desea restaurar el MIC ${mic.numero_carta_porte}?`)) return;
+    try {
+      await axios.post(`http://localhost:5000/api/mic-guardados/${mic.id}/restaurar`);
+      toast.success('✅ MIC restaurado');
+      cargarMics(currentPage, filters);
+    } catch (error) { toast.error('Error al restaurar MIC'); }
+  };
+
   const cargarMics = useCallback(async (page = 1, filtros = {}) => {
     setLoading(true);
     try {
@@ -76,14 +107,7 @@ export default function MICsGuardados() {
     } catch (error) { toast.error('Error descargando PDF'); }
   };
 
-  const anularMic = async (micId, numeroCarta) => {
-    if (!window.confirm(`¿Estás seguro de anular el MIC ${numeroCarta}?`)) return;
-    try {
-      await axios.delete(`http://localhost:5000/api/mic-guardados/${micId}`);
-      toast.success('✅ MIC anulado');
-      cargarMics(currentPage, filters);
-    } catch (error) { toast.error('Error anulando MIC'); }
-  };
+
 
   const formatearFecha = (fecha) => {
     if (!fecha) return "N/A";
@@ -175,8 +199,8 @@ export default function MICsGuardados() {
                     <td className="px-6 py-4 font-medium text-slate-700">{mic.numero_carta_porte || '-'}</td>
                     <td className="px-6 py-4">
                       <span className={`px-2 py-1 rounded-full text-xs font-bold ${mic.estado === 'DEFINITIVO' ? 'bg-emerald-100 text-emerald-700' :
-                          mic.estado === 'ANULADO' ? 'bg-red-100 text-red-700' :
-                            'bg-amber-100 text-amber-700'
+                        mic.estado === 'ANULADO' ? 'bg-red-100 text-red-700' :
+                          'bg-amber-100 text-amber-700'
                         }`}>{mic.estado}</span>
                     </td>
                     <td className="px-6 py-4 text-slate-600">{formatearFecha(mic.fecha_emision)}</td>
@@ -184,11 +208,15 @@ export default function MICsGuardados() {
                     <td className="px-6 py-4 text-slate-600">{mic.destino}</td>
                     <td className="px-6 py-4 text-slate-600 font-mono">{mic.placa_camion}</td>
                     <td className="px-6 py-4 text-right flex justify-end gap-2">
-                      <button onClick={() => verDetalles(mic.id)} className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-slate-100 rounded-lg"><Eye className="w-4 h-4" /></button>
-                      <button onClick={() => descargarPDF(mic.id, mic.numero_carta_porte)} className="p-2 text-slate-400 hover:text-blue-600 hover:bg-slate-100 rounded-lg"><Download className="w-4 h-4" /></button>
-                      {mic.estado !== 'ANULADO' && (
-                        <button onClick={() => anularMic(mic.id, mic.numero_carta_porte)} className="p-2 text-slate-400 hover:text-red-600 hover:bg-slate-100 rounded-lg"><Trash2 className="w-4 h-4" /></button>
+                      <button onClick={() => verDetalles(mic.id)} className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-slate-100 rounded-lg" title="Ver Detalles"><Eye className="w-4 h-4" /></button>
+                      <button onClick={() => descargarPDF(mic.id, mic.numero_carta_porte)} className="p-2 text-slate-400 hover:text-blue-600 hover:bg-slate-100 rounded-lg" title="Descargar PDF"><Download className="w-4 h-4" /></button>
+
+                      {mic.estado === 'ANULADO' ? (
+                        <button onClick={() => restaurarMic(mic)} className="p-2 text-orange-400 hover:text-orange-600 hover:bg-orange-50 rounded-lg" title="Restaurar MIC"><RefreshCw className="w-4 h-4" /></button>
+                      ) : (
+                        <button onClick={() => confirmDelete(mic)} className="p-2 text-slate-400 hover:text-red-600 hover:bg-slate-100 rounded-lg" title="Eliminar/Anular"><Trash2 className="w-4 h-4" /></button>
                       )}
+
                     </td>
                   </tr>
                 ))}
@@ -206,6 +234,34 @@ export default function MICsGuardados() {
           </div>
         </div>
       </div>
+
+      {showDeleteModal && micToDelete && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-md overflow-hidden flex flex-col animate-in zoom-in-95">
+            <div className="p-6 bg-white text-center">
+              <div className="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                <AlertCircle className="w-6 h-6 text-red-600" />
+              </div>
+              <h3 className="text-lg font-bold text-slate-800 mb-2">¿Qué desea hacer con este MIC?</h3>
+              <p className="text-slate-600 text-sm mb-6">
+                MIC Nº <span className="font-mono font-bold">{micToDelete.numero_carta_porte}</span>
+              </p>
+
+              <div className="flex flex-col gap-3">
+                <button onClick={() => executeDelete(false)} className="w-full py-3 px-4 bg-amber-50 hover:bg-amber-100 text-amber-700 font-medium rounded-lg border border-amber-200 transition-colors flex items-center justify-center gap-2">
+                  <X className="w-4 h-4" /> Anular (Dejar en historial)
+                </button>
+                <button onClick={() => executeDelete(true)} className="w-full py-3 px-4 bg-red-50 hover:bg-red-100 text-red-700 font-medium rounded-lg border border-red-200 transition-colors flex items-center justify-center gap-2">
+                  <Trash2 className="w-4 h-4" /> Eliminar Totalmente
+                </button>
+              </div>
+            </div>
+            <div className="px-6 py-4 bg-slate-50 border-t border-slate-200 flex justify-center">
+              <button onClick={() => setShowDeleteModal(false)} className="text-slate-500 hover:text-slate-700 font-medium text-sm">Cancelar operación</button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {showModal && selectedMic && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
