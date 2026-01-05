@@ -40,6 +40,7 @@ def create_app():
         from .routes.auth import auth_bp
         from .routes.security import security_bp
         from .docs import docs_bp
+        from .routes.aduanas import aduanas_bp
 
         for bp in [
             paises_bp,
@@ -55,6 +56,7 @@ def create_app():
             usuarios_bp,
             security_bp,
             docs_bp,
+            aduanas_bp,
         ]:
             app.register_blueprint(bp)
 

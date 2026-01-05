@@ -2,10 +2,18 @@ import React, { useState, useEffect } from "react";
 import axios from "axios";
 import { useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
+import {
+  Search, Plus, Filter, Download, FileText, Trash2, Edit3, Eye, Copy,
+  Printer, FileCheck, Truck, MapPin, Calendar, DollarSign, Package,
+  ChevronLeft, ChevronRight, X, Save, AlertCircle, Info, CheckCircle
+} from "lucide-react";
 import Modal from "./Modal";
-import MIC from "./MIC";
+
 import ModalMICCompleto from "./ModalMICCompleto";
 import CRTPreview from "../components/CRTPreview";
+
+// Componente Toast personalizado para mantener consistencia visual si es necesario, 
+// o usamos Toastify pero intentamos que se vea bien.
 
 function ListarCRT() {
   // ========== ESTADOS EXISTENTES (MANTENIDOS) ==========
@@ -16,7 +24,7 @@ function ListarCRT() {
   const [loadingMIC, setLoadingMIC] = useState(null);
   const [query, setQuery] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
-  const [micCrtId, setMicCrtId] = useState(null);
+
   const navigate = useNavigate();
 
   // ========== NUEVOS ESTADOS PARA MEJORAS ==========
@@ -51,97 +59,48 @@ function ListarCRT() {
   const itemsPerPage = 10;
 
   // ========== FUNCIONES AUXILIARES PARA FORMATEO NUMÉRICO ==========
-
-  // Función para formatear entrada de números con comas decimales
   const formatearEntradaNumerica = (valor) => {
     if (!valor) return "";
-    // Reemplazar punto por coma para mostrar al usuario
     return valor.toString().replace(".", ",");
   };
 
-  // Función para parsear entrada del usuario a número válido
   const parsearEntradaNumerica = (valor) => {
     if (!valor) return "";
-    // Reemplazar coma por punto para procesamiento
     const valorLimpio = valor.toString().replace(",", ".");
     const numero = parseFloat(valorLimpio);
     return isNaN(numero) ? "" : numero;
   };
 
-  // Función mejorada para manejar entrada numérica con comas decimales naturales
-  // NOTA: Esta función está disponible para uso futuro si se necesita una alternativa
-  // eslint-disable-next-line no-unused-vars
-  const manejarEntradaNumerica = (e, callback) => {
-    let valor = e.target.value;
-    
-    // Permitir números, una sola coma decimal, y signos negativos al inicio
-    const regex = /^-?[\d]*[,]?[\d]*$/;
-    if (!regex.test(valor)) {
-      return; // No actualizar si no es válido
-    }
-
-    // Asegurar que solo haya una coma decimal
-    const partesDecimales = valor.split(',').length - 1;
-    if (partesDecimales > 1) {
-      return; // No permitir más de una coma
-    }
-
-    // Limitar decimales a 2 dígitos después de la coma
-    if (valor.includes(',')) {
-      const partes = valor.split(',');
-      if (partes[1] && partes[1].length > 2) {
-        valor = partes[0] + ',' + partes[1].substring(0, 2);
-      }
-    }
-
-    callback(valor);
-  };
-
-  // Nueva función para entrada completamente natural de comas
   const manejarEntradaNaturalComa = (e, callback) => {
     let valor = e.target.value;
-    
-    // Permitir solo números, una coma, y signo negativo al inicio
-    // Regex más permisivo que permite escribir comas en cualquier momento
     const caracteresPermitidos = /^-?[\d,]*$/;
     if (!caracteresPermitidos.test(valor)) {
       e.preventDefault();
       return;
     }
-
-    // Contar comas - no permitir más de una
     const comas = (valor.match(/,/g) || []).length;
     if (comas > 1) {
       e.preventDefault();
       return;
     }
-
-    // Si hay coma, limitar decimales a 2
     if (valor.includes(',')) {
       const partes = valor.split(',');
       if (partes[1] && partes[1].length > 2) {
         valor = partes[0] + ',' + partes[1].substring(0, 2);
       }
     }
-
-    // Permitir la actualización inmediata
     callback(valor);
   };
 
-  // ========== NUEVA FUNCIÓN PARA AUTOCOMPLETAR VALOR FLETE EXTERNO ==========
-const autocompletarValorFleteExterno = (campo15Items) => {
-  if (campo15Items.length === 0) return '';
-  
-  const primerItem = campo15Items[0];
-  if (!primerItem) return '';
-  
-  // Priorizar valor del remitente, si no existe usar valor del destinatario
-  const valor = primerItem.valor_remitente || primerItem.valor_destinatario || '';
-  
-  return parsearEntradaNumerica(valor);
-};
+  const autocompletarValorFleteExterno = (campo15Items) => {
+    if (campo15Items.length === 0) return '';
+    const primerItem = campo15Items[0];
+    if (!primerItem) return '';
+    const valor = primerItem.valor_remitente || primerItem.valor_destinatario || '';
+    return parsearEntradaNumerica(valor);
+  };
 
-  // ========== FUNCIONES EXISTENTES (MANTENIDAS) ==========
+  // ========== EFECTOS Y CARGA DE DATOS ==========
   useEffect(() => {
     const inicializar = async () => {
       await cargarDatosIniciales();
@@ -151,7 +110,6 @@ const autocompletarValorFleteExterno = (campo15Items) => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // NUEVO useEffect para autocompletar valor flete externo
   useEffect(() => {
     if (campo15Items.length > 0 && modalEditar) {
       const primerValor = autocompletarValorFleteExterno(campo15Items);
@@ -165,64 +123,24 @@ const autocompletarValorFleteExterno = (campo15Items) => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [campo15Items, modalEditar]);
 
-  // CARGAR DATOS AUXILIARES MEJORADO
   const cargarDatosIniciales = async () => {
     try {
-      // Cargar estados
-      const responseEstados = await axios.get(
-        "http://localhost:5000/api/crts/estados"
-      );
-      setEstados(responseEstados.data.estados || []);
+      const [estRes, transRes, entRes, monRes, ciuRes, paiRes] = await Promise.all([
+        axios.get("http://localhost:5000/api/crts/estados"),
+        axios.get("http://localhost:5000/api/crts/data/transportadoras"),
+        axios.get("http://localhost:5000/api/crts/data/entidades"),
+        axios.get("http://localhost:5000/api/crts/data/monedas"),
+        axios.get("http://localhost:5000/api/ciudades/"),
+        axios.get("http://localhost:5000/api/paises/")
+      ]);
 
-      // USAR NUEVOS ENDPOINTS
-      const responseTransportadoras = await axios.get(
-        "http://localhost:5000/api/crts/data/transportadoras"
-      );
-      // Ordenar transportadoras alfabéticamente por nombre
-      const transportadorasOrdenadas = (responseTransportadoras.data.items || [])
-        .sort((a, b) => a.nombre.localeCompare(b.nombre, 'es', { sensitivity: 'base' }));
-      setTransportadoras(transportadorasOrdenadas);
+      setEstados(estRes.data.estados || []);
+      setTransportadoras((transRes.data.items || []).sort((a, b) => a.nombre.localeCompare(b.nombre)));
+      setEntidades((entRes.data.items || []).sort((a, b) => a.nombre.localeCompare(b.nombre)));
+      setMonedas((monRes.data.items || []).sort((a, b) => a.nombre.localeCompare(b.nombre)));
+      setCiudades((ciuRes.data || []).sort((a, b) => a.nombre.localeCompare(b.nombre)));
+      setPaises((paiRes.data || []).sort((a, b) => a.nombre.localeCompare(b.nombre)));
 
-      const responseEntidades = await axios.get(
-        "http://localhost:5000/api/crts/data/entidades"
-      );
-      // Ordenar entidades alfabéticamente por nombre
-      const entidadesOrdenadas = (responseEntidades.data.items || [])
-        .sort((a, b) => a.nombre.localeCompare(b.nombre, 'es', { sensitivity: 'base' }));
-      setEntidades(entidadesOrdenadas);
-
-      const responseMonedas = await axios.get(
-        "http://localhost:5000/api/crts/data/monedas"
-      );
-      // Ordenar monedas alfabéticamente por nombre
-      const monedasOrdenadas = (responseMonedas.data.items || [])
-        .sort((a, b) => a.nombre.localeCompare(b.nombre, 'es', { sensitivity: 'base' }));
-      setMonedas(monedasOrdenadas);
-
-      const responseCiudades = await axios.get(
-        "http://localhost:5000/api/ciudades/"
-      );
-      // Ordenar ciudades alfabéticamente por nombre
-      const ciudadesOrdenadas = (responseCiudades.data || [])
-        .sort((a, b) => a.nombre.localeCompare(b.nombre, 'es', { sensitivity: 'base' }));
-      setCiudades(ciudadesOrdenadas);
-
-      const responsePaises = await axios.get(
-        "http://localhost:5000/api/paises/"
-      );
-      // Ordenar países alfabéticamente por nombre
-      const paisesOrdenados = (responsePaises.data || [])
-        .sort((a, b) => a.nombre.localeCompare(b.nombre, 'es', { sensitivity: 'base' }));
-      setPaises(paisesOrdenados);
-
-      console.log("✅ Datos auxiliares cargados:", {
-        estados: responseEstados.data.estados?.length || 0,
-        transportadoras: responseTransportadoras.data.items?.length || 0,
-        entidades: responseEntidades.data.items?.length || 0,
-        monedas: responseMonedas.data.items?.length || 0,
-        ciudades: responseCiudades.data?.length || 0,
-        paises: responsePaises.data?.length || 0,
-      });
     } catch (error) {
       console.log("⚠️ Error cargando datos auxiliares:", error.message);
       toast.warn("Algunos datos auxiliares no se pudieron cargar");
@@ -231,17 +149,10 @@ const autocompletarValorFleteExterno = (campo15Items) => {
 
   const cargarCRTs = () => {
     setLoading(true);
-
-    // Si hay filtros avanzados activos, usar el endpoint mejorado
-    if (
-      usarPaginadoBackend ||
-      Object.values(filtrosAvanzados).some((v) => v !== "")
-    ) {
+    if (usarPaginadoBackend || Object.values(filtrosAvanzados).some((v) => v !== "")) {
       cargarCRTsPaginado();
     } else {
-      // Usar tu lógica original
-      axios
-        .get("http://localhost:5000/api/crts")
+      axios.get("http://localhost:5000/api/crts")
         .then((res) => {
           setCrts(res.data);
           setFiltered(res.data);
@@ -249,65 +160,49 @@ const autocompletarValorFleteExterno = (campo15Items) => {
           setTotalPages(Math.ceil(res.data.length / itemsPerPage));
           toast.success("✅ CRTs cargados");
         })
-        .catch(() => {
-          toast.error("❌ Error al cargar CRTs");
-        })
+        .catch(() => toast.error("❌ Error al cargar CRTs"))
         .finally(() => setLoading(false));
     }
   };
 
-  // Nueva función para usar el endpoint mejorado
   const cargarCRTsPaginado = async () => {
     try {
       const params = new URLSearchParams({
         page: currentPage,
         per_page: itemsPerPage,
         q: query,
-        ...Object.fromEntries(
-          Object.entries(filtrosAvanzados).filter(([_, value]) => value !== "")
-        ),
+        ...Object.fromEntries(Object.entries(filtrosAvanzados).filter(([_, value]) => value !== "")),
       });
 
-      const response = await axios.get(
-        `http://localhost:5000/api/crts/paginated?${params}`
-      );
+      const response = await axios.get(`http://localhost:5000/api/crts/paginated?${params}`);
       const data = response.data;
-
       setCrts(data.crts || []);
       setFiltered(data.crts || []);
       setTotalItems(data.pagination.total);
       setTotalPages(data.pagination.pages);
       setCurrentPage(data.pagination.page);
-
       toast.success("✅ CRTs cargados con filtros avanzados");
     } catch (error) {
-      console.log("Error con endpoint avanzado, usando básico");
-      // Fallback a tu método original
       setUsarPaginadoBackend(false);
       cargarCRTs();
     }
   };
 
-  // Tu búsqueda filtrada original (MANTENIDA)
   useEffect(() => {
     if (!usarPaginadoBackend) {
       const lower = query.toLowerCase();
-      setFiltered(
-        crts.filter(
-          (c) =>
-            (c.numero_crt || "").toLowerCase().includes(lower) ||
-            (c.estado || "").toLowerCase().includes(lower) ||
-            (c.transportadora || "").toLowerCase().includes(lower) ||
-            (c.remitente || "").toLowerCase().includes(lower) ||
-            (c.destinatario || "").toLowerCase().includes(lower) ||
-            (c.factura_exportacion || "").toLowerCase().includes(lower)
-        )
-      );
+      setFiltered(crts.filter((c) =>
+        (c.numero_crt || "").toLowerCase().includes(lower) ||
+        (c.estado || "").toLowerCase().includes(lower) ||
+        (c.transportadora || "").toLowerCase().includes(lower) ||
+        (c.remitente || "").toLowerCase().includes(lower) ||
+        (c.destinatario || "").toLowerCase().includes(lower) ||
+        (c.factura_exportacion || "").toLowerCase().includes(lower)
+      ));
       setCurrentPage(1);
     }
   }, [query, crts, usarPaginadoBackend]);
 
-  // Recalcular paginación cuando no se usa backend
   useEffect(() => {
     if (!usarPaginadoBackend) {
       setTotalItems(filtered.length);
@@ -315,19 +210,16 @@ const autocompletarValorFleteExterno = (campo15Items) => {
     }
   }, [filtered, usarPaginadoBackend]);
 
-  // Tu función de imprimir PDF (MANTENIDA EXACTA)
+  // ========== CRUD ACTIONS ==========
   const imprimirPDF = async (crt_id) => {
     setLoadingPDF(crt_id);
     try {
-      const res = await fetch(`http://localhost:5000/api/crts/${crt_id}/pdf`, {
-        method: "POST",
-      });
+      const res = await fetch(`http://localhost:5000/api/crts/${crt_id}/pdf`, { method: "POST" });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const blob = await res.blob();
       const url = window.URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
-      // No establecer download name para usar el nombre del servidor
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
@@ -340,7 +232,6 @@ const autocompletarValorFleteExterno = (campo15Items) => {
     }
   };
 
-  // Tu función de eliminar (MANTENIDA EXACTA)
   const eliminarCRT = async (crt_id) => {
     if (!window.confirm("¿Eliminar este CRT?")) return;
     try {
@@ -352,81 +243,43 @@ const autocompletarValorFleteExterno = (campo15Items) => {
     }
   };
 
-  // FUNCIÓN emitirMIC CORREGIDA - SOLO ABRE MODAL
   const emitirMIC = async (crt) => {
     if (!crt.numero_crt) {
       toast.warn("Primero debes emitir el CRT antes de generar el MIC.");
       return;
     }
-
-    console.log(`🚀 Abriendo modal MIC para CRT ${crt.id} - ${crt.numero_crt}`);
-
-    // ABRIR MODAL PARA COMPLETAR DATOS
-    setModalMIC({
-      isOpen: true,
-      crt: crt,
-    });
+    setModalMIC({ isOpen: true, crt: crt });
   };
 
-  // NUEVA FUNCIÓN PARA GENERAR PDF CON DATOS COMPLETOS
   const generarPDFMIC = async (datosModal) => {
     const crt = modalMIC.crt;
     if (!crt) return;
-
-    console.log(
-      `🎯 Generando PDF MIC con datos completados para CRT ${crt.numero_crt}`
-    );
     setLoadingMIC(crt.id);
-
     try {
-      const response = await axios.post(
-        `http://localhost:5000/api/mic/generate_pdf_from_crt/${crt.id}`,
-        datosModal,
-        {
-          responseType: "blob",
-          timeout: 30000,
-          headers: {
-            "Content-Type": "application/json",
-          },
-        }
-      );
-
+      const response = await axios.post(`http://localhost:5000/api/mic/generate_pdf_from_crt/${crt.id}`, datosModal, {
+        responseType: "blob", timeout: 30000, headers: { "Content-Type": "application/json" },
+      });
       const blob = new Blob([response.data], { type: "application/pdf" });
       const url = window.URL.createObjectURL(blob);
       window.open(url, "_blank");
-
-      setTimeout(() => {
-        window.URL.revokeObjectURL(url);
-      }, 1000);
-
-      toast.success(`✅ PDF MIC completo generado para CRT ${crt.numero_crt}`);
+      setTimeout(() => window.URL.revokeObjectURL(url), 1000);
+      toast.success(`✅ PDF MIC generado`);
       setModalMIC({ isOpen: false, crt: null });
     } catch (error) {
-      console.error("❌ Error generando MIC:", error);
-      toast.error(
-        `❌ Error al generar MIC: ${error.message || "Error desconocido"}`
-      );
+      toast.error(`❌ Error al generar MIC`);
     } finally {
       setLoadingMIC(null);
     }
   };
 
-  // FUNCIÓN PARA CERRAR MODAL
-  const cerrarModalMIC = () => {
-    setModalMIC({ isOpen: false, crt: null });
-  };
+  const cerrarModalMIC = () => setModalMIC({ isOpen: false, crt: null });
 
-  // FUNCIÓN PARA MOSTRAR VISTA PREVIA
   const mostrarVistaPrevia = async (crt) => {
     try {
-      // Obtener datos completos del CRT desde el backend
       const response = await axios.get(`http://localhost:5000/api/crts/${crt.id}`);
       const crtData = response.data;
-
-      // Preparar datos para la vista previa
       const previewData = {
         ...crtData,
-        // Agregar información de entidades relacionadas
         remitente: entidades.find(e => e.id === crtData.remitente_id)?.nombre || crtData.remitente || '',
         destinatario: entidades.find(e => e.id === crtData.destinatario_id)?.nombre || crtData.destinatario || '',
         consignatario: entidades.find(e => e.id === crtData.consignatario_id)?.nombre || crtData.consignatario || '',
@@ -435,7 +288,6 @@ const autocompletarValorFleteExterno = (campo15Items) => {
         moneda: monedas.find(m => m.id === crtData.moneda_id)?.codigo || '',
         ciudad_emision: ciudades.find(c => c.id === crtData.ciudad_emision_id)?.nombre || '',
         pais_emision: paises.find(p => p.id === crtData.pais_emision_id)?.nombre || '',
-        // Agregar direcciones y ciudades
         remitente_direccion: entidades.find(e => e.id === crtData.remitente_id)?.direccion || '',
         remitente_ciudad: ciudades.find(c => c.id === entidades.find(e => e.id === crtData.remitente_id)?.ciudad_id)?.nombre || '',
         remitente_pais: paises.find(p => p.id === ciudades.find(c => c.id === entidades.find(e => e.id === crtData.remitente_id)?.ciudad_id)?.pais_id)?.nombre || '',
@@ -446,47 +298,24 @@ const autocompletarValorFleteExterno = (campo15Items) => {
         transportadora_ciudad: ciudades.find(c => c.id === transportadoras.find(t => t.id === crtData.transportadora_id)?.ciudad_id)?.nombre || '',
         transportadora_pais: paises.find(p => p.id === ciudades.find(c => c.id === transportadoras.find(t => t.id === crtData.transportadora_id)?.ciudad_id)?.pais_id)?.nombre || '',
       };
-
       setPreviewData(previewData);
       setPreviewOpen(true);
-    } catch (error) {
-      console.error('Error obteniendo datos para vista previa:', error);
-      toast.error('Error obteniendo datos para vista previa');
-    }
+    } catch (error) { toast.error('Error obteniendo datos para vista previa'); }
   };
 
-  // FUNCIÓN PARA DESCARGAR PDF DESDE VISTA PREVIA
   const descargarPDFFromPreview = async () => {
-    if (!previewData) {
-      alert("No hay datos para descargar PDF");
-      return;
-    }
-
+    if (!previewData) return;
     try {
-      const response = await fetch(`http://localhost:5000/api/crts/${previewData.id}/pdf`, {
-        method: "POST",
-      });
-
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}`);
-      }
-
+      const response = await fetch(`http://localhost:5000/api/crts/${previewData.id}/pdf`, { method: "POST" });
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
       const blob = await response.blob();
       const url = window.URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      // No establecer download name para usar el nombre del servidor
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
+      const link = document.createElement('a'); link.href = url;
+      document.body.appendChild(link); link.click(); document.body.removeChild(link);
       window.URL.revokeObjectURL(url);
-    } catch (error) {
-      console.error("Error descargando PDF:", error);
-      alert("Error descargando PDF: " + error.message);
-    }
+    } catch (error) { alert("Error descargando PDF"); }
   };
 
-  // ========== NUEVAS FUNCIONES PARA MEJORAS ==========
   const aplicarFiltrosAvanzados = () => {
     setUsarPaginadoBackend(true);
     setCurrentPage(1);
@@ -495,12 +324,7 @@ const autocompletarValorFleteExterno = (campo15Items) => {
 
   const limpiarFiltros = () => {
     setQuery("");
-    setFiltrosAvanzados({
-      estado: "",
-      transportadora_id: "",
-      fecha_desde: "",
-      fecha_hasta: "",
-    });
+    setFiltrosAvanzados({ estado: "", transportadora_id: "", fecha_desde: "", fecha_hasta: "" });
     setUsarPaginadoBackend(false);
     setCurrentPage(1);
     cargarCRTs();
@@ -508,1466 +332,394 @@ const autocompletarValorFleteExterno = (campo15Items) => {
 
   const duplicarCRT = async (crtId) => {
     try {
-      const response = await axios.post(
-        `http://localhost:5000/api/crts/${crtId}/duplicate`
-      );
+      const response = await axios.post(`http://localhost:5000/api/crts/${crtId}/duplicate`);
       toast.success(`✅ CRT duplicado: ${response.data.nuevo_numero}`);
       cargarCRTs();
-    } catch (error) {
-      toast.error(
-        "❌ Error duplicando CRT: " +
-          (error.response?.data?.error || error.message)
-      );
-    }
+    } catch (error) { toast.error("❌ Error duplicando CRT"); }
   };
 
-  // MEJORADA: Cargar CRT para editar con campo 15
   const editarCRT = async (crtId) => {
     try {
-      console.log(`🔄 Cargando CRT ${crtId} para editar...`);
-
-      const response = await axios.get(
-        `http://localhost:5000/api/crts/${crtId}`
-      );
-      const crtData = response.data;
-      setCrtEditando(crtData);
-
-      // CARGAR CAMPO 15 MEJORADO
+      const response = await axios.get(`http://localhost:5000/api/crts/${crtId}`);
+      setCrtEditando(response.data);
       try {
-        const campo15Response = await axios.get(
-          `http://localhost:5000/api/crts/${crtId}/campo15`
-        );
-        const items = campo15Response.data.items || [];
-        console.log(`✅ Campo 15 cargado: ${items.length} items`);
-        setCampo15Items(items);
-      } catch (error) {
-        console.log(
-          "⚠️ Error cargando campo 15, iniciando vacío:",
-          error.message
-        );
-        setCampo15Items([]);
-      }
-
+        const campo15Response = await axios.get(`http://localhost:5000/api/crts/${crtId}/campo15`);
+        setCampo15Items(campo15Response.data.items || []);
+      } catch (error) { setCampo15Items([]); }
       setModalEditar(true);
-    } catch (error) {
-      console.error("❌ Error obteniendo CRT para editar:", error);
-      toast.error("❌ Error obteniendo CRT para editar");
-    }
+    } catch (error) { toast.error("❌ Error obteniendo CRT para editar"); }
   };
 
-  // NUEVA: Funciones para manejar campo 15 (estructura real)
   const agregarCampo15Item = () => {
-    const nuevosItems = [
-      ...campo15Items,
-      {
-        id: null, // Nuevo item
-        descripcion_gasto: "",
-        valor_remitente: "",
-        moneda_remitente: "USD",
-        valor_destinatario: "",
-        moneda_destinatario: "USD",
-      },
-    ];
-    
+    const nuevosItems = [...campo15Items, { id: null, descripcion_gasto: "", valor_remitente: "", moneda_remitente: "USD", valor_destinatario: "", moneda_destinatario: "USD" }];
     setCampo15Items(nuevosItems);
-    
-    // Si es el primer item, mostrar ayuda
-    if (nuevosItems.length === 1) {
-      toast.info("💡 El primer tramo se autocopiará a 'Valor Flete Externo'", {
-        autoClose: 4000,
-      });
-    }
+    if (nuevosItems.length === 1) toast.info("💡 Primer tramo se autocopia a Flete Ext.", { autoClose: 3000 });
   };
 
-  const eliminarCampo15Item = (index) => {
-    setCampo15Items(campo15Items.filter((_, i) => i !== index));
-  };
+  const eliminarCampo15Item = (index) => setCampo15Items(campo15Items.filter((_, i) => i !== index));
 
   const actualizarCampo15Item = (index, campo, valor) => {
     const nuevosItems = [...campo15Items];
-    
-    // Si es un campo numérico, procesar correctamente
     if (campo === 'valor_remitente' || campo === 'valor_destinatario') {
       const valorProcesado = parsearEntradaNumerica(valor);
       nuevosItems[index] = { ...nuevosItems[index], [campo]: valorProcesado };
-      
-      // AUTOCOMPLETAR VALOR FLETE EXTERNO si es el primer item (índice 0)
       if (index === 0 && valorProcesado) {
-        // Buscar el campo valor_flete_externo en el formulario y actualizarlo
         const campoFleteExterno = document.querySelector('input[name="valor_flete_externo"]');
         if (campoFleteExterno) {
           campoFleteExterno.value = formatearEntradaNumerica(valorProcesado);
-          
-          // Disparar evento para notificar el cambio
-          const evento = new Event('input', { bubbles: true });
-          campoFleteExterno.dispatchEvent(evento);
+          campoFleteExterno.dispatchEvent(new Event('input', { bubbles: true }));
         }
       }
     } else {
       nuevosItems[index] = { ...nuevosItems[index], [campo]: valor };
     }
-    
     setCampo15Items(nuevosItems);
   };
 
-  // NUEVA: Calcular totales del campo 15
   const calcularTotales = () => {
-    const totalRemitente = campo15Items.reduce((total, item) => {
-      const valor = parseFloat(item.valor_remitente) || 0;
-      return total + valor;
-    }, 0);
-
-    const totalDestinatario = campo15Items.reduce((total, item) => {
-      const valor = parseFloat(item.valor_destinatario) || 0;
-      return total + valor;
-    }, 0);
-
+    const totalRemitente = campo15Items.reduce((total, item) => total + (parseFloat(item.valor_remitente) || 0), 0);
+    const totalDestinatario = campo15Items.reduce((total, item) => total + (parseFloat(item.valor_destinatario) || 0), 0);
     return { totalRemitente, totalDestinatario };
   };
 
-  // NUEVA: Función para buscar entidad por ID y retornar nombre
-  const buscarEntidadPorId = (id) => {
-    const entidad = entidades.find((e) => e.id === parseInt(id));
-    return entidad ? entidad.nombre : "";
-  };
+  const buscarEntidadPorId = (id) => entidades.find((e) => e.id === parseInt(id))?.nombre || "";
+  const buscarTransportadoraPorId = (id) => transportadoras.find((t) => t.id === parseInt(id))?.nombre || "";
+  const buscarMonedaPorId = (id) => { const m = monedas.find((m) => m.id === parseInt(id)); return m ? `${m.codigo} - ${m.nombre}` : ""; };
 
-  // NUEVA: Función para buscar transportadora por ID
-  const buscarTransportadoraPorId = (id) => {
-    const transportadora = transportadoras.find((t) => t.id === parseInt(id));
-    return transportadora ? transportadora.nombre : "";
-  };
-
-  // NUEVA: Función para buscar moneda por ID
-  const buscarMonedaPorId = (id) => {
-    const moneda = monedas.find((m) => m.id === parseInt(id));
-    return moneda ? `${moneda.codigo} - ${moneda.nombre}` : "";
-  };
-
-  // MEJORADA: Guardar cambios con campo 15 y formateo numérico correcto
   const guardarCambios = async (e) => {
     e.preventDefault();
     if (!crtEditando) return;
-
     try {
-      console.log("🔄 Guardando cambios del CRT...");
-
       const formData = new FormData(e.target);
       const data = Object.fromEntries(formData.entries());
-
-      // PROCESAR CAMPOS NUMÉRICOS CON FORMATO CORRECTO
-      const camposNumericos = [
-        "peso_bruto",
-        "peso_neto",
-        "volumen",
-        "valor_incoterm",
-        "valor_mercaderia",
-        "declaracion_mercaderia",
-        "valor_flete_externo",
-        "valor_reembolso",
-      ];
-
-      camposNumericos.forEach((campo) => {
-        if (data[campo]) {
-          data[campo] = parsearEntradaNumerica(data[campo]);
-        }
-      });
-
-      // INCLUIR CAMPO 15 EN LOS DATOS
+      const camposNumericos = ["peso_bruto", "peso_neto", "volumen", "valor_incoterm", "valor_mercaderia", "declaracion_mercaderia", "valor_flete_externo", "valor_reembolso"];
+      camposNumericos.forEach((campo) => { if (data[campo]) data[campo] = parsearEntradaNumerica(data[campo]); });
       data.campo15_items = JSON.stringify(campo15Items);
 
-      console.log("📊 Datos a enviar:", {
-        ...data,
-        campo15_items_count: campo15Items.length,
-      });
-
       await axios.put(`http://localhost:5000/api/crts/${crtEditando.id}`, data);
-
-      toast.success("✅ CRT actualizado exitosamente");
+      toast.success("✅ CRT actualizado");
       setModalEditar(false);
       setCrtEditando(null);
       setCampo15Items([]);
       cargarCRTs();
-    } catch (error) {
-      console.error("❌ Error guardando cambios:", error);
-
-      if (
-        error.response?.status === 409 &&
-        error.response?.data?.requiere_confirmacion
-      ) {
-        if (
-          window.confirm(
-            `${error.response.data.error}\n\n¿Desea continuar con la edición?`
-          )
-        ) {
-          try {
-            const formData = new FormData(e.target);
-            const data = Object.fromEntries(formData.entries());
-
-            // Procesar campos numéricos nuevamente
-            const camposNumericos = [
-              "peso_bruto",
-              "peso_neto",
-              "volumen",
-              "valor_incoterm",
-              "valor_mercaderia",
-              "declaracion_mercaderia",
-              "valor_flete_externo",
-              "valor_reembolso",
-            ];
-
-            camposNumericos.forEach((campo) => {
-              if (data[campo]) {
-                data[campo] = parsearEntradaNumerica(data[campo]);
-              }
-            });
-
-            data.permitir_edicion_en_transito = true;
-            data.campo15_items = JSON.stringify(campo15Items);
-
-            await axios.put(
-              `http://localhost:5000/api/crts/${crtEditando.id}`,
-              data
-            );
-            toast.success("✅ CRT actualizado exitosamente");
-            setModalEditar(false);
-            setCrtEditando(null);
-            setCampo15Items([]);
-            cargarCRTs();
-          } catch (retryError) {
-            toast.error("❌ Error actualizando CRT");
-          }
-        }
-      } else {
-        toast.error(
-          "❌ Error actualizando CRT: " +
-            (error.response?.data?.error || error.message)
-        );
-      }
-    }
+    } catch (error) { toast.error("❌ Error actualizando CRT"); }
   };
 
-  // Calcular items actuales
-  const currentItems = usarPaginadoBackend
-    ? filtered
-    : filtered.slice(
-        (currentPage - 1) * itemsPerPage,
-        currentPage * itemsPerPage
-      );
+  const currentItems = usarPaginadoBackend ? filtered : filtered.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
 
   return (
-    <div className="p-4 relative">
-      <div className="flex justify-between items-center mb-4">
-        <h2 className="text-2xl font-bold">
-          Listado CRTs
-          <span className="text-sm font-normal text-gray-500 ml-2">
-            ({totalItems} registros)
-          </span>
-        </h2>
-
-        {/* Toggle para filtros avanzados */}
-        <button
-          onClick={() => setMostrarFiltrosAvanzados(!mostrarFiltrosAvanzados)}
-          className="bg-blue-500 text-white px-3 py-1 rounded text-sm hover:bg-blue-600"
-        >
-          {mostrarFiltrosAvanzados
-            ? "🔼 Ocultar filtros"
-            : "🔽 Filtros avanzados"}
-        </button>
+    <div className="min-h-full space-y-6 animate-in fade-in duration-500">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div>
+          <h1 className="text-3xl font-bold text-slate-800 tracking-tight">Historial CRT</h1>
+          <p className="text-slate-500 mt-1">Gestión de Cartas de Porte Internacional / Manifesto Internacional de Carga.</p>
+        </div>
+        <div className="flex items-center gap-3">
+          <button onClick={() => setMostrarFiltrosAvanzados(!mostrarFiltrosAvanzados)} className={`px-4 py-2 rounded-lg flex items-center gap-2 transition-colors border ${mostrarFiltrosAvanzados ? 'bg-indigo-50 border-indigo-200 text-indigo-700' : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'}`}>
+            <Filter className="w-4 h-4" />
+            <span>Filtros</span>
+          </button>
+          <button onClick={() => navigate('/crt/nuevo')} className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg flex items-center gap-2 transition-colors shadow-sm">
+            <Plus className="w-5 h-5" />
+            <span>Nuevo CRT</span>
+          </button>
+        </div>
       </div>
 
-      {/* Búsqueda principal */}
-      <input
-        type="text"
-        placeholder="🔍 Buscar..."
-        value={query}
-        onChange={(e) => {
-          setQuery(e.target.value);
-          if (usarPaginadoBackend) {
-            // Si estamos usando backend, aplicar filtros automáticamente
-            setTimeout(() => aplicarFiltrosAvanzados(), 500);
-          }
-        }}
-        className="mb-4 p-2 border rounded w-full text-sm"
-      />
+      {/* Stats Cards Row (Optional) */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex items-center justify-between">
+          <div><p className="text-sm font-medium text-slate-500">Total CRTs</p><p className="text-2xl font-bold text-slate-800">{totalItems}</p></div>
+          <div className="p-3 bg-blue-50 text-blue-600 rounded-lg"><FileText className="w-6 h-6" /></div>
+        </div>
+        <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex items-center justify-between">
+          <div><p className="text-sm font-medium text-slate-500">En Tránsito</p><p className="text-2xl font-bold text-slate-800">{crts.filter(c => c.estado === 'EN_TRANSITO').length}</p></div>
+          <div className="p-3 bg-indigo-50 text-indigo-600 rounded-lg"><Truck className="w-6 h-6" /></div>
+        </div>
+      </div>
 
-      {/* Filtros avanzados */}
-      {mostrarFiltrosAvanzados && (
-        <div className="bg-gray-50 p-4 rounded mb-4 border">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
-            <div>
-              <label className="block text-sm font-medium mb-1">Estado</label>
-              <select
-                value={filtrosAvanzados.estado}
-                onChange={(e) =>
-                  setFiltrosAvanzados((prev) => ({
-                    ...prev,
-                    estado: e.target.value,
-                  }))
-                }
-                className="w-full p-2 border rounded text-sm"
-              >
-                <option value="">Todos los estados</option>
-                {estados.map((estado) => (
-                  <option key={estado} value={estado}>
-                    {estado.replace("_", " ")}
-                  </option>
-                ))}
-              </select>
-            </div>
+      <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
 
-            <div>
-              <label className="block text-sm font-medium mb-1">
-                Transportadora
-              </label>
-              <select
-                value={filtrosAvanzados.transportadora_id}
-                onChange={(e) =>
-                  setFiltrosAvanzados((prev) => ({
-                    ...prev,
-                    transportadora_id: e.target.value,
-                  }))
-                }
-                className="w-full p-2 border rounded text-sm"
-              >
-                <option value="">Todas las transportadoras</option>
-                {transportadoras.map((t) => (
-                  <option key={t.id} value={t.id}>
-                    {t.nombre}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium mb-1">
-                Fecha desde
-              </label>
-              <input
-                type="date"
-                value={filtrosAvanzados.fecha_desde}
-                onChange={(e) =>
-                  setFiltrosAvanzados((prev) => ({
-                    ...prev,
-                    fecha_desde: e.target.value,
-                  }))
-                }
-                className="w-full p-2 border rounded text-sm"
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium mb-1">
-                Fecha hasta
-              </label>
-              <input
-                type="date"
-                value={filtrosAvanzados.fecha_hasta}
-                onChange={(e) =>
-                  setFiltrosAvanzados((prev) => ({
-                    ...prev,
-                    fecha_hasta: e.target.value,
-                  }))
-                }
-                className="w-full p-2 border rounded text-sm"
-              />
-            </div>
-          </div>
-
-          <div className="flex gap-2">
-            <button
-              onClick={aplicarFiltrosAvanzados}
-              className="bg-blue-500 text-white px-4 py-2 rounded text-sm hover:bg-blue-600"
-            >
-              🔍 Aplicar filtros
-            </button>
-            <button
-              onClick={limpiarFiltros}
-              className="bg-gray-500 text-white px-4 py-2 rounded text-sm hover:bg-gray-600"
-            >
-              🗑️ Limpiar
-            </button>
+        {/* Search Bar */}
+        <div className="p-4 border-b border-slate-200 flex flex-col md:flex-row gap-4">
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 w-4 h-4" />
+            <input
+              type="text"
+              placeholder="Buscar por número, entidad, factura..."
+              value={query}
+              onChange={(e) => {
+                setQuery(e.target.value);
+                if (usarPaginadoBackend) setTimeout(() => aplicarFiltrosAvanzados(), 500);
+              }}
+              className="w-full pl-9 pr-4 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 outline-none transition-all"
+            />
           </div>
         </div>
-      )}
 
-      {loading ? (
-        <div className="flex justify-center items-center py-10">
-          <div className="border-t-4 border-blue-600 rounded-full w-12 h-12 animate-spin"></div>
-        </div>
-      ) : (
-        <>
-          {/* TABLA PRINCIPAL */}
-          <table className="min-w-full border text-xs">
-            <thead className="bg-sky-100">
-              <tr>
-                <th className="border px-2 py-1">Número</th>
-                <th className="border px-2 py-1">Estado</th>
-                <th className="border px-2 py-1">Transportadora</th>
-                <th className="border px-2 py-1">Remitente</th>
-                <th className="border px-2 py-1">Destinatario</th>
-                <th className="border px-2 py-1">Factura</th>
-                <th className="border px-2 py-1">Acciones</th>
+        {/* Filtros Avanzados */}
+        {mostrarFiltrosAvanzados && (
+          <div className="p-4 bg-slate-50 border-b border-slate-200 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div>
+              <label className="block text-xs font-semibold text-slate-500 mb-1">Estado</label>
+              <select value={filtrosAvanzados.estado} onChange={(e) => setFiltrosAvanzados({ ...filtrosAvanzados, estado: e.target.value })} className="w-full p-2 text-sm border border-slate-300 rounded-lg outline-none focus:border-indigo-500">
+                <option value="">Todos</option>
+                {estados.map(e => <option key={e} value={e}>{e.replace("_", " ")}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-slate-500 mb-1">Transportadora</label>
+              <select value={filtrosAvanzados.transportadora_id} onChange={(e) => setFiltrosAvanzados({ ...filtrosAvanzados, transportadora_id: e.target.value })} className="w-full p-2 text-sm border border-slate-300 rounded-lg outline-none focus:border-indigo-500">
+                <option value="">Todas</option>
+                {transportadoras.map(t => <option key={t.id} value={t.id}>{t.nombre}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-slate-500 mb-1">Desde</label>
+              <input type="date" value={filtrosAvanzados.fecha_desde} onChange={(e) => setFiltrosAvanzados({ ...filtrosAvanzados, fecha_desde: e.target.value })} className="w-full p-2 text-sm border border-slate-300 rounded-lg outline-none focus:border-indigo-500" />
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-slate-500 mb-1">Hasta</label>
+              <input type="date" value={filtrosAvanzados.fecha_hasta} onChange={(e) => setFiltrosAvanzados({ ...filtrosAvanzados, fecha_hasta: e.target.value })} className="w-full p-2 text-sm border border-slate-300 rounded-lg outline-none focus:border-indigo-500" />
+            </div>
+            <div className="lg:col-span-4 flex justify-end gap-2 mt-2">
+              <button onClick={limpiarFiltros} className="px-3 py-1.5 text-sm text-slate-600 hover:bg-slate-200 rounded-md transition-colors">Limpiar</button>
+              <button onClick={aplicarFiltrosAvanzados} className="px-3 py-1.5 text-sm bg-indigo-600 text-white rounded-md hover:bg-indigo-700 transition-colors shadow-sm">Aplicar Filtros</button>
+            </div>
+          </div>
+        )}
+
+        {/* Table */}
+        <div className="overflow-x-auto">
+          <table className="w-full text-left border-collapse">
+            <thead>
+              <tr className="bg-slate-50 border-b border-slate-200 text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                <th className="px-6 py-3">Número</th>
+                <th className="px-6 py-3">Estado</th>
+                <th className="px-6 py-3">Transportadora</th>
+                <th className="px-6 py-3">Remitente / Destinatario</th>
+                <th className="px-6 py-3">Factura</th>
+                <th className="px-6 py-3 text-right">Acciones</th>
               </tr>
             </thead>
-            <tbody>
-              {currentItems.map((crt, idx) => (
-                <tr key={crt.id || idx} className="hover:bg-slate-50">
-                  <td
-                    className="border px-2 py-1 cursor-pointer"
-                    onClick={() => navigate(`/crt/${crt.id}`)}
-                  >
-                    {crt.numero_crt}
+            <tbody className="divide-y divide-slate-200">
+              {loading ? (
+                <tr><td colSpan="6" className="p-12 text-center text-slate-500">Cargando datos...</td></tr>
+              ) : currentItems.map((crt) => (
+                <tr key={crt.id} className="group hover:bg-slate-50 transition-colors">
+                  <td className="px-6 py-4">
+                    <button onClick={() => navigate(`/crt/${crt.id}`)} className="font-bold text-indigo-600 hover:underline">{crt.numero_crt}</button>
+                    <div className="text-xs text-slate-400 mt-1">{crt.fecha_emision || 'Sin fecha'}</div>
                   </td>
-                  <td className="border px-2 py-1">
-                    <span
-                      className={`px-2 py-1 rounded text-xs ${
-                        crt.estado === "EMITIDO"
-                          ? "bg-green-100 text-green-800"
-                          : crt.estado === "BORRADOR"
-                          ? "bg-yellow-100 text-yellow-800"
-                          : crt.estado === "EN_TRANSITO"
-                          ? "bg-blue-100 text-blue-800"
-                          : crt.estado === "ENTREGADO"
-                          ? "bg-purple-100 text-purple-800"
-                          : "bg-gray-100 text-gray-800"
-                      }`}
-                    >
-                      {crt.estado}
+                  <td className="px-6 py-4">
+                    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border ${crt.estado === 'EMITIDO' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' :
+                      crt.estado === 'BORRADOR' ? 'bg-amber-50 text-amber-700 border-amber-200' :
+                        crt.estado === 'EN_TRANSITO' ? 'bg-blue-50 text-blue-700 border-blue-200' :
+                          'bg-slate-100 text-slate-600 border-slate-200'
+                      }`}>
+                      {crt.estado.replace("_", " ")}
                     </span>
                   </td>
-                  <td className="border px-2 py-1">{crt.transportadora}</td>
-                  <td className="border px-2 py-1">{crt.remitente}</td>
-                  <td className="border px-2 py-1">{crt.destinatario}</td>
-                  <td className="border px-2 py-1">
-                    {crt.factura_exportacion}
+                  <td className="px-6 py-4 text-sm text-slate-700">{crt.transportadora}</td>
+                  <td className="px-6 py-4">
+                    <div className="flex flex-col text-sm">
+                      <span className="font-medium text-slate-700">{crt.remitente}</span>
+                      <span className="text-slate-400 text-xs">🡢 {crt.destinatario}</span>
+                    </div>
                   </td>
-                  <td className="border px-2 py-1 flex space-x-1 flex-wrap">
-                    <button
-                      onClick={() => eliminarCRT(crt.id)}
-                      className="bg-red-600 hover:bg-red-700 px-2 rounded text-white text-xs"
-                      title="Eliminar CRT"
-                    >
-                      🗑
-                    </button>
-
-                    <button
-                      onClick={() => imprimirPDF(crt.id)}
-                      disabled={loadingPDF === crt.id}
-                      className={`px-2 rounded text-white text-xs ${
-                        loadingPDF === crt.id
-                          ? "bg-gray-400 cursor-not-allowed"
-                          : "bg-blue-600 hover:bg-blue-700"
-                      }`}
-                      title="Descargar PDF CRT"
-                    >
-                      {loadingPDF === crt.id ? "..." : "📄"}
-                    </button>
-
-                    {crt.estado === "EMITIDO" && (
-                      <button
-                        onClick={() => emitirMIC(crt)}
-                        disabled={loadingMIC === crt.id}
-                        className={`text-white px-2 rounded text-xs ${
-                          loadingMIC === crt.id
-                            ? "bg-gray-400 cursor-not-allowed"
-                            : "bg-purple-600 hover:bg-purple-700"
-                        }`}
-                        title="Completar y generar PDF MIC"
-                      >
-                        {loadingMIC === crt.id ? "..." : "📋"}
-                      </button>
-                    )}
-
-                    <button
-                      onClick={() => editarCRT(crt.id)}
-                      className="bg-orange-500 hover:bg-orange-600 text-white px-2 rounded text-xs"
-                      title="Editar rápido"
-                    >
-                      ✏️
-                    </button>
-
-                    <button
-                      onClick={() => duplicarCRT(crt.id)}
-                      className="bg-green-500 hover:bg-green-600 text-white px-2 rounded text-xs"
-                      title="Duplicar CRT"
-                    >
-                      📋
-                    </button>
-
-                    <button
-                      onClick={() => mostrarVistaPrevia(crt)}
-                      className="bg-blue-500 hover:bg-blue-600 text-white px-2 rounded text-xs"
-                      title="Vista Previa CRT"
-                    >
-                      👁️
-                    </button>
+                  <td className="px-6 py-4 text-sm text-slate-600 font-mono">{crt.factura_exportacion || '-'}</td>
+                  <td className="px-6 py-4 text-right">
+                    <div className="flex justify-end gap-1 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
+                      <button onClick={() => mostrarVistaPrevia(crt)} className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-all" title="Ver"><Eye className="w-4 h-4" /></button>
+                      <button onClick={() => imprimirPDF(crt.id)} disabled={loadingPDF === crt.id} className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all" title="PDF">{loadingPDF === crt.id ? <div className="w-4 h-4 border-2 border-blue-600 border-t-transparent rounded-full animate-spin" /> : <FileText className="w-4 h-4" />}</button>
+                      <button onClick={() => editarCRT(crt.id)} className="p-2 text-slate-400 hover:text-orange-600 hover:bg-orange-50 rounded-lg transition-all" title="Editar"><Edit3 className="w-4 h-4" /></button>
+                      <button onClick={() => duplicarCRT(crt.id)} className="p-2 text-slate-400 hover:text-green-600 hover:bg-green-50 rounded-lg transition-all" title="Duplicar"><Copy className="w-4 h-4" /></button>
+                      {crt.estado === "EMITIDO" && (
+                        <button onClick={() => emitirMIC(crt)} disabled={loadingMIC === crt.id} className="p-2 text-slate-400 hover:text-purple-600 hover:bg-purple-50 rounded-lg transition-all" title="MIC">{loadingMIC === crt.id ? <div className="w-4 h-4 border-2 border-purple-600 border-t-transparent rounded-full animate-spin" /> : <FileCheck className="w-4 h-4" />}</button>
+                      )}
+                      <button onClick={() => eliminarCRT(crt.id)} className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all" title="Eliminar"><Trash2 className="w-4 h-4" /></button>
+                    </div>
                   </td>
                 </tr>
               ))}
             </tbody>
           </table>
+        </div>
 
-          {/* PAGINACIÓN */}
-          <div className="flex justify-between mt-4 text-xs">
-            <span>
-              Mostrando{" "}
-              {totalItems === 0 ? 0 : (currentPage - 1) * itemsPerPage + 1}-
-              {Math.min(currentPage * itemsPerPage, totalItems)} de {totalItems}
-              {usarPaginadoBackend && (
-                <span className="text-blue-600 ml-2">
-                  (con filtros avanzados)
-                </span>
-              )}
-            </span>
-            <div>
-              <button
-                onClick={() => {
-                  const newPage = Math.max(1, currentPage - 1);
-                  setCurrentPage(newPage);
-                  if (usarPaginadoBackend) {
-                    cargarCRTsPaginado();
-                  }
-                }}
-                disabled={currentPage === 1}
-                className="px-2 py-1 border rounded mr-2 disabled:opacity-50"
-              >
-                ⬅ Prev
-              </button>
-              <span className="px-2 py-1">
-                {currentPage} / {totalPages}
-              </span>
-              <button
-                onClick={() => {
-                  const newPage = Math.min(totalPages, currentPage + 1);
-                  setCurrentPage(newPage);
-                  if (usarPaginadoBackend) {
-                    cargarCRTsPaginado();
-                  }
-                }}
-                disabled={currentPage === totalPages}
-                className="px-2 py-1 border rounded disabled:opacity-50"
-              >
-                Next ➡
-              </button>
-            </div>
+        {/* Pagination */}
+        <div className="px-6 py-4 border-t border-slate-200 bg-slate-50 flex items-center justify-between">
+          <div className="text-sm text-slate-500">
+            Mostrando {totalItems === 0 ? 0 : (currentPage - 1) * itemsPerPage + 1} a {Math.min(currentPage * itemsPerPage, totalItems)} de {totalItems} registros
           </div>
+          <div className="flex gap-2">
+            <button onClick={() => { const p = Math.max(1, currentPage - 1); setCurrentPage(p); if (usarPaginadoBackend) cargarCRTsPaginado(); }} disabled={currentPage === 1} className="p-2 border border-slate-300 rounded hover:bg-white disabled:opacity-50"><ChevronLeft className="w-4 h-4" /></button>
+            <button onClick={() => { const p = Math.min(totalPages, currentPage + 1); setCurrentPage(p); if (usarPaginadoBackend) cargarCRTsPaginado(); }} disabled={currentPage === totalPages} className="p-2 border border-slate-300 rounded hover:bg-white disabled:opacity-50"><ChevronRight className="w-4 h-4" /></button>
+          </div>
+        </div>
 
-          {/* MODAL MIC ORIGINAL */}
-          <Modal open={!!micCrtId} onClose={() => setMicCrtId(null)}>
-            <MIC crtId={micCrtId} onClose={() => setMicCrtId(null)} />
-          </Modal>
+      </div>
 
-          {/* NUEVO MODAL MIC COMPLETO */}
-          <ModalMICCompleto
-            isOpen={modalMIC.isOpen}
-            onClose={cerrarModalMIC}
-            crt={modalMIC.crt}
-            onGenerate={generarPDFMIC}
-            loading={loadingMIC === modalMIC.crt?.id}
-          />
 
-          {/* MODAL DE VISTA PREVIA CRT */}
-          <CRTPreview
-            crtData={previewData}
-            onClose={() => setPreviewOpen(false)}
-            onDownloadPDF={descargarPDFFromPreview}
-            isOpen={previewOpen}
-          />
+      <ModalMICCompleto isOpen={modalMIC.isOpen} onClose={cerrarModalMIC} crt={modalMIC.crt} onGenerate={generarPDFMIC} loading={loadingMIC === modalMIC.crt?.id} />
+      <CRTPreview crtData={previewData} onClose={() => setPreviewOpen(false)} onDownloadPDF={descargarPDFFromPreview} isOpen={previewOpen} />
 
-          {/* MODAL PARA EDICIÓN RÁPIDA CON FORMATEO NUMÉRICO MEJORADO */}
-          {modalEditar && crtEditando && (
-            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-              <div className="bg-white rounded-lg p-6 w-full max-w-6xl mx-4 max-h-[90vh] overflow-y-auto">
-                <div className="flex justify-between items-center mb-4">
-                  <h3 className="text-lg font-bold">
-                    ✏️ Editar CRT {crtEditando.numero_crt}
-                  </h3>
-                  <button
-                    onClick={() => setModalEditar(false)}
-                    className="text-gray-500 hover:text-gray-700 text-xl font-bold"
-                  >
-                    ×
-                  </button>
+      {/* Inline Modal for Editing - Stylized */}
+      {modalEditar && crtEditando && (
+        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-6xl max-h-[90vh] overflow-hidden flex flex-col animate-in zoom-in-95 duration-200">
+            <div className="px-6 py-4 border-b border-slate-200 flex justify-between items-center bg-slate-50">
+              <h3 className="text-lg font-bold text-slate-800 flex items-center gap-2"><Edit3 className="w-5 h-5 text-indigo-600" /> Editar CRT {crtEditando.numero_crt}</h3>
+              <button onClick={() => setModalEditar(false)} className="text-slate-400 hover:text-slate-600 transition-colors"><X className="w-6 h-6" /></button>
+            </div>
+
+            <div className="p-6 overflow-y-auto bg-slate-50/50">
+              <form onSubmit={guardarCambios} id="form-edit-crt">
+                {/* Basic Info */}
+                <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm mb-6">
+                  <h4 className="text-sm font-bold text-slate-600 uppercase tracking-wider mb-4 border-b pb-2 flex items-center gap-2"><FileText className="w-4 h-4" /> Información Básica</h4>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <div>
+                      <label className="block text-sm font-medium text-slate-700 mb-1">Número CRT *</label>
+                      <input type="text" name="numero_crt" defaultValue={crtEditando.numero_crt} className="w-full p-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none transition-all" required />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-slate-700 mb-1">Estado *</label>
+                      <select name="estado" defaultValue={crtEditando.estado} className="w-full p-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none transition-all">
+                        {["BORRADOR", "EMITIDO", "EN_TRANSITO", "ENTREGADO", "FINALIZADO", "CANCELADO"].map(s => <option key={s} value={s}>{s}</option>)}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-slate-700 mb-1">Fecha Emisión</label>
+                      <input type="date" name="fecha_emision" defaultValue={crtEditando.fecha_emision} className="w-full p-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none transition-all" />
+                    </div>
+                  </div>
                 </div>
 
-                <form onSubmit={guardarCambios}>
-                  {/* INFORMACIÓN BÁSICA */}
-                  <div className="mb-6">
-                    <h4 className="text-md font-semibold mb-3 text-gray-700 border-b pb-2">
-                      📋 Información Básica
-                    </h4>
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                      <div>
-                        <label className="block text-sm font-medium mb-1">
-                          Número CRT *
-                        </label>
-                        <input
-                          type="text"
-                          name="numero_crt"
-                          defaultValue={crtEditando.numero_crt || ""}
-                          className="w-full p-2 border rounded text-sm"
-                          required
-                        />
-                      </div>
-
-                      <div>
-                        <label className="block text-sm font-medium mb-1">
-                          Estado *
-                        </label>
-                        <select
-                          name="estado"
-                          defaultValue={crtEditando.estado}
-                          className="w-full p-2 border rounded text-sm"
-                        >
-                          <option value="BORRADOR">Borrador</option>
-                          <option value="EMITIDO">Emitido</option>
-                          <option value="EN_TRANSITO">En Tránsito</option>
-                          <option value="ENTREGADO">Entregado</option>
-                          <option value="FINALIZADO">Finalizado</option>
-                          <option value="CANCELADO">Cancelado</option>
+                {/* Entidades */}
+                <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm mb-6">
+                  <h4 className="text-sm font-bold text-slate-600 uppercase tracking-wider mb-4 border-b pb-2 flex items-center gap-2"><Truck className="w-4 h-4" /> Entidades</h4>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    {[
+                      { label: 'Remitente', name: 'remitente_id', currentId: crtEditando.remitente_id, currentName: crtEditando.remitente },
+                      { label: 'Destinatario', name: 'destinatario_id', currentId: crtEditando.destinatario_id, currentName: crtEditando.destinatario },
+                      { label: 'Consignatario', name: 'consignatario_id', currentId: crtEditando.consignatario_id, currentName: crtEditando.consignatario },
+                      { label: 'Notificar A', name: 'notificar_a_id', currentId: crtEditando.notificar_a_id, currentName: crtEditando.notificar_a }
+                    ].map((field) => (
+                      <div key={field.name}>
+                        <label className="block text-sm font-medium text-slate-700 mb-1">{field.label}</label>
+                        <select name={field.name} defaultValue={field.currentId || ""} className="w-full p-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none transition-all">
+                          <option value="">Seleccionar...</option>
+                          {entidades.map(e => <option key={e.id} value={e.id}>{e.nombre}</option>)}
                         </select>
+                        {field.currentId && <p className="text-xs text-slate-400 mt-1">Actual: {buscarEntidadPorId(field.currentId) || field.currentName}</p>}
                       </div>
-
-                      <div>
-                        <label className="block text-sm font-medium mb-1">
-                          Fecha de Emisión
-                        </label>
-                        <input
-                          type="date"
-                          name="fecha_emision"
-                          defaultValue={crtEditando.fecha_emision || ""}
-                          className="w-full p-2 border rounded text-sm"
-                        />
-                      </div>
+                    ))}
+                    <div>
+                      <label className="block text-sm font-medium text-slate-700 mb-1">Transportadora</label>
+                      <select name="transportadora_id" defaultValue={crtEditando.transportadora_id || ""} className="w-full p-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none transition-all">
+                        <option value="">Seleccionar...</option>
+                        {transportadoras.map(t => <option key={t.id} value={t.id}>{t.nombre}</option>)}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-slate-700 mb-1">Moneda</label>
+                      <select name="moneda_id" defaultValue={crtEditando.moneda_id || ""} className="w-full p-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none transition-all">
+                        <option value="">Seleccionar...</option>
+                        {monedas.map(m => <option key={m.id} value={m.id}>{m.codigo} - {m.nombre}</option>)}
+                      </select>
                     </div>
                   </div>
+                </div>
 
-                  {/* ENTIDADES MEJORADO */}
-                  <div className="mb-6">
-                    <h4 className="text-md font-semibold mb-3 text-gray-700 border-b pb-2">
-                      👥 Entidades
-                    </h4>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div>
-                        <label className="block text-sm font-medium mb-1">
-                          Remitente
-                        </label>
-                        <select
-                          name="remitente_id"
-                          defaultValue={crtEditando.remitente_id || ""}
-                          className="w-full p-2 border rounded text-sm"
-                        >
-                          <option value="">Seleccionar remitente</option>
-                          {entidades.map((entidad) => (
-                            <option key={entidad.id} value={entidad.id}>
-                              {entidad.nombre}
-                            </option>
-                          ))}
-                        </select>
-                        {crtEditando.remitente_id && (
-                          <small className="text-gray-500">
-                            Actual:{" "}
-                            {buscarEntidadPorId(crtEditando.remitente_id) ||
-                              crtEditando.remitente ||
-                              "No encontrado"}
-                          </small>
-                        )}
+                {/* Medidas y Pesos */}
+                <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm mb-6">
+                  <h4 className="text-sm font-bold text-slate-600 uppercase tracking-wider mb-4 border-b pb-2 flex items-center gap-2"><Package className="w-4 h-4" /> Medidas y Pesos (Use coma para decimales)</h4>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    {['peso_bruto', 'peso_neto', 'volumen'].map(field => (
+                      <div key={field}>
+                        <label className="block text-sm font-medium text-slate-700 mb-1 capitalize">{field.replace('_', ' ')}</label>
+                        <input type="text" name={field} defaultValue={formatearEntradaNumerica(crtEditando[field] || "")} onChange={(e) => manejarEntradaNaturalComa(e, (v) => e.target.value = v)} className="w-full p-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none transition-all" placeholder="0,00" />
                       </div>
+                    ))}
+                  </div>
+                </div>
 
-                      <div>
-                        <label className="block text-sm font-medium mb-1">
-                          Destinatario
-                        </label>
-                        <select
-                          name="destinatario_id"
-                          defaultValue={crtEditando.destinatario_id || ""}
-                          className="w-full p-2 border rounded text-sm"
-                        >
-                          <option value="">Seleccionar destinatario</option>
-                          {entidades.map((entidad) => (
-                            <option key={entidad.id} value={entidad.id}>
-                              {entidad.nombre}
-                            </option>
-                          ))}
-                        </select>
-                        {crtEditando.destinatario_id && (
-                          <small className="text-gray-500">
-                            Actual:{" "}
-                            {buscarEntidadPorId(crtEditando.destinatario_id) ||
-                              crtEditando.destinatario ||
-                              "No encontrado"}
-                          </small>
-                        )}
-                      </div>
-
-                      <div>
-                        <label className="block text-sm font-medium mb-1">
-                          Consignatario
-                        </label>
-                        <select
-                          name="consignatario_id"
-                          defaultValue={crtEditando.consignatario_id || ""}
-                          className="w-full p-2 border rounded text-sm"
-                        >
-                          <option value="">Seleccionar consignatario</option>
-                          {entidades.map((entidad) => (
-                            <option key={entidad.id} value={entidad.id}>
-                              {entidad.nombre}
-                            </option>
-                          ))}
-                        </select>
-                        {crtEditando.consignatario_id && (
-                          <small className="text-gray-500">
-                            Actual:{" "}
-                            {buscarEntidadPorId(crtEditando.consignatario_id) ||
-                              crtEditando.consignatario ||
-                              "No encontrado"}
-                          </small>
-                        )}
-                      </div>
-
-                      <div>
-                        <label className="block text-sm font-medium mb-1">
-                          Notificar A
-                        </label>
-                        <select
-                          name="notificar_a_id"
-                          defaultValue={crtEditando.notificar_a_id || ""}
-                          className="w-full p-2 border rounded text-sm"
-                        >
-                          <option value="">Seleccionar quien notificar</option>
-                          {entidades.map((entidad) => (
-                            <option key={entidad.id} value={entidad.id}>
-                              {entidad.nombre}
-                            </option>
-                          ))}
-                        </select>
-                        {crtEditando.notificar_a_id && (
-                          <small className="text-gray-500">
-                            Actual:{" "}
-                            {buscarEntidadPorId(crtEditando.notificar_a_id) ||
-                              crtEditando.notificar_a ||
-                              "No encontrado"}
-                          </small>
-                        )}
-                      </div>
-
-                      <div>
-                        <label className="block text-sm font-medium mb-1">
-                          Transportadora
-                        </label>
-                        <select
-                          name="transportadora_id"
-                          defaultValue={crtEditando.transportadora_id || ""}
-                          className="w-full p-2 border rounded text-sm"
-                        >
-                          <option value="">Seleccionar transportadora</option>
-                          {transportadoras.map((t) => (
-                            <option key={t.id} value={t.id}>
-                              {t.nombre}
-                            </option>
-                          ))}
-                        </select>
-                        {crtEditando.transportadora_id && (
-                          <small className="text-gray-500">
-                            Actual:{" "}
-                            {buscarTransportadoraPorId(
-                              crtEditando.transportadora_id
-                            ) ||
-                              crtEditando.transportadora ||
-                              "No encontrado"}
-                          </small>
-                        )}
-                      </div>
-
-                      <div>
-                        <label className="block text-sm font-medium mb-1">
-                          Moneda
-                        </label>
-                        <select
-                          name="moneda_id"
-                          defaultValue={crtEditando.moneda_id || ""}
-                          className="w-full p-2 border rounded text-sm"
-                        >
-                          <option value="">Seleccionar moneda</option>
-                          {monedas.map((m) => (
-                            <option key={m.id} value={m.id}>
-                              {m.codigo} - {m.nombre}
-                            </option>
-                          ))}
-                        </select>
-                        {crtEditando.moneda_id && (
-                          <small className="text-gray-500">
-                            Actual:{" "}
-                            {buscarMonedaPorId(crtEditando.moneda_id) ||
-                              crtEditando.moneda ||
-                              "No encontrado"}
-                          </small>
-                        )}
-                      </div>
-                    </div>
+                {/* Campo 15 */}
+                <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm mb-6">
+                  <div className="flex justify-between items-center mb-4 border-b pb-2">
+                    <h4 className="text-sm font-bold text-slate-600 uppercase tracking-wider flex items-center gap-2"><DollarSign className="w-4 h-4" /> Campo 15 - Gastos</h4>
+                    <button type="button" onClick={agregarCampo15Item} className="bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-1.5 rounded-lg text-sm flex items-center gap-2 transition-colors shadow-sm"><Plus className="w-3 h-3" /> Agregar Gasto</button>
                   </div>
 
-                  {/* UBICACIÓN Y ENTREGA */}
-                  <div className="mb-6">
-                    <h4 className="text-md font-semibold mb-3 text-gray-700 border-b pb-2">
-                      📍 Ubicación y Entrega
-                    </h4>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div>
-                        <label className="block text-sm font-medium mb-1">
-                          Lugar de Entrega
-                        </label>
-                        <input
-                          type="text"
-                          name="lugar_entrega"
-                          defaultValue={crtEditando.lugar_entrega || ""}
-                          className="w-full p-2 border rounded text-sm"
-                        />
-                      </div>
-
-                      <div>
-                        <label className="block text-sm font-medium mb-1">
-                          Fecha de Entrega
-                        </label>
-                        <input
-                          type="date"
-                          name="fecha_entrega"
-                          defaultValue={crtEditando.fecha_entrega || ""}
-                          className="w-full p-2 border rounded text-sm"
-                        />
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* MEDIDAS Y PESOS CON FORMATEO NUMÉRICO MEJORADO */}
-                  <div className="mb-6">
-                    <h4 className="text-md font-semibold mb-3 text-gray-700 border-b pb-2">
-                      ⚖️ Medidas y Pesos
-                    </h4>
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                      <div>
-                        <label className="block text-sm font-medium mb-1">
-                          Peso Bruto (kg)
-                        </label>
-                        <input
-                          type="text"
-                          name="peso_bruto"
-                          defaultValue={formatearEntradaNumerica(
-                            crtEditando.peso_bruto || ""
-                          )}
-                          onChange={(e) =>
-                            manejarEntradaNaturalComa(e, (valor) => {
-                              e.target.value = valor;
-                            })
-                          }
-                          className="w-full p-2 border rounded text-sm"
-                          placeholder="0,000"
-                        />
-                        <small className="text-gray-500">
-                          Use coma para decimales (ej: 3904,614)
-                        </small>
-                      </div>
-
-                      <div>
-                        <label className="block text-sm font-medium mb-1">
-                          Peso Neto (kg)
-                        </label>
-                        <input
-                          type="text"
-                          name="peso_neto"
-                          defaultValue={formatearEntradaNumerica(
-                            crtEditando.peso_neto || ""
-                          )}
-                          onChange={(e) =>
-                            manejarEntradaNaturalComa(e, (valor) => {
-                              e.target.value = valor;
-                            })
-                          }
-                          className="w-full p-2 border rounded text-sm"
-                          placeholder="0,000"
-                        />
-                        <small className="text-gray-500">
-                          Use coma para decimales
-                        </small>
-                      </div>
-
-                      <div>
-                        <label className="block text-sm font-medium mb-1">
-                          Volumen (m³)
-                        </label>
-                        <input
-                          type="text"
-                          name="volumen"
-                          defaultValue={formatearEntradaNumerica(
-                            crtEditando.volumen || ""
-                          )}
-                          onChange={(e) =>
-                            manejarEntradaNaturalComa(e, (valor) => {
-                              e.target.value = valor;
-                            })
-                          }
-                          className="w-full p-2 border rounded text-sm"
-                          placeholder="0,000"
-                        />
-                        <small className="text-gray-500">
-                          Use coma para decimales
-                        </small>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* VALORES Y INCOTERMS CON FORMATEO NUMÉRICO */}
-                  <div className="mb-6">
-                    <h4 className="text-md font-semibold mb-3 text-gray-700 border-b pb-2">
-                      💰 Valores y Incoterms
-                    </h4>
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                      <div>
-                        <label className="block text-sm font-medium mb-1">
-                          Incoterm
-                        </label>
-                        <input
-                          type="text"
-                          name="incoterm"
-                          defaultValue={crtEditando.incoterm || ""}
-                          className="w-full p-2 border rounded text-sm"
-                          placeholder="EXW, FOB, CIF, etc."
-                        />
-                      </div>
-
-                      <div>
-                        <label className="block text-sm font-medium mb-1">
-                          Valor Incoterm
-                        </label>
-                        <input
-                          type="text"
-                          name="valor_incoterm"
-                          defaultValue={formatearEntradaNumerica(
-                            crtEditando.valor_incoterm || ""
-                          )}
-                          onChange={(e) =>
-                            manejarEntradaNaturalComa(e, (valor) => {
-                              e.target.value = valor;
-                            })
-                          }
-                          className="w-full p-2 border rounded text-sm"
-                          placeholder="0,00"
-                        />
-                        <small className="text-gray-500">
-                          Use coma para decimales (ej: 1250,50)
-                        </small>
-                      </div>
-
-                      <div>
-                        <label className="block text-sm font-medium mb-1">
-                          Valor Mercadería
-                        </label>
-                        <input
-                          type="text"
-                          name="valor_mercaderia"
-                          defaultValue={formatearEntradaNumerica(
-                            crtEditando.valor_mercaderia || ""
-                          )}
-                          onChange={(e) =>
-                            manejarEntradaNaturalComa(e, (valor) => {
-                              e.target.value = valor;
-                            })
-                          }
-                          className="w-full p-2 border rounded text-sm"
-                          placeholder="0,00"
-                        />
-                        <small className="text-gray-500">
-                          Use coma para decimales
-                        </small>
-                      </div>
-
-                      <div>
-                        <label className="block text-sm font-medium mb-1">
-                          Declaración Mercadería
-                        </label>
-                        <input
-                          type="text"
-                          name="declaracion_mercaderia"
-                          defaultValue={formatearEntradaNumerica(
-                            crtEditando.declaracion_mercaderia || ""
-                          )}
-                          onChange={(e) =>
-                            manejarEntradaNaturalComa(e, (valor) => {
-                              e.target.value = valor;
-                            })
-                          }
-                          className="w-full p-2 border rounded text-sm"
-                          placeholder="0,00"
-                        />
-                        <small className="text-gray-500">
-                          Use coma para decimales
-                        </small>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* DOCUMENTOS Y NÚMEROS */}
-                  <div className="mb-6">
-                    <h4 className="text-md font-semibold mb-3 text-gray-700 border-b pb-2">
-                      📄 Documentos y Números
-                    </h4>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div>
-                        <label className="block text-sm font-medium mb-1">
-                          Factura Exportación
-                        </label>
-                        <input
-                          type="text"
-                          name="factura_exportacion"
-                          defaultValue={crtEditando.factura_exportacion || ""}
-                          className="w-full p-2 border rounded text-sm"
-                        />
-                      </div>
-
-                      <div>
-                        <label className="block text-sm font-medium mb-1">
-                          Nro. Despacho
-                        </label>
-                        <input
-                          type="text"
-                          name="nro_despacho"
-                          defaultValue={crtEditando.nro_despacho || ""}
-                          className="w-full p-2 border rounded text-sm"
-                        />
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* VALORES ADICIONALES CON FORMATEO NUMÉRICO */}
-                  <div className="mb-6">
-                    <h4 className="text-md font-semibold mb-3 text-gray-700 border-b pb-2">
-                      💵 Valores Adicionales
-                    </h4>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div>
-                        <label className="block text-sm font-medium mb-1">
-                          Valor Flete Externo
-                          <span className="text-orange-600 text-xs ml-2">
-                            (Se autocompleta desde Campo 15 - Primer tramo)
-                          </span>
-                        </label>
-                        <input
-                          type="text"
-                          name="valor_flete_externo"
-                          defaultValue={formatearEntradaNumerica(
-                            crtEditando.valor_flete_externo || ""
-                          )}
-                          onChange={(e) =>
-                            manejarEntradaNaturalComa(e, (valor) => {
-                              e.target.value = valor;
-                            })
-                          }
-                          className="w-full p-2 border rounded text-sm"
-                          placeholder="0,00"
-                        />
-                        <small className="text-gray-500">
-                          ⚡ Se autocompleta automáticamente con el primer valor del Campo 15
-                        </small>
-                      </div>
-
-                      <div>
-                        <label className="block text-sm font-medium mb-1">
-                          Valor Reembolso
-                        </label>
-                        <input
-                          type="text"
-                          name="valor_reembolso"
-                          defaultValue={formatearEntradaNumerica(
-                            crtEditando.valor_reembolso || ""
-                          )}
-                          onChange={(e) =>
-                            manejarEntradaNaturalComa(e, (valor) => {
-                              e.target.value = valor;
-                            })
-                          }
-                          className="w-full p-2 border rounded text-sm"
-                          placeholder="0,00"
-                        />
-                        <small className="text-gray-500">
-                          Use coma para decimales
-                        </small>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* CAMPO 15 - COSTOS A PAGAR CON FORMATEO NUMÉRICO PERFECTO */}
-                  <div className="mb-6">
-                    <div className="flex justify-between items-center mb-3">
-                      <h4 className="text-md font-semibold text-gray-700 border-b pb-2">
-                        💰 Campo 15 - Custos a pagar / Gastos a pagar
-                      </h4>
-                      <button
-                        type="button"
-                        onClick={agregarCampo15Item}
-                        className="bg-green-500 text-white px-3 py-1 rounded text-sm hover:bg-green-600"
-                      >
-                        ➕ Agregar Gasto
-                      </button>
-                    </div>
-
-                    {campo15Items.length > 0 ? (
-                      <div className="overflow-x-auto">
-                        <table className="w-full border text-sm">
-                          <thead className="bg-gray-100">
-                            <tr>
-                              <th
-                                className="border px-2 py-2 text-left"
-                                rowSpan="2"
-                              >
-                                15 - Custos a pagar /<br />
-                                Gastos a pagar
-                              </th>
-                              <th
-                                className="border px-2 py-1 text-center"
-                                colSpan="2"
-                              >
-                                Valor Remitente
-                                <br />
-                                Monto Remitente
-                              </th>
-                              <th
-                                className="border px-2 py-1 text-center"
-                                colSpan="2"
-                              >
-                                Valor Destinatario
-                                <br />
-                                Monto Destinatario
-                              </th>
-                              <th
-                                className="border px-2 py-1 text-center"
-                                rowSpan="2"
-                              >
-                                Acciones
-                              </th>
+                  {campo15Items.length > 0 ? (
+                    <div className="overflow-x-auto border border-slate-200 rounded-lg">
+                      <table className="w-full text-sm">
+                        <thead className="bg-slate-50 text-xs text-slate-500 uppercase">
+                          <tr>
+                            <th className="px-4 py-2 border-b">Descripción</th>
+                            <th className="px-4 py-2 border-b text-center col-span-2">Remitente</th>
+                            <th className="px-4 py-2 border-b text-center col-span-2">Destinatario</th>
+                            <th className="px-4 py-2 border-b w-10"></th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-100">
+                          {campo15Items.map((item, index) => (
+                            <tr key={index} className="hover:bg-slate-50">
+                              <td className="p-2">
+                                <input type="text" value={item.descripcion_gasto} onChange={(e) => actualizarCampo15Item(index, "descripcion_gasto", e.target.value)} className="w-full p-2 border border-slate-300 rounded text-sm" placeholder="Descripción..." />
+                              </td>
+                              <td className="p-2">
+                                <div className="flex gap-1">
+                                  <select value={item.moneda_remitente} onChange={(e) => actualizarCampo15Item(index, "moneda_remitente", e.target.value)} className="w-20 p-2 border border-slate-300 rounded text-xs bg-slate-50">{monedas.map(m => <option key={m.id} value={m.codigo}>{m.codigo}</option>)}</select>
+                                  <input type="text" value={formatearEntradaNumerica(item.valor_remitente)} onChange={(e) => manejarEntradaNaturalComa(e, (v) => actualizarCampo15Item(index, "valor_remitente", v))} className="w-full p-2 border border-slate-300 rounded text-sm text-right" placeholder="0,00" />
+                                </div>
+                              </td>
+                              <td className="p-2">
+                                <div className="flex gap-1">
+                                  <select value={item.moneda_destinatario} onChange={(e) => actualizarCampo15Item(index, "moneda_destinatario", e.target.value)} className="w-20 p-2 border border-slate-300 rounded text-xs bg-slate-50">{monedas.map(m => <option key={m.id} value={m.codigo}>{m.codigo}</option>)}</select>
+                                  <input type="text" value={formatearEntradaNumerica(item.valor_destinatario)} onChange={(e) => manejarEntradaNaturalComa(e, (v) => actualizarCampo15Item(index, "valor_destinatario", v))} className="w-full p-2 border border-slate-300 rounded text-sm text-right" placeholder="0,00" />
+                                </div>
+                              </td>
+                              <td className="p-2 text-center">
+                                <button type="button" onClick={() => eliminarCampo15Item(index)} className="text-slate-400 hover:text-red-600 transition-colors"><Trash2 className="w-4 h-4" /></button>
+                              </td>
                             </tr>
-                            <tr>
-                              <th className="border px-2 py-1 text-center bg-blue-50">
-                                Moeda
-                              </th>
-                              <th className="border px-2 py-1 text-center bg-blue-50">
-                                Valor
-                              </th>
-                              <th className="border px-2 py-1 text-center bg-green-50">
-                                Moeda
-                              </th>
-                              <th className="border px-2 py-1 text-center bg-green-50">
-                                Valor
-                              </th>
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {campo15Items.map((item, index) => (
-                              <tr key={index} className={index === 0 ? "bg-yellow-50" : ""}>
-                                <td className="border px-2 py-1">
-                                  <textarea
-                                    value={item.descripcion_gasto}
-                                    onChange={(e) =>
-                                      actualizarCampo15Item(
-                                        index,
-                                        "descripcion_gasto",
-                                        e.target.value
-                                      )
-                                    }
-                                    className="w-full p-1 border-0 text-sm resize-none"
-                                    rows="2"
-                                    placeholder={
-                                      index === 0
-                                        ? "⭐ PRIMER TRAMO - Este valor se autocopiará a 'Valor Flete Externo'"
-                                        : "Ej: Frete / Flete, Belem - Paraguai/Foz do Iguaçu"
-                                    }
-                                  />
-                                  {index === 0 && (
-                                    <small className="text-orange-600 font-medium">
-                                      ⚡ Primer tramo - Se autocompleta "Valor Flete Externo"
-                                    </small>
-                                  )}
-                                </td>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  ) : (
+                    <div className="text-center py-8 border-2 border-dashed border-slate-200 rounded-lg text-slate-500">
+                      <Info className="w-8 h-8 mx-auto mb-2 opacity-50" />
+                      <p>No hay gastos registrados en Campo 15</p>
+                    </div>
+                  )}
+                </div>
 
-                                {/* Valor Remitente */}
-                                <td className="border px-1 py-1 bg-blue-25">
-                                  <select
-                                    value={item.moneda_remitente}
-                                    onChange={(e) =>
-                                      actualizarCampo15Item(
-                                        index,
-                                        "moneda_remitente",
-                                        e.target.value
-                                      )
-                                    }
-                                    className="w-full p-2 border rounded text-sm"
-                                  >
-                                    {monedas.map((m) => (
-                                      <option key={m.id} value={m.codigo}>
-                                        {m.codigo}
-                                      </option>
-                                    ))}
-                                  </select>
-                                </td>
-                                <td className="border px-1 py-1 bg-blue-25">
-                                  <input
-                                    type="text"
-                                    value={formatearEntradaNumerica(
-                                      item.valor_remitente
-                                    )}
-                                    onChange={(e) => {
-                                      manejarEntradaNaturalComa(e, (valor) => {
-                                        actualizarCampo15Item(index, "valor_remitente", valor);
-                                      });
-                                    }}
-                                    className="w-full p-2 border rounded text-sm text-right"
-                                    placeholder="0,00"
-                                  />
-                                  {index === 0 && (
-                                    <small className="text-orange-600 text-xs block mt-1">
-                                      → Auto a Flete Ext.
-                                    </small>
-                                  )}
-                                </td>
-
-                                {/* Valor Destinatario */}
-                                <td className="border px-1 py-1 bg-green-25">
-                                  <select
-                                    value={item.moneda_destinatario}
-                                    onChange={(e) =>
-                                      actualizarCampo15Item(
-                                        index,
-                                        "moneda_destinatario",
-                                        e.target.value
-                                      )
-                                    }
-                                    className="w-full p-2 border rounded text-sm"
-                                  >
-                                    {monedas.map((m) => (
-                                      <option key={m.id} value={m.codigo}>
-                                        {m.codigo}
-                                      </option>
-                                    ))}
-                                  </select>
-                                </td>
-                                <td className="border px-1 py-1 bg-green-25">
-                                  <input
-                                    type="text"
-                                    value={formatearEntradaNumerica(
-                                      item.valor_destinatario
-                                    )}
-                                    onChange={(e) => {
-                                      manejarEntradaNaturalComa(e, (valor) => {
-                                        actualizarCampo15Item(index, "valor_destinatario", valor);
-                                      });
-                                    }}
-                                    className="w-full p-2 border rounded text-sm text-right"
-                                    placeholder="0,00"
-                                  />
-                                  {index === 0 && (
-                                    <small className="text-orange-600 text-xs block mt-1">
-                                      → Auto a Flete Ext.
-                                    </small>
-                                  )}
-                                </td>
-
-                                <td className="border px-1 py-1 text-center">
-                                  <button
-                                    type="button"
-                                    onClick={() => eliminarCampo15Item(index)}
-                                    className="bg-red-500 text-white px-2 py-1 rounded text-xs hover:bg-red-600"
-                                    title="Eliminar gasto"
-                                  >
-                                    🗑️
-                                  </button>
-                                </td>
-                              </tr>
-                            ))}
-
-                            {/* FILA DE TOTALES */}
-                            <tr className="bg-yellow-100 font-bold">
-                              <td className="border px-2 py-2">
-                                <strong>Total / Total</strong>
-                              </td>
-                              <td className="border px-2 py-1 text-center">
-                                USD
-                              </td>
-                              <td className="border px-2 py-1 text-right">
-                                {calcularTotales().totalRemitente.toLocaleString(
-                                  "es-ES",
-                                  {
-                                    minimumFractionDigits: 2,
-                                    maximumFractionDigits: 2,
-                                  }
-                                )}
-                              </td>
-                              <td className="border px-2 py-1 text-center">
-                                USD
-                              </td>
-                              <td className="border px-2 py-1 text-right">
-                                {calcularTotales().totalDestinatario.toLocaleString(
-                                  "es-ES",
-                                  {
-                                    minimumFractionDigits: 2,
-                                    maximumFractionDigits: 2,
-                                  }
-                                )}
-                              </td>
-                              <td className="border px-2 py-1"></td>
-                            </tr>
-                          </tbody>
-                        </table>
-                      </div>
-                    ) : (
-                      <div className="text-center text-gray-500 py-4 border-2 border-dashed border-gray-300 rounded">
-                        <p>📋 No hay gastos en el Campo 15</p>
-                        <p className="text-sm">
-                          Haz clic en "➕ Agregar Gasto" para comenzar
-                        </p>
-                      </div>
-                    )}
-
-                    {/* EJEMPLOS DE GASTOS COMUNES */}
-                    {campo15Items.length === 0 && (
-                      <div className="mt-4 p-3 bg-blue-50 rounded border-l-4 border-blue-400">
-                        <p className="text-sm font-medium text-blue-800 mb-2">
-                          💡 Ejemplos de gastos comunes:
-                        </p>
-                        <ul className="text-xs text-blue-700 space-y-1">
-                          <li>
-                            • <strong>Frete / Flete:</strong> Belem -
-                            Paraguai/Foz do Iguaçu
-                          </li>
-                          <li>
-                            • <strong>Foz do Iguaçu/Contagem-MG:</strong>{" "}
-                            Transporte nacional
-                          </li>
-                          <li>
-                            • <strong>Seguro:</strong> Seguro de mercadería
-                          </li>
-                          <li>
-                            • <strong>Almacenaje:</strong> Depósito y
-                            manipulación
-                          </li>
-                          <li>
-                            • <strong>Aduana:</strong> Tasas y trámites
-                            aduaneros
-                          </li>
-                        </ul>
-                      </div>
-                    )}
-
-                    {/* NOTA SOBRE FORMATO NUMÉRICO */}
-                    <div className="mt-2 p-2 bg-green-50 rounded border border-green-200">
-                      <p className="text-xs text-green-700">
-                        💡 <strong>Formato numérico:</strong> Use coma para
-                        decimales (ej: 500,25). Los totales se calculan
-                        automáticamente y se muestran con formato local.
-                      </p>
+                {/* Other Fields (grouped for brevity in display, but functional) */}
+                <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm mb-6">
+                  <h4 className="text-sm font-bold text-slate-600 uppercase tracking-wider mb-4 border-b pb-2">Otros Valores</h4>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                      <label className="block text-sm font-medium text-slate-700 mb-1">Valor Flete Externo (Auto)</label>
+                      <input type="text" name="valor_flete_externo" defaultValue={formatearEntradaNumerica(crtEditando.valor_flete_externo || "")} onChange={(e) => manejarEntradaNaturalComa(e, (v) => e.target.value = v)} className="w-full p-2.5 border border-slate-300 rounded-lg bg-slate-50" />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-slate-700 mb-1">Valor Reembolso</label>
+                      <input type="text" name="valor_reembolso" defaultValue={formatearEntradaNumerica(crtEditando.valor_reembolso || "")} onChange={(e) => manejarEntradaNaturalComa(e, (v) => e.target.value = v)} className="w-full p-2.5 border border-slate-300 rounded-lg" />
                     </div>
                   </div>
+                </div>
 
-                  {/* CAMPOS DE TEXTO LARGO */}
-                  <div className="mb-6">
-                    <h4 className="text-md font-semibold mb-3 text-gray-700 border-b pb-2">
-                      📝 Descripción y Observaciones
-                    </h4>
-                    <div className="space-y-4">
-                      <div>
-                        <label className="block text-sm font-medium mb-1">
-                          Detalles de Mercadería
-                        </label>
-                        <textarea
-                          name="detalles_mercaderia"
-                          defaultValue={crtEditando.detalles_mercaderia || ""}
-                          rows="3"
-                          className="w-full p-2 border rounded text-sm"
-                          placeholder="Descripción detallada de la mercadería..."
-                        />
-                      </div>
-
-                      <div>
-                        <label className="block text-sm font-medium mb-1">
-                          Transporte Sucesivos
-                        </label>
-                        <textarea
-                          name="transporte_sucesivos"
-                          defaultValue={crtEditando.transporte_sucesivos || ""}
-                          rows="2"
-                          className="w-full p-2 border rounded text-sm"
-                          placeholder="Información sobre transportes sucesivos..."
-                        />
-                      </div>
-
-                      <div>
-                        <label className="block text-sm font-medium mb-1">
-                          Formalidades de Aduana
-                        </label>
-                        <textarea
-                          name="formalidades_aduana"
-                          defaultValue={crtEditando.formalidades_aduana || ""}
-                          rows="2"
-                          className="w-full p-2 border rounded text-sm"
-                          placeholder="Instrucciones para formalidades aduaneras..."
-                        />
-                      </div>
-
-                      <div>
-                        <label className="block text-sm font-medium mb-1">
-                          Observaciones
-                        </label>
-                        <textarea
-                          name="observaciones"
-                          defaultValue={crtEditando.observaciones || ""}
-                          rows="3"
-                          className="w-full p-2 border rounded text-sm"
-                          placeholder="Observaciones adicionales..."
-                        />
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* FECHA DE FIRMA */}
-                  <div className="mb-6">
-                    <h4 className="text-md font-semibold mb-3 text-gray-700 border-b pb-2">
-                      ✍️ Fecha de Firma
-                    </h4>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div>
-                        <label className="block text-sm font-medium mb-1">
-                          Fecha de Firma
-                        </label>
-                        <input
-                          type="date"
-                          name="fecha_firma"
-                          defaultValue={crtEditando.fecha_firma || ""}
-                          className="w-full p-2 border rounded text-sm"
-                        />
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* BOTONES DE ACCIÓN */}
-                  <div className="flex gap-2 justify-end pt-4 border-t bg-gray-50 -mx-6 px-6 -mb-6 pb-6 rounded-b-lg">
-                    <button
-                      type="button"
-                      onClick={() => setModalEditar(false)}
-                      className="px-6 py-2 border border-gray-300 rounded hover:bg-gray-50 text-sm font-medium"
-                    >
-                      ✖️ Cancelar
-                    </button>
-                    <button
-                      type="submit"
-                      className="px-6 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 text-sm font-medium"
-                    >
-                      💾 Guardar Todos los Cambios
-                    </button>
-                  </div>
-                </form>
-              </div>
+              </form>
             </div>
-          )}
-        </>
+
+            <div className="px-6 py-4 border-t border-slate-200 bg-slate-50 flex justify-end gap-3">
+              <button onClick={() => setModalEditar(false)} className="px-4 py-2 border border-slate-300 rounded-lg hover:bg-white text-slate-700 font-medium transition-colors">Cancelar</button>
+              <button form="form-edit-crt" type="submit" className="px-6 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 font-medium shadow-sm transition-colors flex items-center gap-2"><Save className="w-4 h-4" /> Guardar Cambios</button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

@@ -1,49 +1,90 @@
 import React, { useState, useEffect } from "react";
 import api from "../api/api";
-import { Search, Plus, Coins, DollarSign, Hash, Type, AlertCircle, CheckCircle, Edit3, Trash2 } from "lucide-react";
+import { Search, Plus, Coins, DollarSign, Hash, Edit3, Trash2, Loader2 } from "lucide-react";
 
-// Componente para mostrar monedas en cards
-const MonedaCard = ({ moneda, onEdit, onDelete }) => {
+// Componente Table
+const EnhancedTable = ({ columns, data, onEdit, onDelete, loading }) => {
+  const [searchTerm, setSearchTerm] = useState("");
+
+  const filteredData = data.filter(item =>
+    Object.values(item).some(value =>
+      value?.toString().toLowerCase().includes(searchTerm.toLowerCase())
+    )
+  );
+
+  if (loading) {
+    return (
+      <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-12 text-center text-slate-500">
+        <Loader2 className="w-8 h-8 mx-auto mb-4 animate-spin text-indigo-600" />
+        <p>Cargando datos...</p>
+      </div>
+    );
+  }
+
   return (
-    <div className="bg-white rounded-xl p-6 shadow-lg border border-gray-100 hover:shadow-xl transition-all duration-300 group">
-      <div className="flex items-center justify-between mb-4">
-        <div className="flex items-center space-x-3">
-          <div className="w-12 h-12 bg-gradient-to-br from-yellow-500 to-amber-600 rounded-xl flex items-center justify-center">
-            <span className="text-white font-bold text-lg">{moneda.simbolo}</span>
-          </div>
-          <div>
-            <h3 className="text-xl font-bold text-gray-900">{moneda.nombre}</h3>
-            <p className="text-gray-600 text-sm">{moneda.codigo}</p>
-          </div>
-        </div>
-        
-        <div className="flex space-x-2 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-          <button
-            onClick={() => onEdit(moneda)}
-            className="p-2 text-yellow-600 hover:bg-yellow-100 rounded-lg transition-all duration-300 hover:scale-110"
-          >
-            <Edit3 className="w-4 h-4" />
-          </button>
-          <button
-            onClick={() => onDelete(moneda.id)}
-            className="p-2 text-red-600 hover:bg-red-100 rounded-lg transition-all duration-300 hover:scale-110"
-          >
-            <Trash2 className="w-4 h-4" />
-          </button>
+    <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+      {/* Search Header */}
+      <div className="p-6 border-b border-slate-200">
+        <div className="relative max-w-md">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 w-5 h-5" />
+          <input
+            type="text"
+            placeholder="Buscar monedas..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="w-full pl-10 pr-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all"
+          />
         </div>
       </div>
-      
-      <div className="space-y-2">
-        <div className="flex items-center space-x-2 text-sm">
-          <Hash className="w-4 h-4 text-gray-400" />
-          <span className="text-gray-600">Código:</span>
-          <span className="font-mono bg-gray-100 px-2 py-1 rounded text-gray-800">{moneda.codigo}</span>
-        </div>
-        <div className="flex items-center space-x-2 text-sm">
-          <DollarSign className="w-4 h-4 text-gray-400" />
-          <span className="text-gray-600">Símbolo:</span>
-          <span className="font-bold text-yellow-600 text-lg">{moneda.simbolo}</span>
-        </div>
+
+      {/* Table */}
+      <div className="overflow-x-auto">
+        <table className="w-full text-left">
+          <thead className="bg-slate-50 border-b border-slate-200">
+            <tr>
+              {columns.map((column) => (
+                <th key={column.field} className="px-6 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                  {column.label}
+                </th>
+              ))}
+              <th className="px-6 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider text-right">
+                Acciones
+              </th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-slate-200">
+            {filteredData.map((item, index) => (
+              <tr key={item.id || index} className="hover:bg-slate-50 transition-colors group">
+                {columns.map((column) => (
+                  <td key={column.field} className="px-6 py-4 text-slate-700">
+                    {column.render ? (
+                      column.render(item[column.field], item)
+                    ) : (
+                      item[column.field]
+                    )}
+                  </td>
+                ))}
+                <td className="px-6 py-4 text-right">
+                  <div className="flex justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <button onClick={() => onEdit(item)} className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-all">
+                      <Edit3 className="w-4 h-4" />
+                    </button>
+                    <button onClick={() => onDelete(item.id)} className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all">
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+
+        {filteredData.length === 0 && !loading && (
+          <div className="text-center py-12 text-slate-500">
+            <Coins className="w-12 h-12 text-slate-300 mx-auto mb-3" />
+            <p>No se encontraron monedas</p>
+          </div>
+        )}
       </div>
     </div>
   );
@@ -91,32 +132,20 @@ const MonedaModal = ({ open, onClose, onSubmit, initialValues, title }) => {
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-      <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full transform transition-all duration-300 scale-100">
+    <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+      <div className="bg-white rounded-xl shadow-xl max-w-md w-full overflow-hidden">
         {/* Header */}
-        <div className="bg-gradient-to-r from-yellow-500 to-amber-600 p-6 rounded-t-2xl">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-3">
-              <div className="w-10 h-10 bg-white bg-opacity-20 rounded-lg flex items-center justify-center">
-                <Coins className="w-6 h-6 text-white" />
-              </div>
-              <h3 className="text-xl font-bold text-white">{title}</h3>
-            </div>
-            <button
-              onClick={onClose}
-              className="text-white hover:bg-white hover:bg-opacity-20 rounded-lg p-2 transition-all duration-300"
-            >
-              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-              </svg>
-            </button>
-          </div>
+        <div className="px-6 py-4 border-b border-slate-200 flex justify-between items-center bg-slate-50">
+          <h3 className="text-lg font-bold text-slate-800">{title}</h3>
+          <button onClick={onClose} className="text-slate-400 hover:text-slate-600 transition-colors">
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+          </button>
         </div>
 
         {/* Form */}
         <div className="p-6 space-y-4">
-          <div className="space-y-2">
-            <label className="block text-sm font-semibold text-gray-700">
+          <div className="space-y-1">
+            <label className="block text-sm font-medium text-slate-700">
               Código <span className="text-red-500">*</span>
             </label>
             <div className="relative">
@@ -124,18 +153,16 @@ const MonedaModal = ({ open, onClose, onSubmit, initialValues, title }) => {
                 type="text"
                 value={formData.codigo}
                 onChange={(e) => handleChange('codigo', e.target.value.toUpperCase())}
-                placeholder="USD, EUR, PYG..."
-                className={`w-full px-4 py-3 border rounded-xl transition-all duration-300 focus:ring-2 focus:ring-yellow-500 focus:border-transparent ${
-                  errors.codigo ? 'border-red-300' : 'border-gray-200'
-                }`}
+                placeholder="USD"
+                className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all ${errors.codigo ? 'border-red-300' : 'border-slate-300'
+                  }`}
               />
-              <Hash className="absolute right-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
             </div>
-            {errors.codigo && <p className="text-red-500 text-sm">{errors.codigo}</p>}
+            {errors.codigo && <p className="text-red-500 text-xs mt-1">{errors.codigo}</p>}
           </div>
 
-          <div className="space-y-2">
-            <label className="block text-sm font-semibold text-gray-700">
+          <div className="space-y-1">
+            <label className="block text-sm font-medium text-slate-700">
               Nombre <span className="text-red-500">*</span>
             </label>
             <div className="relative">
@@ -143,18 +170,16 @@ const MonedaModal = ({ open, onClose, onSubmit, initialValues, title }) => {
                 type="text"
                 value={formData.nombre}
                 onChange={(e) => handleChange('nombre', e.target.value)}
-                placeholder="Dólar Estadounidense, Euro..."
-                className={`w-full px-4 py-3 border rounded-xl transition-all duration-300 focus:ring-2 focus:ring-yellow-500 focus:border-transparent ${
-                  errors.nombre ? 'border-red-300' : 'border-gray-200'
-                }`}
+                placeholder="Dólar Estadounidense"
+                className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all ${errors.nombre ? 'border-red-300' : 'border-slate-300'
+                  }`}
               />
-              <Type className="absolute right-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
             </div>
-            {errors.nombre && <p className="text-red-500 text-sm">{errors.nombre}</p>}
+            {errors.nombre && <p className="text-red-500 text-xs mt-1">{errors.nombre}</p>}
           </div>
 
-          <div className="space-y-2">
-            <label className="block text-sm font-semibold text-gray-700">
+          <div className="space-y-1">
+            <label className="block text-sm font-medium text-slate-700">
               Símbolo <span className="text-red-500">*</span>
             </label>
             <div className="relative">
@@ -162,54 +187,31 @@ const MonedaModal = ({ open, onClose, onSubmit, initialValues, title }) => {
                 type="text"
                 value={formData.simbolo}
                 onChange={(e) => handleChange('simbolo', e.target.value)}
-                placeholder="$, €, ₲..."
-                className={`w-full px-4 py-3 border rounded-xl transition-all duration-300 focus:ring-2 focus:ring-yellow-500 focus:border-transparent ${
-                  errors.simbolo ? 'border-red-300' : 'border-gray-200'
-                }`}
+                placeholder="$"
+                className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all ${errors.simbolo ? 'border-red-300' : 'border-slate-300'
+                  }`}
               />
-              <DollarSign className="absolute right-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
             </div>
-            {errors.simbolo && <p className="text-red-500 text-sm">{errors.simbolo}</p>}
+            {errors.simbolo && <p className="text-red-500 text-xs mt-1">{errors.simbolo}</p>}
           </div>
-
-          {/* Preview */}
-          {formData.codigo || formData.nombre || formData.simbolo ? (
-            <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-4">
-              <h4 className="text-sm font-semibold text-yellow-800 mb-2">Vista previa:</h4>
-              <div className="flex items-center space-x-3">
-                <div className="w-8 h-8 bg-gradient-to-br from-yellow-500 to-amber-600 rounded-lg flex items-center justify-center">
-                  <span className="text-white font-bold text-sm">{formData.simbolo || '?'}</span>
-                </div>
-                <div>
-                  <p className="font-semibold text-gray-900">{formData.nombre || 'Nombre de la moneda'}</p>
-                  <p className="text-sm text-gray-600">{formData.codigo || 'CÓDIGO'}</p>
-                </div>
-              </div>
-            </div>
-          ) : null}
 
           {/* Actions */}
           <div className="flex space-x-3 pt-4">
             <button
               type="button"
               onClick={onClose}
-              className="flex-1 py-3 px-4 border border-gray-300 text-gray-700 rounded-xl hover:bg-gray-50 transition-all duration-300 font-medium"
+              disabled={isSubmitting}
+              className="flex-1 px-4 py-2 border border-slate-300 text-slate-700 rounded-lg hover:bg-slate-50 font-medium transition-colors"
             >
               Cancelar
             </button>
             <button
               onClick={handleSubmit}
               disabled={isSubmitting}
-              className="flex-1 py-3 px-4 bg-gradient-to-r from-yellow-500 to-amber-600 text-white rounded-xl hover:from-yellow-600 hover:to-amber-700 transition-all duration-300 font-medium disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center space-x-2"
+              className="flex-1 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 font-medium flex justify-center items-center gap-2 transition-colors"
             >
-              {isSubmitting ? (
-                <>
-                  <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                  <span>Guardando...</span>
-                </>
-              ) : (
-                <span>{initialValues ? 'Actualizar' : 'Crear'}</span>
-              )}
+              {isSubmitting && <Loader2 className="w-4 h-4 animate-spin" />}
+              {initialValues ? 'Guardar' : 'Crear'}
             </button>
           </div>
         </div>
@@ -221,8 +223,6 @@ const MonedaModal = ({ open, onClose, onSubmit, initialValues, title }) => {
 // Componente principal
 const Monedas = () => {
   const [monedas, setMonedas] = useState([]);
-  const [searchTerm, setSearchTerm] = useState("");
-  const [mensaje, setMensaje] = useState("");
   const [modalOpen, setModalOpen] = useState(false);
   const [editMoneda, setEditMoneda] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -236,10 +236,8 @@ const Monedas = () => {
     try {
       const res = await api.get("/monedas/");
       setMonedas(res.data);
-      setMensaje("");
     } catch (error) {
       console.error('Error fetching monedas:', error);
-      setMensaje("Error cargando monedas: " + (error.response?.data?.error || error.message));
     } finally {
       setIsLoading(false);
     }
@@ -249,17 +247,14 @@ const Monedas = () => {
     try {
       if (editMoneda) {
         await api.put(`/monedas/${editMoneda.id}`, formData);
-        setMensaje("Moneda actualizada correctamente");
       } else {
         await api.post("/monedas/", formData);
-        setMensaje("Moneda agregada correctamente");
       }
       setModalOpen(false);
       setEditMoneda(null);
       fetchMonedas();
     } catch (error) {
-      console.error('Error saving moneda:', error);
-      setMensaje("Error al guardar la moneda: " + (error.response?.data?.error || error.message));
+      alert("Error al guardar: " + (error.response?.data?.error || error.message));
     }
   };
 
@@ -272,11 +267,9 @@ const Monedas = () => {
     if (window.confirm("¿Estás seguro de que deseas eliminar esta moneda?")) {
       try {
         await api.delete(`/monedas/${id}`);
-        setMensaje("Moneda eliminada correctamente");
         fetchMonedas();
       } catch (error) {
-        console.error('Error deleting moneda:', error);
-        setMensaje("Error al eliminar la moneda: " + (error.response?.data?.error || error.message));
+        alert("Error al eliminar: " + (error.response?.data?.error || error.message));
       }
     }
   };
@@ -286,156 +279,55 @@ const Monedas = () => {
     setModalOpen(true);
   };
 
-  const filteredMonedas = monedas.filter(moneda =>
-    moneda.nombre.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    moneda.codigo.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    moneda.simbolo.toLowerCase().includes(searchTerm.toLowerCase())
-  );
-
   return (
-    <div className="min-h-screen bg-gradient-to-br from-yellow-50 via-amber-50 to-orange-50">
-      <div className="container mx-auto px-4 py-8">
-        {/* Header */}
-        <div className="mb-8">
-          <div className="flex items-center justify-between mb-6">
-            <div className="flex items-center space-x-4">
-              <div className="w-16 h-16 bg-gradient-to-br from-yellow-500 to-amber-600 rounded-2xl flex items-center justify-center shadow-lg">
-                <Coins className="w-8 h-8 text-white" />
-              </div>
-              <div>
-                <h1 className="text-4xl font-bold text-gray-900 mb-2">Gestión de Monedas</h1>
-                <p className="text-gray-600 text-lg">Administra las monedas del sistema</p>
-              </div>
-            </div>
-            
-            <button
-              onClick={handleAdd}
-              className="group bg-gradient-to-r from-yellow-500 to-amber-600 text-white px-6 py-3 rounded-xl hover:from-yellow-600 hover:to-amber-700 transition-all duration-300 flex items-center space-x-2 shadow-lg hover:shadow-xl transform hover:scale-105"
-            >
-              <Plus className="w-5 h-5 group-hover:rotate-90 transition-transform duration-300" />
-              <span className="font-medium">Agregar Moneda</span>
-            </button>
-          </div>
+    <div className="min-h-full space-y-8 animate-in fade-in duration-500">
 
-          {/* Stats */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-            <div className="bg-white rounded-2xl p-6 shadow-lg border border-gray-100 hover:shadow-xl transition-all duration-300">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-gray-600 text-sm font-medium">Total Monedas</p>
-                  <p className="text-3xl font-bold text-gray-900">{monedas.length}</p>
-                </div>
-                <div className="w-12 h-12 bg-yellow-100 rounded-xl flex items-center justify-center">
-                  <Coins className="w-6 h-6 text-yellow-600" />
-                </div>
-              </div>
-            </div>
-            
-            <div className="bg-white rounded-2xl p-6 shadow-lg border border-gray-100 hover:shadow-xl transition-all duration-300">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-gray-600 text-sm font-medium">Símbolos Únicos</p>
-                  <p className="text-3xl font-bold text-gray-900">{new Set(monedas.map(m => m.simbolo)).size}</p>
-                </div>
-                <div className="w-12 h-12 bg-amber-100 rounded-xl flex items-center justify-center">
-                  <DollarSign className="w-6 h-6 text-amber-600" />
-                </div>
-              </div>
-            </div>
-            
-            <div className="bg-white rounded-2xl p-6 shadow-lg border border-gray-100 hover:shadow-xl transition-all duration-300">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-gray-600 text-sm font-medium">Última Actualización</p>
-                  <p className="text-lg font-bold text-gray-900">Hoy</p>
-                </div>
-                <div className="w-12 h-12 bg-green-100 rounded-xl flex items-center justify-center">
-                  <div className="w-3 h-3 bg-green-500 rounded-full animate-pulse"></div>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Search */}
-          <div className="mb-6">
-            <div className="relative max-w-md">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
-              <input
-                type="text"
-                placeholder="Buscar monedas..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-10 pr-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-yellow-500 focus:border-transparent transition-all duration-300 bg-white"
-              />
-            </div>
-          </div>
-
-          {/* Mensaje */}
-          {mensaje && (
-            <div className={`mb-6 p-4 rounded-xl border flex items-center space-x-3 ${
-              mensaje.includes('Error') || mensaje.includes('error')
-                ? 'bg-red-50 border-red-200 text-red-700'
-                : 'bg-green-50 border-green-200 text-green-700'
-            }`}>
-              {mensaje.includes('Error') || mensaje.includes('error') ? (
-                <AlertCircle className="w-5 h-5" />
-              ) : (
-                <CheckCircle className="w-5 h-5" />
-              )}
-              <span className="font-medium">{mensaje}</span>
-            </div>
-          )}
+      {/* Header */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div>
+          <h1 className="text-3xl font-bold text-slate-800 tracking-tight">Gestión de Monedas</h1>
+          <p className="text-slate-500 mt-1">Configuración de divisas para transacciones.</p>
         </div>
-
-        {/* Content */}
-        {isLoading ? (
-          <div className="bg-white rounded-2xl shadow-xl p-12 text-center">
-            <div className="w-12 h-12 border-4 border-yellow-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-            <p className="text-gray-600 text-lg">Cargando monedas...</p>
-          </div>
-        ) : filteredMonedas.length === 0 ? (
-          <div className="bg-white rounded-2xl shadow-xl p-12 text-center">
-            <Coins className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-            <h3 className="text-xl font-semibold text-gray-900 mb-2">
-              {searchTerm ? 'No se encontraron monedas' : 'No hay monedas registradas'}
-            </h3>
-            <p className="text-gray-600 mb-6">
-              {searchTerm 
-                ? 'Intenta con otros términos de búsqueda'
-                : 'Comienza agregando tu primera moneda al sistema'
-              }
-            </p>
-            {!searchTerm && (
-              <button
-                onClick={handleAdd}
-                className="bg-gradient-to-r from-yellow-500 to-amber-600 text-white px-6 py-3 rounded-xl hover:from-yellow-600 hover:to-amber-700 transition-all duration-300 font-medium"
-              >
-                Agregar Primera Moneda
-              </button>
-            )}
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {filteredMonedas.map((moneda) => (
-              <MonedaCard
-                key={moneda.id}
-                moneda={moneda}
-                onEdit={handleEdit}
-                onDelete={handleDelete}
-              />
-            ))}
-          </div>
-        )}
-
-        {/* Modal */}
-        <MonedaModal
-          open={modalOpen}
-          onClose={() => setModalOpen(false)}
-          onSubmit={handleSubmit}
-          initialValues={editMoneda}
-          title={editMoneda ? "Editar Moneda" : "Nueva Moneda"}
-        />
+        <div className="flex items-center gap-3">
+          <button onClick={handleAdd} className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg flex items-center gap-2 transition-colors shadow-sm">
+            <Plus className="w-5 h-5" />
+            <span>Nueva Moneda</span>
+          </button>
+        </div>
       </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
+          <div className="text-sm font-medium text-slate-500">Total Monedas</div>
+          <div className="text-3xl font-bold text-slate-800 mt-2">{monedas.length}</div>
+        </div>
+      </div>
+
+      <EnhancedTable
+        columns={[
+          {
+            field: "codigo", label: "Código",
+            render: (val) => <span className="font-mono bg-slate-100 px-2 py-0.5 rounded text-slate-600 border border-slate-200 text-sm font-medium">{val}</span>
+          },
+          { field: "nombre", label: "Nombre" },
+          {
+            field: "simbolo", label: "Símbolo",
+            render: (val) => <span className="font-bold text-slate-800 bg-amber-50 text-amber-600 px-2 py-1 rounded">{val}</span>
+          }
+        ]}
+        data={monedas}
+        onEdit={handleEdit}
+        onDelete={handleDelete}
+        loading={isLoading}
+      />
+
+      <MonedaModal
+        open={modalOpen}
+        onClose={() => setModalOpen(false)}
+        onSubmit={handleSubmit}
+        initialValues={editMoneda}
+        title={editMoneda ? "Editar Moneda" : "Nueva Moneda"}
+      />
     </div>
   );
 };

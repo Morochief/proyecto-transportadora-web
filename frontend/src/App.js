@@ -14,15 +14,14 @@ import Profile from './pages/Profile';
 import Usuarios from './pages/Usuarios';
 import Paises from './pages/Paises';
 import Ciudades from './pages/Ciudades';
+import Aduanas from './pages/Aduanas';
 import Remitentes from './pages/Remitentes';
 import Transportadoras from './pages/Transportadoras';
 import Monedas from './pages/Monedas';
 import Honorarios from './pages/Honorarios';
 import CRT from './pages/CRT';
 import ListarCRT from './pages/ListarCRT';
-import MICNuevo from './pages/MICNuevo';
-import MICDetalle from './pages/MICDetalle';
-import ListarMIC from './pages/ListarMIC';
+
 import MICsGuardados from './pages/MICsGuardados';
 import Sessions from './pages/Sessions';
 import AuditLogs from './pages/AuditLogs';
@@ -85,6 +84,17 @@ function App() {
             <PrivateRoute>
               <Layout>
                 <Ciudades />
+              </Layout>
+            </PrivateRoute>
+          }
+        />
+
+        <Route
+          path="/aduanas"
+          element={
+            <PrivateRoute>
+              <Layout>
+                <Aduanas />
               </Layout>
             </PrivateRoute>
           }
@@ -157,40 +167,7 @@ function App() {
         />
 
         <Route
-          path="/mic/nuevo"
-          element={
-            <PrivateRoute>
-              <Layout>
-                <MICNuevo />
-              </Layout>
-            </PrivateRoute>
-          }
-        />
-
-        <Route
-          path="/mic/:id"
-          element={
-            <PrivateRoute>
-              <Layout>
-                <MICDetalle />
-              </Layout>
-            </PrivateRoute>
-          }
-        />
-
-        <Route
           path="/mic"
-          element={
-            <PrivateRoute>
-              <Layout>
-                <ListarMIC />
-              </Layout>
-            </PrivateRoute>
-          }
-        />
-
-        <Route
-          path="/mics-guardados"
           element={
             <PrivateRoute>
               <Layout>

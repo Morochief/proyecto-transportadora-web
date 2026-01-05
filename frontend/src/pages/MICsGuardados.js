@@ -2,9 +2,11 @@ import React, { useState, useEffect, useCallback } from "react";
 import axios from "axios";
 import { toast, ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
-import "./MICsGuardados.css";
+import {
+  Search, Filter, Eye, Download, Trash2, Calendar, Truck,
+  FileText, CheckCircle, AlertCircle, X, ChevronLeft, ChevronRight, BarChart3, RefreshCw
+} from "lucide-react";
 
-// Componente principal
 export default function MICsGuardados() {
   const [mics, setMics] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -18,433 +20,175 @@ export default function MICsGuardados() {
   const [showStats, setShowStats] = useState(false);
   const [stats, setStats] = useState(null);
 
-  // Estados para filtros
   const [filters, setFilters] = useState({
-    estado: '',
-    numero_carta: '',
-    fecha_desde: '',
-    fecha_hasta: '',
-    transportadora: '',
-    placa: '',
-    destino: ''
+    estado: '', numero_carta: '', fecha_desde: '', fecha_hasta: '', transportadora: '', placa: '', destino: ''
   });
 
-  // Cargar MICs
   const cargarMics = useCallback(async (page = 1, filtros = {}) => {
     setLoading(true);
     try {
-      console.log('🔍 Cargando MICs guardados...', { page, filtros });
-
-      const params = {
-        page,
-        per_page: perPage,
-        ...filtros
-      };
-
+      const params = { page, per_page: perPage, ...filtros };
       const response = await axios.get('http://localhost:5000/api/mic-guardados/', { params });
-
       setMics(response.data.mics);
       setCurrentPage(response.data.pagination.page);
       setTotalPages(response.data.pagination.pages);
       setTotalItems(response.data.pagination.total);
-
-      console.log(`✅ ${response.data.mics.length} MICs cargados de ${response.data.pagination.total} totales`);
-
       if (response.data.mics.length === 0 && Object.values(filtros).some(v => v)) {
-        toast.info("🔍 No se encontraron MICs con los filtros aplicados");
+        toast.info("🔍 No se encontraron MICs");
       }
-    } catch (error) {
-      console.error('❌ Error cargando MICs:', error);
-      toast.error(`❌ Error cargando MICs: ${error.response?.data?.error || error.message}`);
-    } finally {
-      setLoading(false);
-    }
+    } catch (error) { toast.error("❌ Error cargando MICs"); }
+    finally { setLoading(false); }
   }, [perPage]);
 
-  // Cargar estadísticas
   const cargarEstadisticas = async () => {
     try {
-      console.log('📊 Cargando estadísticas...');
       const response = await axios.get('http://localhost:5000/api/mic-guardados/stats');
       setStats(response.data);
-      console.log('✅ Estadísticas cargadas:', response.data);
-    } catch (error) {
-      console.error('❌ Error cargando estadísticas:', error);
-      toast.error('❌ Error cargando estadísticas');
-    }
+    } catch (error) { console.error('Error stats', error); }
   };
 
-  // Efectos
-  useEffect(() => {
-    cargarMics();
-    cargarEstadisticas();
-  }, [cargarMics]);
+  useEffect(() => { cargarMics(); cargarEstadisticas(); }, [cargarMics]);
 
-  // Aplicar filtros
-  const aplicarFiltros = () => {
-    console.log('🔍 Aplicando filtros:', filters);
-    cargarMics(1, filters);
-    setCurrentPage(1);
-    setShowFilters(false);
-    toast.info("🔍 Filtros aplicados");
-  };
-
-  // Limpiar filtros
+  const aplicarFiltros = () => { cargarMics(1, filters); setCurrentPage(1); setShowFilters(false); };
   const limpiarFiltros = () => {
-    setFilters({
-      estado: '',
-      numero_carta: '',
-      fecha_desde: '',
-      fecha_hasta: '',
-      transportadora: '',
-      placa: '',
-      destino: ''
-    });
+    setFilters({ estado: '', numero_carta: '', fecha_desde: '', fecha_hasta: '', transportadora: '', placa: '', destino: '' });
     cargarMics();
-    toast.info("🧹 Filtros limpiados");
   };
 
-  // Ver detalles de MIC
   const verDetalles = async (micId) => {
     try {
-      console.log(`🔍 Cargando detalles del MIC ${micId}...`);
       const response = await axios.get(`http://localhost:5000/api/mic-guardados/${micId}`);
       setSelectedMic(response.data);
       setShowModal(true);
-      console.log('✅ Detalles cargados:', response.data);
-    } catch (error) {
-      console.error('❌ Error cargando detalles:', error);
-      toast.error('❌ Error cargando detalles del MIC');
-    }
+    } catch (error) { toast.error('Error cargando detalles'); }
   };
 
-  // Descargar PDF
   const descargarPDF = async (micId, numeroCarta) => {
     try {
-      console.log(`📄 Descargando PDF del MIC ${micId}...`);
-      const response = await axios.get(
-        `http://localhost:5000/api/mic-guardados/${micId}/pdf`,
-        { responseType: 'blob' }
-      );
-      
+      const response = await axios.get(`http://localhost:5000/api/mic-guardados/${micId}/pdf`, { responseType: 'blob' });
       const blob = new Blob([response.data], { type: 'application/pdf' });
       const url = window.URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
+      const link = document.createElement('a'); link.href = url;
       link.download = `MIC_${numeroCarta || micId}_${new Date().toISOString().split('T')[0]}.pdf`;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
+      document.body.appendChild(link); link.click(); document.body.removeChild(link);
       window.URL.revokeObjectURL(url);
-      
-      toast.success('📄 PDF descargado exitosamente');
-      console.log('✅ PDF descargado');
-    } catch (error) {
-      console.error('❌ Error descargando PDF:', error);
-      toast.error('❌ Error descargando PDF');
-    }
+      toast.success('📄 PDF descargado');
+    } catch (error) { toast.error('Error descargando PDF'); }
   };
 
-  // Anular MIC
   const anularMic = async (micId, numeroCarta) => {
-    if (!window.confirm(`¿Estás seguro de anular el MIC ${numeroCarta}?`)) {
-      return;
-    }
-
+    if (!window.confirm(`¿Estás seguro de anular el MIC ${numeroCarta}?`)) return;
     try {
-      console.log(`🗑️ Anulando MIC ${micId}...`);
       await axios.delete(`http://localhost:5000/api/mic-guardados/${micId}`);
-      toast.success('✅ MIC anulado exitosamente');
+      toast.success('✅ MIC anulado');
       cargarMics(currentPage, filters);
-      console.log('✅ MIC anulado');
-    } catch (error) {
-      console.error('❌ Error anulando MIC:', error);
-      toast.error('❌ Error anulando MIC');
-    }
+    } catch (error) { toast.error('Error anulando MIC'); }
   };
 
-  // Cambiar página
-  const cambiarPagina = (nuevaPagina) => {
-    if (nuevaPagina >= 1 && nuevaPagina <= totalPages) {
-      setCurrentPage(nuevaPagina);
-      cargarMics(nuevaPagina, filters);
-    }
-  };
-
-  // Formatear fecha
   const formatearFecha = (fecha) => {
     if (!fecha) return "N/A";
-    try {
-      return new Date(fecha).toLocaleDateString('es-PY');
-    } catch {
-      return fecha;
-    }
-  };
-
-  // Formatear estado con color
-  const formatearEstado = (estado) => {
-    const colores = {
-      'PROVISORIO': 'bg-yellow-100 text-yellow-800',
-      'DEFINITIVO': 'bg-green-100 text-green-800',
-      'ANULADO': 'bg-red-100 text-red-800',
-      'EN_PROCESO': 'bg-blue-100 text-blue-800'
-    };
-    
-    return (
-      <span className={`px-2 py-1 rounded-full text-xs font-medium ${colores[estado] || 'bg-gray-100 text-gray-800'}`}>
-        {estado}
-      </span>
-    );
+    try { return new Date(fecha).toLocaleDateString('es-PY'); } catch { return fecha; }
   };
 
   return (
-    <div className="mics-guardados-container">
+    <div className="min-h-full space-y-6 animate-in fade-in duration-500 pb-10">
       <ToastContainer position="top-right" />
-      
+
       {/* Header */}
-      <div className="header-section">
-        <div className="header-content">
-          <div>
-            <h1 className="page-title">📋 MICs Guardados</h1>
-            <p className="page-subtitle">
-              {totalItems} MICs registrados • Página {currentPage} de {totalPages}
-            </p>
-          </div>
-          
-          <div className="header-actions">
-            <button
-              onClick={() => setShowStats(!showStats)}
-              className="btn-secondary"
-            >
-              📊 {showStats ? 'Ocultar' : 'Ver'} Estadísticas
-            </button>
-            <button
-              onClick={() => setShowFilters(!showFilters)}
-              className="btn-primary"
-            >
-              🔍 {showFilters ? 'Ocultar' : 'Mostrar'} Filtros
-            </button>
-            <button
-              onClick={() => cargarMics(currentPage, filters)}
-              className="btn-primary"
-              disabled={loading}
-            >
-              🔄 Actualizar
-            </button>
-          </div>
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div>
+          <h1 className="text-3xl font-bold text-slate-800 tracking-tight">MICs Guardados</h1>
+          <p className="text-slate-500 mt-1">Gestión de Manifiestos de Carga ({totalItems} registros)</p>
+        </div>
+        <div className="flex gap-2">
+          <button onClick={() => setShowStats(!showStats)} className="bg-white hover:bg-slate-50 text-slate-700 px-4 py-2 rounded-xl border border-slate-200 shadow-sm transition flex items-center gap-2 font-medium">
+            <BarChart3 className="w-4 h-4" /> Estadísticas
+          </button>
+          <button onClick={() => setShowFilters(!showFilters)} className="bg-white hover:bg-slate-50 text-slate-700 px-4 py-2 rounded-xl border border-slate-200 shadow-sm transition flex items-center gap-2 font-medium">
+            <Filter className="w-4 h-4" /> Filtros
+          </button>
+          <button onClick={() => cargarMics(currentPage, filters)} className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-xl shadow-md transition flex items-center gap-2 font-medium">
+            <RefreshCw className="w-4 h-4" /> Actualizar
+          </button>
         </div>
       </div>
 
-      {/* Estadísticas */}
+      {/* Stats */}
       {showStats && stats && (
-        <div className="stats-section">
-          <div className="stats-grid">
-            <div className="stat-card">
-              <div className="stat-value">{stats.total_mics}</div>
-              <div className="stat-label">Total MICs</div>
-            </div>
-            <div className="stat-card">
-              <div className="stat-value">{stats.mics_hoy}</div>
-              <div className="stat-label">Hoy</div>
-            </div>
-            <div className="stat-card">
-              <div className="stat-value">{stats.mics_semana}</div>
-              <div className="stat-label">Esta semana</div>
-            </div>
-            {stats.por_estado.map((est, idx) => (
-              <div key={idx} className="stat-card">
-                <div className="stat-value">{est.cantidad}</div>
-                <div className="stat-label">{est.estado}</div>
-              </div>
-            ))}
-          </div>
+        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4 animate-in slide-in-from-top-4">
+          <StatCard label="Total MICs" value={stats.total_mics} color="indigo" />
+          <StatCard label="Hoy" value={stats.mics_hoy} color="blue" />
+          <StatCard label="Esta Semana" value={stats.mics_semana} color="purple" />
+          {stats.por_estado.map((s, i) => (
+            <StatCard key={i} label={s.estado} value={s.cantidad} color={s.estado === 'ANULADO' ? 'red' : 'emerald'} />
+          ))}
         </div>
       )}
 
-      {/* Filtros */}
+      {/* Filters */}
       {showFilters && (
-        <div className="filters-section">
-          <div className="filters-grid">
-            <div className="filter-group">
-              <label>Estado</label>
-              <select
-                value={filters.estado}
-                onChange={(e) => setFilters({...filters, estado: e.target.value})}
-                className="filter-input"
-              >
-                <option value="">Todos</option>
-                <option value="PROVISORIO">PROVISORIO</option>
-                <option value="DEFINITIVO">DEFINITIVO</option>
-                <option value="ANULADO">ANULADO</option>
-                <option value="EN_PROCESO">EN_PROCESO</option>
-              </select>
-            </div>
-            
-            <div className="filter-group">
-              <label>Nº Carta de Porte</label>
-              <input
-                type="text"
-                value={filters.numero_carta}
-                onChange={(e) => setFilters({...filters, numero_carta: e.target.value})}
-                placeholder="Buscar por número..."
-                className="filter-input"
-              />
-            </div>
-            
-            <div className="filter-group">
-              <label>Transportadora</label>
-              <input
-                type="text"
-                value={filters.transportadora}
-                onChange={(e) => setFilters({...filters, transportadora: e.target.value})}
-                placeholder="Buscar transportadora..."
-                className="filter-input"
-              />
-            </div>
-            
-            <div className="filter-group">
-              <label>Placa</label>
-              <input
-                type="text"
-                value={filters.placa}
-                onChange={(e) => setFilters({...filters, placa: e.target.value})}
-                placeholder="Buscar placa..."
-                className="filter-input"
-              />
-            </div>
-            
-            <div className="filter-group">
-              <label>Destino</label>
-              <input
-                type="text"
-                value={filters.destino}
-                onChange={(e) => setFilters({...filters, destino: e.target.value})}
-                placeholder="Buscar destino..."
-                className="filter-input"
-              />
-            </div>
-            
-            <div className="filter-group">
-              <label>Fecha Desde</label>
-              <input
-                type="date"
-                value={filters.fecha_desde}
-                onChange={(e) => setFilters({...filters, fecha_desde: e.target.value})}
-                className="filter-input"
-              />
-            </div>
-            
-            <div className="filter-group">
-              <label>Fecha Hasta</label>
-              <input
-                type="date"
-                value={filters.fecha_hasta}
-                onChange={(e) => setFilters({...filters, fecha_hasta: e.target.value})}
-                className="filter-input"
-              />
-            </div>
+        <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm animate-in fade-in">
+          <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-4 mb-4">
+            <div> <label className="block text-xs font-bold text-slate-500 mb-1">Estado</label> <select value={filters.estado} onChange={e => setFilters({ ...filters, estado: e.target.value })} className="w-full p-2 border rounded-lg text-sm"><option value="">Todos</option><option value="PROVISORIO">PROVISORIO</option><option value="DEFINITIVO">DEFINITIVO</option><option value="ANULADO">ANULADO</option></select> </div>
+            <div> <label className="block text-xs font-bold text-slate-500 mb-1">Nº Carta</label> <input value={filters.numero_carta} onChange={e => setFilters({ ...filters, numero_carta: e.target.value })} className="w-full p-2 border rounded-lg text-sm" placeholder="Buscar..." /> </div>
+            <div> <label className="block text-xs font-bold text-slate-500 mb-1">Transportadora</label> <input value={filters.transportadora} onChange={e => setFilters({ ...filters, transportadora: e.target.value })} className="w-full p-2 border rounded-lg text-sm" placeholder="Buscar..." /> </div>
+            <div> <label className="block text-xs font-bold text-slate-500 mb-1">Placa</label> <input value={filters.placa} onChange={e => setFilters({ ...filters, placa: e.target.value })} className="w-full p-2 border rounded-lg text-sm" placeholder="Buscar..." /> </div>
+            <div> <label className="block text-xs font-bold text-slate-500 mb-1">Destino</label> <input value={filters.destino} onChange={e => setFilters({ ...filters, destino: e.target.value })} className="w-full p-2 border rounded-lg text-sm" placeholder="Buscar..." /> </div>
+            <div> <label className="block text-xs font-bold text-slate-500 mb-1">Desde</label> <input type="date" value={filters.fecha_desde} onChange={e => setFilters({ ...filters, fecha_desde: e.target.value })} className="w-full p-2 border rounded-lg text-sm" /> </div>
+            <div> <label className="block text-xs font-bold text-slate-500 mb-1">Hasta</label> <input type="date" value={filters.fecha_hasta} onChange={e => setFilters({ ...filters, fecha_hasta: e.target.value })} className="w-full p-2 border rounded-lg text-sm" /> </div>
           </div>
-          
-          <div className="filters-actions">
-            <button onClick={aplicarFiltros} className="btn-primary">
-              🔍 Aplicar Filtros
-            </button>
-            <button onClick={limpiarFiltros} className="btn-secondary">
-              🧹 Limpiar
-            </button>
+          <div className="flex justify-end gap-2">
+            <button onClick={limpiarFiltros} className="px-4 py-2 text-slate-600 hover:bg-slate-100 rounded-lg text-sm font-medium">Limpiar</button>
+            <button onClick={aplicarFiltros} className="px-4 py-2 bg-indigo-600 text-white hover:bg-indigo-700 rounded-lg text-sm font-medium">Aplicar Filtros</button>
           </div>
         </div>
       )}
 
-      {/* Tabla de MICs */}
-      <div className="table-section">
+      {/* Table */}
+      <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
         {loading ? (
-          <div className="loading-state">
-            <div className="loading-spinner"></div>
-            <p>Cargando MICs...</p>
-          </div>
+          <div className="p-12 text-center text-slate-500">Cargando datos...</div>
         ) : mics.length === 0 ? (
-          <div className="empty-state">
-            <div className="empty-icon">📋</div>
-            <h3>No hay MICs guardados</h3>
-            <p>No se encontraron MICs con los criterios especificados.</p>
+          <div className="p-12 text-center text-slate-500 flex flex-col items-center">
+            <FileText className="w-12 h-12 mb-2 opacity-20" />
+            <p>No se encontraron MICs</p>
           </div>
         ) : (
-          <div className="table-container">
-            <table className="mics-table">
-              <thead>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm text-left">
+              <thead className="bg-slate-50 text-slate-500 font-semibold border-b border-slate-200">
                 <tr>
-                  <th>ID</th>
-                  <th>Nº Carta</th>
-                  <th>Estado</th>
-                  <th>Fecha</th>
-                  <th>Transportadora</th>
-                  <th>Destino</th>
-                  <th>Placa</th>
-                  <th>Peso</th>
-                  <th>Creado</th>
-                  <th>Acciones</th>
+                  <th className="px-6 py-3">ID</th>
+                  <th className="px-6 py-3">Nº Carta</th>
+                  <th className="px-6 py-3">Estado</th>
+                  <th className="px-6 py-3">Fecha</th>
+                  <th className="px-6 py-3">Transportadora</th>
+                  <th className="px-6 py-3">Destino</th>
+                  <th className="px-6 py-3">Placa</th>
+                  <th className="px-6 py-3 text-right">Acciones</th>
                 </tr>
               </thead>
-              <tbody>
-                {mics.map((mic) => (
-                  <tr key={mic.id} className="table-row">
-                    <td className="id-cell">#{mic.id}</td>
-                    <td className="numero-cell">
-                      {mic.numero_carta_porte || "Sin número"}
+              <tbody className="divide-y divide-slate-100">
+                {mics.map(mic => (
+                  <tr key={mic.id} className="hover:bg-slate-50 transition-colors">
+                    <td className="px-6 py-4 font-mono text-xs text-slate-400">#{mic.id}</td>
+                    <td className="px-6 py-4 font-medium text-slate-700">{mic.numero_carta_porte || '-'}</td>
+                    <td className="px-6 py-4">
+                      <span className={`px-2 py-1 rounded-full text-xs font-bold ${mic.estado === 'DEFINITIVO' ? 'bg-emerald-100 text-emerald-700' :
+                          mic.estado === 'ANULADO' ? 'bg-red-100 text-red-700' :
+                            'bg-amber-100 text-amber-700'
+                        }`}>{mic.estado}</span>
                     </td>
-                    <td className="estado-cell">
-                      {formatearEstado(mic.estado)}
-                    </td>
-                    <td className="fecha-cell">
-                      {formatearFecha(mic.fecha_emision)}
-                    </td>
-                    <td className="transportadora-cell" title={mic.transportadora}>
-                      {mic.transportadora ? 
-                        (mic.transportadora.length > 30 ? 
-                          mic.transportadora.substring(0, 30) + "..." : 
-                          mic.transportadora
-                        ) : "N/A"
-                      }
-                    </td>
-                    <td className="destino-cell">
-                      {mic.destino || "N/A"}
-                    </td>
-                    <td className="placa-cell">
-                      {mic.placa_camion || "N/A"}
-                    </td>
-                    <td className="peso-cell">
-                      {mic.peso_bruto ? `${mic.peso_bruto} kg` : "N/A"}
-                    </td>
-                    <td className="creado-cell">
-                      {formatearFecha(mic.creado_en)}
-                    </td>
-                    <td className="acciones-cell">
-                      <div className="acciones-group">
-                        <button
-                          onClick={() => verDetalles(mic.id)}
-                          className="btn-action btn-view"
-                          title="Ver detalles"
-                        >
-                          👁️
-                        </button>
-                        <button
-                          onClick={() => descargarPDF(mic.id, mic.numero_carta_porte)}
-                          className="btn-action btn-download"
-                          title="Descargar PDF"
-                        >
-                          📄
-                        </button>
-                        {mic.estado !== 'ANULADO' && (
-                          <button
-                            onClick={() => anularMic(mic.id, mic.numero_carta_porte)}
-                            className="btn-action btn-delete"
-                            title="Anular MIC"
-                          >
-                            🗑️
-                          </button>
-                        )}
-                      </div>
+                    <td className="px-6 py-4 text-slate-600">{formatearFecha(mic.fecha_emision)}</td>
+                    <td className="px-6 py-4 text-slate-600 truncate max-w-xs" title={mic.transportadora}>{mic.transportadora}</td>
+                    <td className="px-6 py-4 text-slate-600">{mic.destino}</td>
+                    <td className="px-6 py-4 text-slate-600 font-mono">{mic.placa_camion}</td>
+                    <td className="px-6 py-4 text-right flex justify-end gap-2">
+                      <button onClick={() => verDetalles(mic.id)} className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-slate-100 rounded-lg"><Eye className="w-4 h-4" /></button>
+                      <button onClick={() => descargarPDF(mic.id, mic.numero_carta_porte)} className="p-2 text-slate-400 hover:text-blue-600 hover:bg-slate-100 rounded-lg"><Download className="w-4 h-4" /></button>
+                      {mic.estado !== 'ANULADO' && (
+                        <button onClick={() => anularMic(mic.id, mic.numero_carta_porte)} className="p-2 text-slate-400 hover:text-red-600 hover:bg-slate-100 rounded-lg"><Trash2 className="w-4 h-4" /></button>
+                      )}
                     </td>
                   </tr>
                 ))}
@@ -452,96 +196,30 @@ export default function MICsGuardados() {
             </table>
           </div>
         )}
-      </div>
 
-      {/* Paginación */}
-      {totalPages > 1 && (
-        <div className="pagination-section">
-          <div className="pagination-info">
-            Mostrando {((currentPage - 1) * perPage) + 1} a {Math.min(currentPage * perPage, totalItems)} de {totalItems} registros
-          </div>
-          
-          <div className="pagination-controls">
-            <button
-              onClick={() => cambiarPagina(1)}
-              disabled={currentPage === 1}
-              className="pagination-btn"
-            >
-              ⏮️
-            </button>
-            <button
-              onClick={() => cambiarPagina(currentPage - 1)}
-              disabled={currentPage === 1}
-              className="pagination-btn"
-            >
-              ⬅️
-            </button>
-            
-            {[...Array(Math.min(5, totalPages))].map((_, i) => {
-              const pageNum = Math.max(1, currentPage - 2) + i;
-              if (pageNum <= totalPages) {
-                return (
-                  <button
-                    key={pageNum}
-                    onClick={() => cambiarPagina(pageNum)}
-                    className={`pagination-btn ${pageNum === currentPage ? 'active' : ''}`}
-                  >
-                    {pageNum}
-                  </button>
-                );
-              }
-              return null;
-            })}
-            
-            <button
-              onClick={() => cambiarPagina(currentPage + 1)}
-              disabled={currentPage === totalPages}
-              className="pagination-btn"
-            >
-              ➡️
-            </button>
-            <button
-              onClick={() => cambiarPagina(totalPages)}
-              disabled={currentPage === totalPages}
-              className="pagination-btn"
-            >
-              ⏭️
-            </button>
+        {/* Pagination */}
+        <div className="px-6 py-4 border-t border-slate-200 bg-slate-50 flex items-center justify-between">
+          <span className="text-sm text-slate-500">Página {currentPage} de {totalPages}</span>
+          <div className="flex gap-2">
+            <button onClick={() => { if (currentPage > 1) { setCurrentPage(currentPage - 1); cargarMics(currentPage - 1, filters); } }} disabled={currentPage === 1} className="p-2 border rounded hover:bg-white disabled:opacity-50"><ChevronLeft className="w-4 h-4" /></button>
+            <button onClick={() => { if (currentPage < totalPages) { setCurrentPage(currentPage + 1); cargarMics(currentPage + 1, filters); } }} disabled={currentPage === totalPages} className="p-2 border rounded hover:bg-white disabled:opacity-50"><ChevronRight className="w-4 h-4" /></button>
           </div>
         </div>
-      )}
+      </div>
 
-      {/* Modal de detalles */}
       {showModal && selectedMic && (
-        <div className="modal-overlay" onClick={() => setShowModal(false)}>
-          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
-            <div className="modal-header">
-              <h2>📋 Detalles del MIC #{selectedMic.id}</h2>
-              <button
-                onClick={() => setShowModal(false)}
-                className="modal-close"
-              >
-                ✕
-              </button>
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col animate-in zoom-in-95">
+            <div className="px-6 py-4 border-b border-slate-200 flex justify-between items-center bg-slate-50">
+              <h3 className="text-lg font-bold text-slate-800">Detalles MIC #{selectedMic.id}</h3>
+              <button onClick={() => setShowModal(false)}><X className="w-6 h-6 text-slate-400 hover:text-slate-600" /></button>
             </div>
-            
-            <div className="modal-body">
+            <div className="p-6 overflow-y-auto bg-white">
               <MICDetalles mic={selectedMic} />
             </div>
-            
-            <div className="modal-footer">
-              <button
-                onClick={() => descargarPDF(selectedMic.id, selectedMic.campo_23_numero_campo2_crt)}
-                className="btn-primary"
-              >
-                📄 Descargar PDF
-              </button>
-              <button
-                onClick={() => setShowModal(false)}
-                className="btn-secondary"
-              >
-                Cerrar
-              </button>
+            <div className="px-6 py-4 border-t border-slate-200 bg-slate-50 flex justify-end gap-3">
+              <button onClick={() => descargarPDF(selectedMic.id, selectedMic.campo_23_numero_campo2_crt)} className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 font-medium shadow-sm transition-colors flex items-center gap-2"><Download className="w-4 h-4" /> Descargar PDF</button>
+              <button onClick={() => setShowModal(false)} className="px-4 py-2 border border-slate-300 rounded-lg hover:bg-white text-slate-700 font-medium transition-colors">Cerrar</button>
             </div>
           </div>
         </div>
@@ -550,67 +228,29 @@ export default function MICsGuardados() {
   );
 }
 
-// Componente para mostrar detalles del MIC
+const StatCard = ({ label, value, color }) => (
+  <div className={`bg-${color}-50 border border-${color}-100 p-4 rounded-xl flex flex-col items-center justify-center`}>
+    <span className={`text-2xl font-bold text-${color}-700`}>{value}</span>
+    <span className={`text-xs font-semibold text-${color}-600 uppercase tracking-wider`}>{label}</span>
+  </div>
+);
+
 function MICDetalles({ mic }) {
-  const campos = [
-    { key: 'campo_23_numero_campo2_crt', label: 'Nº Carta de Porte', importante: true },
-    { key: 'campo_4_estado', label: 'Estado', importante: true },
-    { key: 'campo_6_fecha', label: 'Fecha de Emisión', importante: true },
-    { key: 'campo_1_transporte', label: 'Transportadora', multilinea: true },
-    { key: 'campo_2_numero', label: 'Rol Contribuyente' },
-    { key: 'campo_7_pto_seguro', label: 'Puerto Seguro' },
-    { key: 'campo_8_destino', label: 'Destino' },
-    { key: 'campo_10_numero', label: 'Rol Contribuyente (10)' },
-    { key: 'campo_11_placa', label: 'Placa Camión' },
-    { key: 'campo_12_modelo_chasis', label: 'Modelo/Chasis' },
-    { key: 'campo_14_anio', label: 'Año' },
-    { key: 'campo_15_placa_semi', label: 'Placa Semi' },
-    { key: 'campo_24_aduana', label: 'Aduana' },
-    { key: 'campo_25_moneda', label: 'Moneda' },
-    { key: 'campo_26_pais', label: 'País Origen' },
-    { key: 'campo_27_valor_campo16', label: 'Valor FOT' },
-    { key: 'campo_28_total', label: 'Flete Total' },
-    { key: 'campo_29_seguro', label: 'Seguro' },
-    { key: 'campo_30_tipo_bultos', label: 'Tipo Bultos' },
-    { key: 'campo_31_cantidad', label: 'Cantidad' },
-    { key: 'campo_32_peso_bruto', label: 'Peso Bruto' },
-    { key: 'campo_33_datos_campo1_crt', label: 'Remitente', multilinea: true },
-    { key: 'campo_34_datos_campo4_crt', label: 'Destinatario', multilinea: true },
-    { key: 'campo_35_datos_campo6_crt', label: 'Consignatario', multilinea: true },
-    { key: 'campo_36_factura_despacho', label: 'Documentos Anexos' },
-    { key: 'campo_37_valor_manual', label: 'Valor Manual' },
-    { key: 'campo_38_datos_campo11_crt', label: 'Detalles Mercadería', multilinea: true },
-    { key: 'campo_40_tramo', label: 'Tramo' },
+  const fields = [
+    { k: 'campo_23_numero_campo2_crt', l: 'Nº Carta' }, { k: 'campo_4_estado', l: 'Estado' }, { k: 'campo_6_fecha', l: 'Fecha' },
+    { k: 'campo_1_transporte', l: 'Transportadora', full: true }, { k: 'campo_8_destino', l: 'Destino' },
+    { k: 'campo_11_placa', l: 'Placa' }, { k: 'campo_12_modelo_chasis', l: 'Modelo' },
+    { k: 'campo_28_total', l: 'Flete Total' }, { k: 'campo_27_valor_campo16', l: 'Valor FOT' },
+    { k: 'campo_38_datos_campo11_crt', l: 'Mercadería', full: true }
   ];
-
   return (
-    <div className="mic-detalles">
-      <div className="detalles-grid">
-        {campos.map(({ key, label, importante, multilinea }) => {
-          const valor = mic[key];
-          if (!valor) return null;
-
-          return (
-            <div key={key} className={`detalle-item ${importante ? 'importante' : ''} ${multilinea ? 'multilinea' : ''}`}>
-              <label className="detalle-label">{label}:</label>
-              <div className="detalle-valor">
-                {multilinea ? (
-                  <pre className="valor-multilinea">{valor}</pre>
-                ) : (
-                  <span>{valor}</span>
-                )}
-              </div>
-            </div>
-          );
-        })}
-      </div>
-      
-      <div className="detalles-meta">
-        <p><strong>Creado:</strong> {mic.creado_en}</p>
-        {mic.crt_numero && (
-          <p><strong>CRT Origen:</strong> {mic.crt_numero}</p>
-        )}
-      </div>
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      {fields.map(f => (
+        <div key={f.k} className={`${f.full ? 'md:col-span-2' : ''} bg-slate-50 p-3 rounded-lg border border-slate-100`}>
+          <label className="block text-xs font-bold text-slate-500 uppercase mb-1">{f.l}</label>
+          <p className="text-sm text-slate-800 break-words whitespace-pre-wrap">{mic[f.k] || '-'}</p>
+        </div>
+      ))}
     </div>
   );
 }

@@ -1,10 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { FiEdit2, FiTrash2, FiSearch, FiLock, FiUnlock, FiUser, FiMail } from 'react-icons/fi';
 import { HiOutlineUserAdd } from 'react-icons/hi';
-
 import api from '../api/api';
 import FormModal from '../components/FormModal';
-import './Usuarios.css';
 
 function Usuarios() {
   const [usuarios, setUsuarios] = useState([]);
@@ -108,7 +106,6 @@ function Usuarios() {
     }
   };
 
-  // Filter users based on search term
   const filteredUsuarios = usuarios.filter((user) => {
     const searchLower = searchTerm.toLowerCase();
     return (
@@ -118,7 +115,6 @@ function Usuarios() {
     );
   });
 
-  // Get initials for avatar
   const getInitials = (name) => {
     if (!name) return '?';
     const parts = name.trim().split(' ');
@@ -128,184 +124,144 @@ function Usuarios() {
     return name.substring(0, 2).toUpperCase();
   };
 
-  // Get dynamic avatar color based on user name
-  const getAvatarColor = (name) => {
-    const colors = [
-      'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-      'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)',
-      'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)',
-      'linear-gradient(135deg, #43e97b 0%, #38f9d7 100%)',
-      'linear-gradient(135deg, #fa709a 0%, #fee140 100%)',
-      'linear-gradient(135deg, #ff6b6b 0%, #ee5a6f 100%)',
-      'linear-gradient(135deg, #38ef7d 0%, #11998e 100%)',
-      'linear-gradient(135deg, #fbc2eb 0%, #a6c1ee 100%)',
-    ];
-    
-    if (!name) return colors[0];
-    
-    // Generate index based on name characters
-    const index = name.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0) % colors.length;
-    return colors[index];
-  };
-
-  // Get role class
-  const getRoleClass = (role) => {
-    const roleMap = {
-      admin: 'role-admin',
-      operador: 'role-operador',
-      supervisor: 'role-supervisor',
-      auditor: 'role-auditor',
-    };
-    return roleMap[role?.toLowerCase()] || 'role-operador';
-  };
-
-  // Get status class
-  const getStatusClass = (status) => {
-    const statusMap = {
-      activo: 'badge-activo',
-      inactivo: 'badge-inactivo',
-      suspendido: 'badge-suspendido',
-    };
-    return statusMap[status?.toLowerCase()] || 'badge-activo';
-  };
-
-  // Calculate statistics
   const totalUsuarios = usuarios.length;
   const usuariosActivos = usuarios.filter((u) => u.estado?.toLowerCase() === 'activo').length;
   const usuariosMFA = usuarios.filter((u) => u.mfa_enabled).length;
 
   return (
-    <div className="usuarios-container">
-      {/* Header Section */}
-      <div className="usuarios-header">
-        <div className="usuarios-header-content">
-          <h2>Gestión de Usuarios</h2>
-          <p>Administra los usuarios y sus permisos en el sistema</p>
+    <div className="min-h-full space-y-8 animate-in fade-in duration-500">
+
+      {/* Header */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div>
+          <h1 className="text-3xl font-bold text-slate-800 tracking-tight">Gestión de Usuarios</h1>
+          <p className="text-slate-500 mt-1">Administra los usuarios y sus permisos en el sistema.</p>
         </div>
-        <div className="usuarios-stats">
-          <div className="stat-card">
-            <span className="stat-number">{totalUsuarios}</span>
-            <span className="stat-label">Total</span>
-          </div>
-          <div className="stat-card">
-            <span className="stat-number">{usuariosActivos}</span>
-            <span className="stat-label">Activos</span>
-          </div>
-          <div className="stat-card">
-            <span className="stat-number">{usuariosMFA}</span>
-            <span className="stat-label">MFA</span>
-          </div>
+        <div className="flex items-center gap-3">
+          <button
+            onClick={handleAdd}
+            className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg flex items-center gap-2 transition-colors shadow-sm"
+          >
+            <HiOutlineUserAdd className="w-5 h-5" />
+            <span>Nuevo Usuario</span>
+          </button>
         </div>
-        <button className="btn-nuevo-usuario" onClick={handleAdd}>
-          <HiOutlineUserAdd size={20} />
-          Nuevo Usuario
-        </button>
       </div>
 
-      {/* Error Alert */}
-      {error && <div className="error-alert">{error}</div>}
+      {/* Stats Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
+          <div className="text-sm font-medium text-slate-500">Total Usuarios</div>
+          <div className="text-3xl font-bold text-slate-800 mt-2">{totalUsuarios}</div>
+        </div>
+        <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
+          <div className="text-sm font-medium text-slate-500">Activos</div>
+          <div className="text-3xl font-bold text-emerald-600 mt-2">{usuariosActivos}</div>
+        </div>
+        <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
+          <div className="text-sm font-medium text-slate-500">Con MFA</div>
+          <div className="text-3xl font-bold text-indigo-600 mt-2">{usuariosMFA}</div>
+        </div>
+      </div>
 
-      {/* Table Section */}
-      <div className="usuarios-table-container">
-        <div className="usuarios-table-header">
-          <h3>Lista de Usuarios</h3>
-          <div className="usuarios-search">
-            <div className="search-input-wrapper">
-              <FiSearch className="search-icon" size={18} />
-              <input
-                type="text"
-                className="search-input"
-                placeholder="Buscar por nombre, email o rol..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-              />
-            </div>
+      {/* Main Content */}
+      <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+
+        {/* Search Bar */}
+        <div className="p-6 border-b border-slate-200">
+          <div className="relative max-w-md">
+            <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 w-5 h-5" />
+            <input
+              type="text"
+              placeholder="Buscar por nombre, email o rol..."
+              className="w-full pl-10 pr-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+            />
           </div>
         </div>
 
-        {loading ? (
-          <div className="loading-spinner">
-            <div className="spinner"></div>
-            <p style={{ marginTop: '16px', color: '#718096' }}>Cargando usuarios...</p>
-          </div>
-        ) : filteredUsuarios.length === 0 ? (
-          <div className="empty-state">
-            <div className="empty-state-icon">
-              <FiUser size={64} />
+        {/* Table */}
+        <div className="overflow-x-auto">
+          {loading ? (
+            <div className="p-12 text-center text-slate-500">Cargando usuarios...</div>
+          ) : filteredUsuarios.length === 0 ? (
+            <div className="p-12 text-center text-slate-500">
+              <FiUser className="w-12 h-12 mx-auto mb-3 text-slate-300" />
+              <p>No se encontraron usuarios</p>
             </div>
-            <h3>No se encontraron usuarios</h3>
-            <p>
-              {searchTerm
-                ? 'Intenta con otro término de búsqueda'
-                : 'Comienza agregando tu primer usuario'}
-            </p>
-          </div>
-        ) : (
-          <table className="usuarios-table">
-            <thead>
-              <tr>
-                <th>Usuario</th>
-                <th>Roles</th>
-                <th>Estado</th>
-                <th>MFA</th>
-                <th>Acciones</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filteredUsuarios.map((user) => (
-                <tr key={user.id}>
-                  <td>
-                    <div className="user-cell">
-                      <div 
-                        className="user-avatar" 
-                        style={{ background: getAvatarColor(user.display_name || user.usuario) }}
-                      >
-                        {getInitials(user.display_name || user.usuario)}
-                      </div>
-                      <div className="user-info">
-                        <span className="user-name">{user.display_name || user.usuario}</span>
-                        <span className="user-email">
-                          <FiMail size={12} style={{ marginRight: '4px', verticalAlign: 'middle' }} />
-                          {user.email}
-                        </span>
-                      </div>
-                    </div>
-                  </td>
-                  <td>
-                    {(user.roles || []).map((role, idx) => (
-                      <span key={idx} className={`role-badge ${getRoleClass(role)}`}>
-                        {role}
-                      </span>
-                    ))}
-                  </td>
-                  <td>
-                    <span className={`badge ${getStatusClass(user.estado)}`}>
-                      {user.estado || 'activo'}
-                    </span>
-                  </td>
-                  <td>
-                    <span className={`mfa-badge ${user.mfa_enabled ? 'mfa-enabled' : 'mfa-disabled'}`}>
-                      {user.mfa_enabled ? <FiLock size={14} /> : <FiUnlock size={14} />}
-                      {user.mfa_enabled ? 'Activo' : 'Inactivo'}
-                    </span>
-                  </td>
-                  <td>
-                    <div className="action-buttons">
-                      <button className="btn-action btn-edit" onClick={() => handleEdit(user)}>
-                        <FiEdit2 size={16} />
-                        Editar
-                      </button>
-                      <button className="btn-action btn-delete" onClick={() => handleDelete(user.id)}>
-                        <FiTrash2 size={16} />
-                        Eliminar
-                      </button>
-                    </div>
-                  </td>
+          ) : (
+            <table className="w-full text-left">
+              <thead className="bg-slate-50 border-b border-slate-200">
+                <tr>
+                  <th className="px-6 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider">Usuario</th>
+                  <th className="px-6 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider">Roles</th>
+                  <th className="px-6 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider">Estado</th>
+                  <th className="px-6 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider">MFA</th>
+                  <th className="px-6 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider text-right">Acciones</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        )}
+              </thead>
+              <tbody className="divide-y divide-slate-200">
+                {filteredUsuarios.map((user) => (
+                  <tr key={user.id} className="hover:bg-slate-50 transition-colors">
+                    <td className="px-6 py-4">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center font-bold text-sm">
+                          {getInitials(user.display_name || user.usuario)}
+                        </div>
+                        <div>
+                          <div className="font-medium text-slate-900">{user.display_name || user.usuario}</div>
+                          <div className="text-sm text-slate-500 flex items-center gap-1">
+                            <FiMail className="w-3 h-3" /> {user.email}
+                          </div>
+                        </div>
+                      </div>
+                    </td>
+                    <td className="px-6 py-4">
+                      <div className="flex flex-wrap gap-1">
+                        {(user.roles || []).map((role, idx) => (
+                          <span key={idx} className="px-2.5 py-0.5 rounded-full text-xs font-medium bg-slate-100 text-slate-600 border border-slate-200 capitalize">
+                            {role}
+                          </span>
+                        ))}
+                      </div>
+                    </td>
+                    <td className="px-6 py-4">
+                      <span className={`px-2.5 py-0.5 rounded-full text-xs font-medium border capitalize
+                            ${user.estado === 'activo' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' :
+                          user.estado === 'suspendido' ? 'bg-red-50 text-red-700 border-red-200' :
+                            'bg-slate-100 text-slate-600 border-slate-200'}`}>
+                        {user.estado || 'activo'}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4">
+                      <div className={`flex items-center gap-1.5 text-sm ${user.mfa_enabled ? 'text-indigo-600 font-medium' : 'text-slate-400'}`}>
+                        {user.mfa_enabled ? <FiLock className="w-4 h-4" /> : <FiUnlock className="w-4 h-4" />}
+                        {user.mfa_enabled ? 'Activado' : 'Desactivado'}
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 text-right">
+                      <div className="flex items-center justify-end gap-2">
+                        <button
+                          onClick={() => handleEdit(user)}
+                          className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-all"
+                        >
+                          <FiEdit2 className="w-4 h-4" />
+                        </button>
+                        <button
+                          onClick={() => handleDelete(user.id)}
+                          className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all"
+                        >
+                          <FiTrash2 className="w-4 h-4" />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </div>
       </div>
 
       {/* Modal */}

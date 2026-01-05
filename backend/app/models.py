@@ -18,6 +18,15 @@ class Ciudad(db.Model):
     remitentes = db.relationship('Remitente', backref='ciudad', lazy=True)
     transportadoras = db.relationship(
         'Transportadora', backref='ciudad', lazy=True)
+    aduanas = db.relationship('Aduana', backref='ciudad', lazy=True)
+
+
+class Aduana(db.Model):
+    __tablename__ = 'aduanas'
+    id = db.Column(db.Integer, primary_key=True)
+    codigo = db.Column(db.String(20), unique=True, nullable=False)
+    nombre = db.Column(db.String(150), nullable=False)
+    ciudad_id = db.Column(db.Integer, db.ForeignKey('ciudades.id'), nullable=True)
 
 
 class Usuario(db.Model):
@@ -468,7 +477,7 @@ class MIC(db.Model):
     campo_36_factura_despacho = db.Column(db.String(100))
     campo_37_valor_manual = db.Column(db.String(100))
     campo_38_datos_campo11_crt = db.Column(db.Text)
-    campo_40_tramo = db.Column(db.String(200))
+    campo_40_tramo = db.Column(db.Text)
     creado_en = db.Column(db.DateTime, default=datetime.utcnow)
 
     crt = db.relationship('CRT', backref=db.backref('mics', lazy=True))
