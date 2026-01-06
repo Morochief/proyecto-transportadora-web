@@ -346,16 +346,8 @@ function ListarCRT() {
     } catch (error) { toast.error("❌ Error duplicando CRT"); }
   };
 
-  const editarCRT = async (crtId) => {
-    try {
-      const response = await axios.get(`http://localhost:5000/api/crts/${crtId}`);
-      setCrtEditando(response.data);
-      try {
-        const campo15Response = await axios.get(`http://localhost:5000/api/crts/${crtId}/campo15`);
-        setCampo15Items(campo15Response.data.items || []);
-      } catch (error) { setCampo15Items([]); }
-      setModalEditar(true);
-    } catch (error) { toast.error("❌ Error obteniendo CRT para editar"); }
+  const editarCRT = (crtId) => {
+    navigate(`/crt/editar/${crtId}`);
   };
 
   const agregarCampo15Item = () => {

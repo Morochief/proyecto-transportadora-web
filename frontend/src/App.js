@@ -156,6 +156,17 @@ function App() {
         />
 
         <Route
+          path="/crt/editar/:id"
+          element={
+            <PrivateRoute>
+              <Layout>
+                <CRT />
+              </Layout>
+            </PrivateRoute>
+          }
+        />
+
+        <Route
           path="/listar-crt"
           element={
             <PrivateRoute>

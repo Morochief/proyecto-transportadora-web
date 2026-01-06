@@ -4,7 +4,7 @@ import api from "../api/api";
 import {
   Users, Globe, Building2, UserCheck, Truck, FileText,
   ArrowLeftRight, Coins, DollarSign,
-  TrendingUp, Activity, BarChart3
+  TrendingUp, Activity, BarChart3, History
 } from "lucide-react";
 
 // Configuración de módulos con un diseño más sobrio
@@ -49,6 +49,13 @@ const modules = [
     icon: FileText,
     path: "/crt",
     description: "Cartas de Porte Internacional",
+    statsKey: "crt"
+  },
+  {
+    name: "Historial CRT",
+    icon: History,
+    path: "/listar-crt",
+    description: "Ver historial y editar CRTs",
     statsKey: "crt"
   },
   {

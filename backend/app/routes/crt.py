@@ -704,16 +704,10 @@ def editar_crt(crt_id):
                     valor_remitente=parse_number(gasto.get("valor_remitente")),
                     moneda_remitente_id=gasto.get("moneda_remitente_id"),
                     valor_destinatario=parse_number(
-                        gasto.get("valor_destinatario")),
+            gasto.get("valor_destinatario")),
                     moneda_destinatario_id=gasto.get("moneda_destinatario_id")
                 )
                 db.session.add(g)
-
-        # âœ… SOLO AGREGAR LOG SI HAY CAMBIOS REALES Y SIGNIFICATIVOS
-        if cambios_realizados and not es_creacion_borrador:
-            timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-            log_cambios = f"\n--- Editado {timestamp} ---\nCambios: {', '.join(cambios_realizados)}"
-            crt.observaciones = (observaciones_originales or "") + log_cambios
 
         db.session.commit()
 
@@ -1345,8 +1339,8 @@ def generar_pdf_crt(crt_id):
         if hasattr(crt, "valor_reembolso") and crt.valor_reembolso not in [None, "None", ""]:
             valor_reembolso = format_number(crt.valor_reembolso, 2)
         c.setFont("Helvetica", 8)
-        c.drawString(x_moneda_20, y_20, codigo_moneda_19)
         if valor_reembolso:
+            c.drawString(x_moneda_20, y_20, codigo_moneda_19)
             c.drawRightString(x_valor_20, y_20, valor_reembolso)
 
         # ========== CAMPO 21: REMITENTE ==========

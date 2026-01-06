@@ -61,7 +61,7 @@ const EnhancedTable = ({ columns, data, onEdit, onDelete, loading }) => {
                   </td>
                 ))}
                 <td className="px-6 py-4 text-right">
-                  <div className="flex justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                  <div className="flex justify-end gap-2">
                     <button onClick={() => onEdit(item)} className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-all">
                       <Edit3 className="w-4 h-4" />
                     </button>
