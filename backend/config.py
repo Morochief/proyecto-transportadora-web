@@ -18,12 +18,15 @@ def _get_database_url() -> str:
 
 def _get_secret_key() -> str:
     secret = os.environ.get("SECRET_KEY")
-    if secret:
+    if secret and secret != "change-me":
         return secret
     jwt_secret = os.environ.get("JWT_SECRET_KEY")
-    if jwt_secret:
+    if jwt_secret and jwt_secret != "change-me":
         return jwt_secret
-    return "d4XoQe3wMJ7c2y7K4YfbDjSgGm6pQX5p69b2Xc4Lx9Q="
+    # En desarrollo, usar un valor temporal pero loguear advertencia
+    import sys
+    print("⚠️  WARNING: SECRET_KEY no configurado. Usando valor temporal (NO USAR EN PRODUCCIÓN)", file=sys.stderr)
+    return "dev-only-insecure-key-change-in-production"
 
 
 def _get_list(name: str, default: str = ""):
@@ -38,8 +41,7 @@ class Config:
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     DEBUG = _get_bool_env("FLASK_DEBUG", False)
     SECRET_KEY = _get_secret_key()
-    JWT_SECRET_KEY = os.environ.get(
-        "JWT_SECRET_KEY") or "f9ZtPa2NwL1sR8eYk5VhQ3uBn6Cd7pLm8Tg5Sr2Wn4M="
+    JWT_SECRET_KEY = os.environ.get("JWT_SECRET_KEY") or _get_secret_key()
     JWT_ALGORITHM = os.environ.get("JWT_ALGORITHM", "HS256")
     ACCESS_TOKEN_EXPIRES = int(os.environ.get(
         "ACCESS_TOKEN_EXPIRES_MINUTES", "15"))
