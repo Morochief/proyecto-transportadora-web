@@ -1,0 +1,43 @@
+# =============================================================================
+# Dockerfile para Backend (Desarrollo)
+# =============================================================================
+FROM python:3.11-slim
+
+LABEL description="Backend Flask - Desarrollo con Hot-Reload y Debug"
+
+WORKDIR /app
+
+# Instalar dependencias del sistema
+RUN apt-get update && apt-get install -y \
+    postgresql-client \
+    gcc \
+    && rm -rf /var/lib/apt/lists/*
+
+# Copiar requirements
+COPY backend/requirements.txt .
+
+# Instalar dependencias Python + debugpy para VS Code
+RUN pip install --no-cache-dir --upgrade pip && \
+    pip install --no-cache-dir -r requirements.txt && \
+    pip install --no-cache-dir debugpy
+
+# Copiar código de la aplicación (será sobrescrito por volumen)
+COPY backend/ .
+
+# Variables de entorno para desarrollo
+ENV PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1 \
+    FLASK_APP=wsgi.py \
+    FLASK_DEBUG=1
+
+# Exponer puertos: 5000 (Flask) + 5678 (debugpy)
+EXPOSE 5000 5678
+
+# Script de inicio
+COPY docker-entrypoint-backend.sh /docker-entrypoint.sh
+RUN chmod +x /docker-entrypoint.sh
+
+ENTRYPOINT ["/docker-entrypoint.sh"]
+
+# Comando por defecto (desarrollo con debug habilitado)
+CMD ["flask", "run", "--host=0.0.0.0", "--port=5000", "--reload"]
