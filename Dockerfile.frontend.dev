@@ -2,7 +2,7 @@ FROM node:18-alpine
 
 WORKDIR /app
 
-# Copiar archivos de dependencias (desde el contexto raíz)
+# Copiar archivos de dependencias
 COPY frontend/package*.json ./
 
 # Instalar dependencias
@@ -11,11 +11,8 @@ RUN npm install --legacy-peer-deps
 # Copiar el resto del código (aunque se oculte por el volumen, es buena práctica)
 COPY frontend/ .
 
-# Exponer el puerto por defecto de React
+# Exponer el puerto de Vite
 EXPOSE 3000
 
-# Variables de entorno para asegurar hot-reload en Docker
-ENV WDS_SOCKET_PORT=0
-
-# Iniciar servidor de desarrollo
-CMD ["npm", "start"]
+# Iniciar servidor de desarrollo de Vite
+CMD ["npm", "run", "dev"]
