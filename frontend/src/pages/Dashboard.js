@@ -220,19 +220,16 @@ function Dashboard() {
           title="Documentos (CRT+MIC)"
           value={isLoading ? "-" : (stats.crt + stats.mic).toLocaleString()}
           icon={FileText}
-          trend="12%"
         />
         <StatsCard
           title="Transportadoras"
           value={isLoading ? "-" : stats.transportadoras}
           icon={Truck}
-          trend="5%"
         />
         <StatsCard
           title="Facturación Total"
           value={isLoading ? "-" : `$${stats.totalHonorarios.toLocaleString()}`}
           icon={Activity}
-          trend="8%"
         />
         <StatsCard
           title="Usuarios Activos"

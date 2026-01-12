@@ -101,4 +101,4 @@ docker compose down
 *   El proyecto está configurado para desarrollo en caliente (hot-reload) tanto en backend como frontend.
 
 ---
-*Transportadora Web © 2025*
+*Transportadora Web © 2026*
