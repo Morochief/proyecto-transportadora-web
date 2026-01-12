@@ -72,27 +72,6 @@ services:
     environment:
       REACT_APP_API_URL: http://localhost:5000/api
 
-  go-crt-api:
-    build:
-      context: ./go-crt-api
-      dockerfile: Dockerfile
-    environment:
-      DATABASE_URL: postgres://postgres:postgres@db:5432/logistica?sslmode=disable
-    ports:
-      - "8080:8080"
-    depends_on:
-      - db
-    volumes:
-      - ./go-crt-api:/src
-
-  pdf-service:
-    build:
-      context: ./go-crt-api
-      dockerfile: Dockerfile.pdf
-    ports:
-      - "3002:3002"
-    volumes:
-      - ./go-crt-api:/src
 
 volumes:
   pgdata:
