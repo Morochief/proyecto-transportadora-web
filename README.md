@@ -8,8 +8,8 @@ El proyecto utiliza una arquitectura de microservicios contenerizada:
 
 *   **Backend**: Python 3.11 + Flask (API REST)
 *   **Base de Datos**: PostgreSQL 14 (con SQLAlchemy ORM)
-*   **Frontend**: React.js (Node 18)
-*   **Servidor Web**: Nginx (Reverse Proxy)
+*   **Frontend**: React 19 + Vite (Dev server ultra-rápido)
+*   **Estilos**: TailwindCSS 3
 *   **Generación PDF**: ReportLab (Nativo en Python)
 *   **Infraestructura**: Docker + Docker Compose
 
@@ -119,7 +119,7 @@ El sistema implementa múltiples capas de seguridad:
 ### Hot-Reload
 El proyecto está configurado para desarrollo en caliente:
 *   **Backend (Flask)**: Cambios en archivos `.py` recargan automáticamente.
-*   **Frontend (React)**: Cambios en archivos `.js` se reflejan al instante.
+*   **Frontend (Vite)**: Cambios en archivos `.jsx` se reflejan en ~200ms.
 
 ### Debugging
 Configuración de VS Code incluida (`.vscode/launch.json`):
@@ -128,8 +128,9 @@ Configuración de VS Code incluida (`.vscode/launch.json`):
 
 ### Archivos de Desarrollo
 ```
-Dockerfile.frontend.dev   # Frontend con npm start (hot-reload)
+Dockerfile.frontend.dev   # Frontend con Vite (npm run dev)
 Dockerfile.backend.dev    # Backend con Flask debug + debugpy
+vite.config.js            # Configuración de Vite
 docker-compose.yml        # Configuración de desarrollo
 docker-compose.prod.yml   # Configuración de producción
 ```
