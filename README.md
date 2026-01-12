@@ -95,10 +95,49 @@ docker compose restart frontend
 docker compose down
 ```
 
-## 📝 Notas de Desarrollo
+## 🔒 Seguridad
 
-*   La generación de PDFs para CRTs y MICs se realiza nativamente en Python utilizando `reportlab`, lo que garantiza rapidez y precisión en el diseño, sin depender de servicios externos.
-*   El proyecto está configurado para desarrollo en caliente (hot-reload) tanto en backend como frontend.
+El sistema implementa múltiples capas de seguridad:
+
+### Autenticación
+*   **JWT con Cookies HttpOnly**: Los tokens de refresco se almacenan en cookies HttpOnly, protegiéndolos de ataques XSS.
+*   **MFA (Autenticación Multifactor)**: Soporte para TOTP y códigos de respaldo.
+*   **Bloqueo de Cuenta**: Protección contra ataques de fuerza bruta con bloqueo temporal.
+*   **Historial de Contraseñas**: Previene reutilización de contraseñas anteriores.
+
+### Autorización
+*   **RBAC (Control de Acceso Basado en Roles)**: Roles granulares con permisos específicos.
+*   **Logs de Auditoría**: Registro completo de acciones de usuarios.
+
+### Infraestructura
+*   **CORS Configurado**: Orígenes permitidos explícitamente definidos.
+*   **CSP Headers**: Content Security Policy implementado.
+*   **PostgreSQL Restringido**: Base de datos solo accesible desde localhost.
+
+## 🛠️ Entorno de Desarrollo
+
+### Hot-Reload
+El proyecto está configurado para desarrollo en caliente:
+*   **Backend (Flask)**: Cambios en archivos `.py` recargan automáticamente.
+*   **Frontend (React)**: Cambios en archivos `.js` se reflejan al instante.
+
+### Debugging
+Configuración de VS Code incluida (`.vscode/launch.json`):
+*   **Python: Flask (Docker)** - Debugging remoto del backend en puerto 5678
+*   **Chrome: Frontend** - Debugging del React
+
+### Archivos de Desarrollo
+```
+Dockerfile.frontend.dev   # Frontend con npm start (hot-reload)
+Dockerfile.backend.dev    # Backend con Flask debug + debugpy
+docker-compose.yml        # Configuración de desarrollo
+docker-compose.prod.yml   # Configuración de producción
+```
+
+## 📝 Notas Técnicas
+
+*   La generación de PDFs para CRTs y MICs se realiza nativamente en Python utilizando `reportlab`.
+*   Los tokens de refresco se envían como cookies HttpOnly, el frontend usa `withCredentials: true`.
 
 ---
 *Transportadora Web © 2026*
