@@ -4,6 +4,7 @@ import useAuthStore from '../store/authStore';
 
 const api = axios.create({
   baseURL: process.env.REACT_APP_API_URL || 'http://localhost:5000/api',
+  withCredentials: true, // Send cookies automatically
 });
 
 api.interceptors.request.use((config) => {
@@ -18,22 +19,21 @@ let isRefreshing = false;
 let refreshQueue = [];
 
 async function refreshSession() {
-  const { refreshToken, setSession, clearSession, user } = useAuthStore.getState();
-  if (!refreshToken) {
-    clearSession();
-    throw new Error('Missing refresh token');
-  }
+  const { setSession, clearSession, user } = useAuthStore.getState();
   try {
+    // Cookie is sent automatically via withCredentials
     const response = await axios.post(
       `${api.defaults.baseURL}/auth/refresh`,
-      { refresh_token: refreshToken },
-      { headers: { 'Content-Type': 'application/json' } }
+      {},
+      {
+        headers: { 'Content-Type': 'application/json' },
+        withCredentials: true
+      }
     );
-    const { access_token: newAccess, refresh_token: newRefresh } = response.data;
+    const { access_token: newAccess } = response.data;
     setSession({
       user,
       accessToken: newAccess,
-      refreshToken: newRefresh || refreshToken,
     });
     return newAccess;
   } catch (error) {

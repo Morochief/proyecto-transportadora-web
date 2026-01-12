@@ -6,17 +6,15 @@ const useAuthStore = create(
     (set) => ({
       user: null,
       accessToken: null,
-      refreshToken: null,
-      setSession: ({ user, accessToken, refreshToken }) =>
-        set({ user, accessToken, refreshToken }),
+      setSession: ({ user, accessToken }) =>
+        set({ user, accessToken }),
       updateUser: (user) => set({ user }),
-      clearSession: () => set({ user: null, accessToken: null, refreshToken: null }),
+      clearSession: () => set({ user: null, accessToken: null }),
     }),
     {
       name: 'auth-state',
       partialize: (state) => ({
         accessToken: state.accessToken,
-        refreshToken: state.refreshToken,
         user: state.user,
       }),
     }

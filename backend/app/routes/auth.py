@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import logging
 
-from flask import Blueprint, jsonify, request, g
+from flask import Blueprint, jsonify, request, g, make_response, current_app
 from pydantic import ValidationError
 
 from app import db
@@ -49,6 +49,28 @@ def _client_context():
     }
 
 
+def _set_refresh_cookie(response, token: str):
+    """Set refresh token as HttpOnly cookie."""
+    is_secure = current_app.config.get('PREFERRED_URL_SCHEME', 'https') == 'https'
+    max_age = current_app.config.get('REFRESH_TOKEN_EXPIRES', 7) * 24 * 3600
+    response.set_cookie(
+        'refresh_token',
+        value=token,
+        httponly=True,
+        secure=is_secure,
+        samesite='Lax',
+        max_age=max_age,
+        path='/api/auth'
+    )
+    return response
+
+
+def _clear_refresh_cookie(response):
+    """Clear refresh token cookie."""
+    response.delete_cookie('refresh_token', path='/api/auth')
+    return response
+
+
 @auth_bp.route('/register', methods=['POST'])
 @auth_required
 @roles_required('admin')
@@ -91,7 +113,12 @@ def login():
             mfa_code=payload.mfa_code,
             backup_code=payload.backup_code,
         )
-        return jsonify(result)
+        # Extract refresh_token to send as HttpOnly cookie
+        refresh_token = result.pop('refresh_token', None)
+        response = make_response(jsonify(result))
+        if refresh_token:
+            _set_refresh_cookie(response, refresh_token)
+        return response
     except RateLimitExceeded as exc:
         return jsonify({'error': 'Demasiados intentos', 'retry_after_seconds': exc.retry_after_seconds}), 429
     except AccountLocked as exc:
@@ -107,24 +134,38 @@ def login():
 @auth_bp.route('/logout', methods=['POST'])
 @auth_required
 def logout():
-    payload, errors = _parse(RefreshRequest)
-    refresh_token = payload.refresh_token if not errors else None
+    # Try to get refresh_token from cookie first, then from body
+    refresh_token = request.cookies.get('refresh_token')
+    if not refresh_token:
+        payload, errors = _parse(RefreshRequest)
+        refresh_token = payload.refresh_token if not errors else None
     auth_service.logout(g.current_user, refresh_token)
-    return jsonify({'status': 'ok'})
+    response = make_response(jsonify({'status': 'ok'}))
+    _clear_refresh_cookie(response)
+    return response
 
 
 @auth_bp.route('/refresh', methods=['POST'])
 def refresh():
-    payload, errors = _parse(RefreshRequest)
-    if errors:
-        return jsonify({'error': 'Datos invalidos', 'details': errors}), 400
+    # Try to get refresh_token from cookie first, then from body
+    refresh_token = request.cookies.get('refresh_token')
+    if not refresh_token:
+        payload, errors = _parse(RefreshRequest)
+        if errors:
+            return jsonify({'error': 'Datos invalidos', 'details': errors}), 400
+        refresh_token = payload.refresh_token
     ctx = _client_context()
-    record = find_valid_refresh_token(payload.refresh_token)
+    record = find_valid_refresh_token(refresh_token)
     if not record or not record.user:
         return jsonify({'error': 'Refresh token invalido'}), 401
     try:
-        data = auth_service.refresh_session(record.user, payload.refresh_token, ip=ctx['ip'], user_agent=ctx['user_agent'])
-        return jsonify(data)
+        data = auth_service.refresh_session(record.user, refresh_token, ip=ctx['ip'], user_agent=ctx['user_agent'])
+        # Extract new refresh_token to send as HttpOnly cookie
+        new_refresh_token = data.pop('refresh_token', None)
+        response = make_response(jsonify(data))
+        if new_refresh_token:
+            _set_refresh_cookie(response, new_refresh_token)
+        return response
     except AuthServiceError as exc:
         return jsonify({'error': str(exc)}), 401
 

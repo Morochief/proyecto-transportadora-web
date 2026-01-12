@@ -8,9 +8,9 @@ const dispatchAuthChange = () => {
   }
 };
 
-export function login({ user, accessToken, refreshToken }) {
+export function login({ user, accessToken }) {
   const { setSession } = useAuthStore.getState();
-  setSession({ user, accessToken, refreshToken });
+  setSession({ user, accessToken });
   dispatchAuthChange();
 }
 
@@ -34,7 +34,7 @@ export function getCurrentUser() {
 
 export function onAuthChange(callback) {
   if (typeof window === 'undefined') {
-    return () => {};
+    return () => { };
   }
   const handler = () => callback(isLoggedIn());
   window.addEventListener(ACCESS_EVENT, handler);

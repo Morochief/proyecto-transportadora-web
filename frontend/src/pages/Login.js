@@ -38,8 +38,8 @@ function Login() {
         return;
       }
 
-      const { access_token: accessToken, refresh_token: refreshToken, user } = response.data;
-      storeLogin({ user, accessToken, refreshToken });
+      const { access_token: accessToken, user } = response.data;
+      storeLogin({ user, accessToken });
       navigate(from, { replace: true });
     } catch (err) {
       if (err.response?.data?.error) {
