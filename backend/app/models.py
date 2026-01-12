@@ -132,9 +132,9 @@ class UserRole(db.Model):
                             default=datetime.utcnow)
 
     user = db.relationship('Usuario', foreign_keys=[user_id], backref=db.backref(
-        'user_role_links', cascade='all, delete-orphan'))
+        'user_role_links', cascade='all, delete-orphan', viewonly=True), overlaps='roles,users')
     role = db.relationship('Role', foreign_keys=[role_id], backref=db.backref(
-        'role_user_links', cascade='all, delete-orphan'))
+        'role_user_links', cascade='all, delete-orphan', viewonly=True), overlaps='roles,users')
 
     __table_args__ = (db.UniqueConstraint(
         'user_id', 'role_id', name='uq_user_role'),)
@@ -151,9 +151,9 @@ class RolePermission(db.Model):
                            default=datetime.utcnow)
 
     role = db.relationship('Role', foreign_keys=[role_id], backref=db.backref(
-        'role_permission_links', cascade='all, delete-orphan'))
+        'role_permission_links', cascade='all, delete-orphan', viewonly=True), overlaps='permissions,roles')
     permission = db.relationship('Permission', foreign_keys=[permission_id], backref=db.backref(
-        'permission_role_links', cascade='all, delete-orphan'))
+        'permission_role_links', cascade='all, delete-orphan', viewonly=True), overlaps='permissions,roles')
 
     __table_args__ = (db.UniqueConstraint(
         'role_id', 'permission_id', name='uq_role_permission'),)
