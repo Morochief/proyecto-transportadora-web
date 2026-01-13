@@ -339,6 +339,35 @@ export default function MICsGuardados() {
           onDownloadPDF={() => descargarPDF(previewMic.id, previewMic.campo_23_numero_campo2_crt)}
         />
       )}
+      {/* Modal de Edición de MIC */}
+      {modalEdit && editMic && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-md overflow-hidden">
+            <div className="px-6 py-4 border-b border-slate-200 flex justify-between items-center bg-emerald-50">
+              <h3 className="text-lg font-bold text-slate-800">Editar MIC #{editMic.id}</h3>
+              <button onClick={() => setModalEdit(false)}><X className="w-6 h-6 text-slate-400 hover:text-slate-600" /></button>
+            </div>
+            <div className="p-6 space-y-4">
+              <div>
+                <label className="block text-sm font-semibold text-slate-700 mb-2">Número de MIC</label>
+                <input type="text" value={editForm.numero} onChange={(e) => setEditForm({...editForm, numero: e.target.value})} className="w-full p-3 border border-slate-300 rounded-lg" placeholder="Ej: MIC-2026-001" />
+                <p className="text-xs text-slate-500 mt-1">Se sincroniza con Honorarios</p>
+              </div>
+              <div>
+                <label className="block text-sm font-semibold text-slate-700 mb-2">Estado</label>
+                <select value={editForm.estado} onChange={(e) => setEditForm({...editForm, estado: e.target.value})} className="w-full p-3 border border-slate-300 rounded-lg">
+                  <option value="PROVISORIO">PROVISORIO</option>
+                  <option value="DEFINITIVO">DEFINITIVO</option>
+                </select>
+              </div>
+            </div>
+            <div className="px-6 py-4 border-t border-slate-200 bg-slate-50 flex justify-end gap-3">
+              <button onClick={() => setModalEdit(false)} className="px-4 py-2 border border-slate-300 rounded-lg text-slate-700">Cancelar</button>
+              <button onClick={handleSaveEdit} className="px-4 py-2 bg-emerald-600 text-white rounded-lg">Guardar</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -366,35 +395,4 @@ function MICDetalles({ mic }) {
           <p className="text-sm text-slate-800 break-words whitespace-pre-wrap">{mic[f.k] || '-'}</p>
         </div>
       ))}
-      {/* Modal de Edición de MIC */}
-      {modalEdit && editMic && (
-        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-2xl w-full max-w-md overflow-hidden flex flex-col">
-            <div className="px-6 py-4 border-b border-slate-200 flex justify-between items-center bg-emerald-50">
-              <h3 className="text-lg font-bold text-slate-800">Editar MIC #{editMic.id}</h3>
-              <button onClick={() => setModalEdit(false)}><X className="w-6 h-6 text-slate-400 hover:text-slate-600" /></button>
-            </div>
-            <div className="p-6 space-y-4">
-              <div>
-                <label className="block text-sm font-semibold text-slate-700 mb-2">Número de MIC</label>
-                <input type="text" value={editForm.numero} onChange={(e) => setEditForm({...editForm, numero: e.target.value})} className="w-full p-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500" placeholder="Ej: MIC-2026-001" />
-                <p className="text-xs text-slate-500 mt-1">Este número se sincronizará automáticamente con Honorarios</p>
-              </div>
-              <div>
-                <label className="block text-sm font-semibold text-slate-700 mb-2">Estado</label>
-                <select value={editForm.estado} onChange={(e) => setEditForm({...editForm, estado: e.target.value})} className="w-full p-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500">
-                  <option value="PROVISORIO">PROVISORIO</option>
-                  <option value="DEFINITIVO">DEFINITIVO</option>
-                </select>
-              </div>
-            </div>
-            <div className="px-6 py-4 border-t border-slate-200 bg-slate-50 flex justify-end gap-3">
-              <button onClick={() => setModalEdit(false)} className="px-4 py-2 border border-slate-300 rounded-lg hover:bg-white text-slate-700 font-medium">Cancelar</button>
-              <button onClick={handleSaveEdit} className="px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 font-medium shadow-sm">Guardar Cambios</button>
-            </div>
-          </div>
-        </div>
-      )}
-    </div>
-  );
 }
