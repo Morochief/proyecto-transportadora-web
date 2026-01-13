@@ -397,4 +397,3 @@ function MICDetalles({ mic }) {
       ))}
   );
 }
-}
