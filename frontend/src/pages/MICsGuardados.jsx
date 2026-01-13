@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from "react";
 import MICPreview from "../components/MICPreview";
 import axios from "axios";
+import api from "../utils/api";
 import { toast, ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import {
@@ -123,6 +124,30 @@ export default function MICsGuardados() {
       toast.success('📄 PDF descargado');
 
   const handleEditMic = (mic) => {
+
+  const handleEditMic = (mic) => {
+    setEditMic(mic);
+    setEditForm({
+      numero: mic.campo_23_numero_campo2_crt || '',
+      estado: mic.campo_4_estado || 'PROVISORIO'
+    });
+    setModalEdit(true);
+  };
+
+  const handleSaveEdit = async () => {
+    if (!editMic) return;
+    try {
+      await api.put(`/mic-guardados/${editMic.id}`, {
+        campo_23_numero_campo2_crt: editForm.numero,
+        campo_4_estado: editForm.estado
+      });
+      toast.success('✅ MIC actualizado (sincronizado con Honorarios)');
+      setModalEdit(false);
+      cargarMics(currentPage, filters);
+    } catch (error) {
+      toast.error('❌ Error al actualizar MIC');
+    }
+  };
     setEditMic(mic);
     setEditForm({
       numero: mic.campo_23_numero_campo2_crt || '',
