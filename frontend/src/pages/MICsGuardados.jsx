@@ -395,4 +395,6 @@ function MICDetalles({ mic }) {
           <p className="text-sm text-slate-800 break-words whitespace-pre-wrap">{mic[f.k] || '-'}</p>
         </div>
       ))}
+  );
+}
 }
