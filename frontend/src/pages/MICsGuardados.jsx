@@ -274,8 +274,8 @@ export default function MICsGuardados() {
             </table>
           </div>
         )}
+                      <button onClick={() => handleEditMic(mic)} className="p-2 text-slate-400 hover:text-purple-600 hover:bg-slate-100 rounded-lg" title="Editar"><Edit3 className="w-4 h-4" /></button>
 
-        {/* Pagination */}
         <div className="px-6 py-4 border-t border-slate-200 bg-slate-50 flex items-center justify-between">
           <span className="text-sm text-slate-500">Página {currentPage} de {totalPages}</span>
           <div className="flex gap-2">
