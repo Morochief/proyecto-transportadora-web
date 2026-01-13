@@ -621,6 +621,10 @@ def editar_crt(crt_id):
 
         db.session.commit()
 
+        # Crear honorario si el CRT se acaba de emitir (cambió a EMITIDO)
+        if crt.estado == "EMITIDO":
+            crear_honorario_desde_crt(crt)
+
         return jsonify({
             "message": "CRT actualizado exitosamente",
             "id": crt.id,
