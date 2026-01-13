@@ -584,6 +584,11 @@ def generar_pdf_mic_guardado(mic_id):
             download_name=download_name,
             mimetype='application/pdf'
         )
+        
+        # Permitir iframe cuando se solicita visualización inline
+        if request.args.get('inline', 'false').lower() == 'true':
+            response.headers.pop('X-Frame-Options', None)
+            response.headers['Content-Disposition'] = 'inline'
 
         # Limpiar archivo temporal despuÃ©s de enviarlo
         response.call_on_close(lambda: os.unlink(filename))
