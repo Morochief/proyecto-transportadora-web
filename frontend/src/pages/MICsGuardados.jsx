@@ -121,7 +121,8 @@ export default function MICsGuardados() {
       link.download = filename;
       document.body.appendChild(link); link.click(); document.body.removeChild(link);
       window.URL.revokeObjectURL(url);
-      toast.success('📄 PDF descargado');
+    } catch (error) { toast.error('Error descargando PDF'); }
+  };
 
   const handleEditMic = (mic) => {
 
@@ -144,8 +145,6 @@ export default function MICsGuardados() {
       toast.success('✅ MIC actualizado (sincronizado con Honorarios)');
       setModalEdit(false);
       cargarMics(currentPage, filters);
-    } catch (error) {
-      toast.error('❌ Error al actualizar MIC');
     }
   };
     setEditMic(mic);
