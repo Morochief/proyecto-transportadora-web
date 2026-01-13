@@ -574,8 +574,27 @@ def generar_pdf_mic_guardado(mic_id):
 
         generar_micdta_pdf_con_datos(mic_data, filename)
 
-        # Nombre del archivo de descarga
-        download_name = f"MIC_{mic.campo_23_numero_campo2_crt or mic.id}_{datetime.now().strftime('%Y%m%d')}.pdf"
+        # Función para sanitizar nombres de archivo
+        def sanitize_filename(text):
+            if not text:
+                return "N-A"
+            # Tomar solo primeras palabras si es muy largo
+            text = str(text).strip()
+            if len(text) > 50:
+                text = text[:50]
+            # Eliminar caracteres inválidos
+            import re
+            text = re.sub(r'[<>:"/\\|?*\n\r]', '', text)
+            text = text.replace('  ', ' ').strip()
+            return text or "N-A"
+
+        # Formato: [Transportadora] - [Nº CRT] - [Exportador] - [Importador]
+        transportadora = sanitize_filename(mic.campo_1_transporte)
+        numero_crt = sanitize_filename(mic.campo_23_numero_campo2_crt) or f"MIC-{mic.id}"
+        exportador = sanitize_filename(mic.campo_33_datos_campo1_crt)
+        importador = sanitize_filename(mic.campo_34_datos_campo4_crt)
+        
+        download_name = f"{transportadora} - {numero_crt} - {exportador} - {importador}.pdf"
         logger.debug("Sending stored MIC PDF %s", download_name)
 
         response = send_file(
