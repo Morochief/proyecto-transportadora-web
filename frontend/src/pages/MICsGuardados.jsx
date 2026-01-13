@@ -366,7 +366,6 @@ function MICDetalles({ mic }) {
           <p className="text-sm text-slate-800 break-words whitespace-pre-wrap">{mic[f.k] || '-'}</p>
         </div>
       ))}
-      )}
       {/* Modal de Edición de MIC */}
       {modalEdit && editMic && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
