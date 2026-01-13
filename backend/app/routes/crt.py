@@ -741,20 +741,6 @@ def eliminar_crt(crt_id):
         logger.exception("Error deleting CRT %s", crt_id)
         return jsonify({"error": str(e)}), 500
 
-# ========== LISTAR CRTs SIMPLE ==========
-
-
-@crt_bp.route('/simple', methods=['GET'])
-def listar_crts_simple():
-    try:
-        sql = text("SELECT c.numero_crt FROM crts c ORDER BY c.id DESC")
-        result = db.session.execute(sql).mappings().all()
-        crts = [{"numero_crt": row["numero_crt"]} for row in result]
-        return jsonify(crts)
-    except Exception as e:
-        logger.exception("Error listing CRT numbers")
-        return jsonify({"error": str(e)}), 500
-
 # ========== PDF CRT ==========
 
 
