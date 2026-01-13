@@ -33,7 +33,7 @@ export default function MICsGuardados() {
 
   const [editMic, setEditMic] = useState(null);
   const [modalEdit, setModalEdit] = useState(false);
-  const [editForm, setEditForm] = useState({ numero: '"'"', estado: '"'"' });
+  const [editForm, setEditForm] = useState({ numero: '', estado: '' });
   const confirmDelete = (mic) => {
     setMicToDelete(mic);
     setShowDeleteModal(true);
