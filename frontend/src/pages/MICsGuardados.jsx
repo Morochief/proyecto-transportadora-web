@@ -366,7 +366,7 @@ function MICDetalles({ mic }) {
           <p className="text-sm text-slate-800 break-words whitespace-pre-wrap">{mic[f.k] || '-'}</p>
         </div>
       ))}
-
+      )}
       {/* Modal de Edición de MIC */}
       {modalEdit && editMic && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
@@ -378,22 +378,12 @@ function MICDetalles({ mic }) {
             <div className="p-6 space-y-4">
               <div>
                 <label className="block text-sm font-semibold text-slate-700 mb-2">Número de MIC</label>
-                <input 
-                  type="text" 
-                  value={editForm.numero}
-                  onChange={(e) => setEditForm({...editForm, numero: e.target.value})}
-                  className="w-full p-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
-                  placeholder="Ej: MIC-2026-001"
-                />
+                <input type="text" value={editForm.numero} onChange={(e) => setEditForm({...editForm, numero: e.target.value})} className="w-full p-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500" placeholder="Ej: MIC-2026-001" />
                 <p className="text-xs text-slate-500 mt-1">Este número se sincronizará automáticamente con Honorarios</p>
               </div>
               <div>
                 <label className="block text-sm font-semibold text-slate-700 mb-2">Estado</label>
-                <select 
-                  value={editForm.estado}
-                  onChange={(e) => setEditForm({...editForm, estado: e.target.value})}
-                  className="w-full p-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
-                >
+                <select value={editForm.estado} onChange={(e) => setEditForm({...editForm, estado: e.target.value})} className="w-full p-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500">
                   <option value="PROVISORIO">PROVISORIO</option>
                   <option value="DEFINITIVO">DEFINITIVO</option>
                 </select>
