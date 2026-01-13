@@ -126,6 +126,7 @@ export default function MICsGuardados() {
 
   const handleEditMic = (mic) => {
     setEditMic(mic);
+    console.log("Editando MIC:", mic);
     setEditForm({
       numero: mic.numero_carta_porte || '',
       estado: mic.estado || 'PROVISORIO'
