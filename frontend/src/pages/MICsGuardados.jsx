@@ -259,6 +259,7 @@ export default function MICsGuardados() {
                     <td className="px-6 py-4 text-right flex justify-end gap-2">
                       <button onClick={() => verPrevia(mic.id)} className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-slate-100 rounded-lg" title="Vista Previa"><Eye className="w-4 h-4" /></button>
                       <button onClick={() => descargarPDF(mic.id, mic.numero_carta_porte)} className="p-2 text-slate-400 hover:text-blue-600 hover:bg-slate-100 rounded-lg" title="Descargar PDF"><Download className="w-4 h-4" /></button>
+                      <button onClick={() => handleEditMic(mic)} className="p-2 text-slate-400 hover:text-purple-600 hover:bg-slate-100 rounded-lg" title="Editar"><Edit3 className="w-4 h-4" /></button>
 
                       {mic.estado === 'ANULADO' ? (
                         <button onClick={() => restaurarMic(mic)} className="p-2 text-orange-400 hover:text-orange-600 hover:bg-orange-50 rounded-lg" title="Restaurar MIC"><RefreshCw className="w-4 h-4" /></button>
@@ -273,7 +274,6 @@ export default function MICsGuardados() {
             </table>
           </div>
         )}
-                      <button onClick={() => handleEditMic(mic)} className="p-2 text-slate-400 hover:text-purple-600 hover:bg-slate-100 rounded-lg" title="Editar"><Edit3 className="w-4 h-4" /></button>
 
         <div className="px-6 py-4 border-t border-slate-200 bg-slate-50 flex items-center justify-between">
           <span className="text-sm text-slate-500">Página {currentPage} de {totalPages}</span>
