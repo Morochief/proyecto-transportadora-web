@@ -5,7 +5,7 @@ import { toast, ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import {
   Search, Filter, Eye, Download, Trash2, Calendar, Truck,
-  FileText, CheckCircle, AlertCircle, X, ChevronLeft, ChevronRight, BarChart3, RefreshCw
+  FileText, CheckCircle, AlertCircle, X, ChevronLeft, ChevronRight, BarChart3, RefreshCw, Edit3
 } from "lucide-react";
 
 export default function MICsGuardados() {
