@@ -155,39 +155,9 @@ function Dashboard() {
   const fetchDashboardStats = async () => {
     setIsLoading(true);
     try {
-      const [
-        paisesRes, ciudadesRes, remitentesRes,
-        transportadorasRes, monedasRes, honorariosRes, crtsRes, aduanasRes
-      ] = await Promise.all([
-        api.get('/paises/').catch(() => ({ data: [] })),
-        api.get('/ciudades/').catch(() => ({ data: [] })),
-        api.get('/remitentes/').catch(() => ({ data: { items: [] } })),
-        api.get('/transportadoras/').catch(() => ({ data: { items: [] } })),
-        api.get('/monedas/').catch(() => ({ data: [] })),
-        api.get('/honorarios/').catch(() => ({ data: [] })),
-        api.get('/crts/').catch(() => ({ data: [] })),
-        api.get('/aduanas/').catch(() => ({ data: [] }))
-      ]);
-
-      const honorariosData = Array.isArray(honorariosRes.data) ? honorariosRes.data : [];
-      const totalHonorarios = honorariosData.reduce((acc, h) => acc + (parseFloat(h.monto) || 0), 0);
-
-      const aduanasCount = aduanasRes?.data?.length || 0;
-
-      setStats({
-        paises: paisesRes.data.length || 0,
-        ciudades: ciudadesRes.data.length || 0,
-        remitentes: (Array.isArray(remitentesRes.data.items) ? remitentesRes.data.items : []).length,
-        transportadoras: (Array.isArray(transportadorasRes.data.items) ? transportadorasRes.data.items : transportadorasRes.data || []).length,
-        monedas: monedasRes.data.length || 0,
-        honorarios: honorariosData.length,
-        crt: (Array.isArray(crtsRes.data) ? crtsRes.data : []).length,
-        usuarios: 0,
-        mic: 0,
-        aduanas: aduanasCount,
-        totalHonorarios: totalHonorarios,
-        usuariosConectados: 1
-      });
+      // Single API call instead of 8 separate calls
+      const response = await api.get('/dashboard/stats');
+      setStats(response.data);
     } catch (error) {
       console.error('Error fetching dashboard stats:', error);
     } finally {
