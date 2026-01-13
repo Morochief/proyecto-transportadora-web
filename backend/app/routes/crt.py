@@ -1508,6 +1508,7 @@ def crear_honorario_desde_crt(crt):
             moneda_id=crt.transportadora.moneda_honorarios_id or 1, # Default USD
             fecha=datetime.now().date(),
             crt_id=crt.id
+            tipo_operacion='EXPORTACION'  # CRT siempre es exportación
         )
         db.session.add(nuevo_honorario)
         db.session.commit()
