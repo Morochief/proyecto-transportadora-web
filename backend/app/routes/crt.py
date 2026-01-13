@@ -5,7 +5,7 @@ from sqlalchemy.orm import joinedload, aliased
 from datetime import datetime, timedelta
 from io import BytesIO
 import logging
-import re  # âœ… necesario para _split_long_word y normalizaciones
+import re  # ✅ necesario para _split_long_word y normalizaciones
 
 from app.models import db, CRT, CRT_Gasto, Remitente, Transportadora, Ciudad, Pais, Moneda
 
@@ -14,94 +14,14 @@ from reportlab.lib.pagesizes import A4
 from reportlab.pdfbase.pdfmetrics import stringWidth
 
 from app.utils.layout_crt import dibujar_lineas_dinamicas, lineas
+from app.utils.crt_helpers import parse_number, limpiar_numericos, NUMERIC_FIELDS
+from app.utils.crt_serializers import to_dict_crt, to_dict_gasto
 
 
 crt_bp = Blueprint('crt', __name__, url_prefix='/api/crts')
 logger = logging.getLogger(__name__)
 
-# ========== FUNCIONES AUXILIARES UNIVERSALES ==========
-
-
-def parse_number(val):
-    if val is None or val == "":
-        return None
-    if isinstance(val, (int, float)):
-        return float(val)
-    val = str(val).replace('.', '').replace(',', '.')
-    try:
-        return float(val)
-    except Exception:
-        return None
-
-
-def limpiar_numericos(dic, campos):
-    for campo in campos:
-        dic[campo] = parse_number(dic.get(campo))
-    return dic
-
-# ========== SERIALIZADORES ==========
-
-
-def to_dict_gasto(g):
-    return {
-        "id": g.id,
-        "crt_id": g.crt_id,
-        "tramo": g.tramo or "",
-        "valor_remitente": str(g.valor_remitente or ""),
-        "moneda_remitente_id": g.moneda_remitente_id,
-        "moneda_remitente": g.moneda_remitente.nombre if g.moneda_remitente else "",
-        "valor_destinatario": str(g.valor_destinatario or ""),
-        "moneda_destinatario_id": g.moneda_destinatario_id,
-        "moneda_destinatario": g.moneda_destinatario.nombre if g.moneda_destinatario else ""
-    }
-
-
-def to_dict_crt(crt):
-    def val(obj, attr, default=""):
-        v = getattr(obj, attr, default)
-        return v if v is not None else default
-
-    return {
-        "id": crt.id,
-        "numero_crt": val(crt, 'numero_crt', ''),
-        "fecha_emision": crt.fecha_emision.strftime('%Y-%m-%d') if crt.fecha_emision else "",
-        "estado": val(crt, 'estado', ''),
-        "remitente_id": crt.remitente_id,
-        "remitente": crt.remitente.nombre if crt.remitente else "",
-        "transportadora_id": crt.transportadora_id,
-        "transportadora": crt.transportadora.nombre if crt.transportadora else "",
-        "transportadora_rol_contribuyente": crt.transportadora.rol_contribuyente if crt.transportadora else "",
-        "destinatario_id": crt.destinatario_id,
-        "destinatario": crt.destinatario.nombre if crt.destinatario else "",
-        "consignatario_id": crt.consignatario_id,
-        "consignatario": crt.consignatario.nombre if crt.consignatario else "",
-        "notificar_a_id": crt.notificar_a_id,
-        "notificar_a": crt.notificar_a.nombre if hasattr(crt, "notificar_a") and crt.notificar_a else "",
-        "ciudad_emision_id": crt.ciudad_emision_id,
-        "pais_emision_id": crt.pais_emision_id,
-        "lugar_entrega": val(crt, 'lugar_entrega', ''),
-        "detalles_mercaderia": val(crt, 'detalles_mercaderia', ''),
-        "peso_bruto": str(val(crt, 'peso_bruto', '')),
-        "peso_neto": str(val(crt, 'peso_neto', '')),
-        "volumen": str(val(crt, 'volumen', '')),
-        "incoterm": val(crt, 'incoterm', ''),
-        "moneda_id": crt.moneda_id,
-        "moneda": crt.moneda.nombre if crt.moneda else "",
-        "valor_incoterm": str(val(crt, 'valor_incoterm', '')),
-        "valor_mercaderia": str(val(crt, 'valor_mercaderia', '')),
-        "declaracion_mercaderia": str(val(crt, 'declaracion_mercaderia', '')),
-        "factura_exportacion": val(crt, 'factura_exportacion', ''),
-        "nro_despacho": val(crt, 'nro_despacho', ''),
-        "formalidades_aduana": val(crt, 'formalidades_aduana', ''),
-        "valor_flete_externo": str(val(crt, 'valor_flete_externo', '')),
-        "valor_reembolso": str(val(crt, 'valor_reembolso', '')),
-        "transporte_sucesivos": val(crt, 'transporte_sucesivos', ''),
-        "observaciones": val(crt, 'observaciones', ''),
-        "fecha_firma": crt.fecha_firma.strftime('%Y-%m-%d') if crt.fecha_firma else "",
-        "gastos": [to_dict_gasto(g) for g in crt.gastos],
-    }
-
-# ========== SIGUIENTE NÃšMERO CRT ==========
+# ========== SIGUIENTE NÚMERO CRT ==========
 
 
 @crt_bp.route('/next_number', methods=['GET'])
@@ -487,11 +407,6 @@ def obtener_crt_por_numero(numero_crt):
 def crear_crt():
     try:
         data = request.json
-        NUMERIC_FIELDS = [
-            "peso_bruto", "peso_neto", "volumen",
-            "valor_incoterm", "valor_mercaderia", "declaracion_mercaderia",
-            "valor_flete_externo", "valor_reembolso"
-        ]
         data = limpiar_numericos(data, NUMERIC_FIELDS)
         existe = CRT.query.filter_by(numero_crt=data.get("numero_crt")).first()
         if existe:
@@ -583,12 +498,7 @@ def editar_crt(crt_id):
                 "estado_actual": crt.estado
             }), 409
 
-        # Procesar campos numÃ©ricos
-        NUMERIC_FIELDS = [
-            "peso_bruto", "peso_neto", "volumen",
-            "valor_incoterm", "valor_mercaderia", "declaracion_mercaderia",
-            "valor_flete_externo", "valor_reembolso"
-        ]
+        # Procesar campos numéricos
         data = limpiar_numericos(data, NUMERIC_FIELDS)
 
         # âœ… MEJORAR: Detectar cambios REALES solamente
