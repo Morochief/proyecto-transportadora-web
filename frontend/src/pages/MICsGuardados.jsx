@@ -196,6 +196,7 @@ export default function MICsGuardados() {
           {stats.por_estado.map((s, i) => (
             <StatCard key={i} label={s.estado} value={s.cantidad} color={s.estado === 'ANULADO' ? 'red' : 'emerald'} />
           ))}
+    </div>
         </div>
       )}
 
@@ -271,6 +272,7 @@ export default function MICsGuardados() {
                     </td>
                   </tr>
                 ))}
+    </div>
               </tbody>
             </table>
           </div>
@@ -395,5 +397,6 @@ function MICDetalles({ mic }) {
           <p className="text-sm text-slate-800 break-words whitespace-pre-wrap">{mic[f.k] || '-'}</p>
         </div>
       ))}
+    </div>
   );
 }
