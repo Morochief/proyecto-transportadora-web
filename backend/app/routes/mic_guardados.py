@@ -584,7 +584,6 @@ def generar_pdf_mic_guardado(mic_id):
             download_name=download_name,
             mimetype='application/pdf'
         )
-        \n        # Permitir iframe cuando se solicita visualización inline\n        if request.args.get('inline', 'false').lower() == 'true':\n            # NO establecer X-Frame-Options para que middleware no lo agregue\n            pass\n        else:\n            # Forzar DENY para descargas\n            response.headers['X-Frame-Options'] = 'DENY'
 
         # Limpiar archivo temporal despuÃ©s de enviarlo
         response.call_on_close(lambda: os.unlink(filename))
