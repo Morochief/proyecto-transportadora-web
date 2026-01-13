@@ -126,12 +126,12 @@ function ListarCRT() {
   const cargarDatosIniciales = async () => {
     try {
       const [estRes, transRes, entRes, monRes, ciuRes, paiRes] = await Promise.all([
-        api.get("//crts/estados"),
-        api.get("//crts/data/transportadoras"),
-        api.get("//crts/data/entidades"),
-        api.get("//crts/data/monedas"),
-        api.get("//ciudades/"),
-        api.get("//paises/")
+        api.get("/crts/estados"),
+        api.get("/crts/data/transportadoras"),
+        api.get("/crts/data/entidades"),
+        api.get("/crts/data/monedas"),
+        api.get("/ciudades/"),
+        api.get("/paises/")
       ]);
 
       setEstados(estRes.data.estados || []);
@@ -152,7 +152,7 @@ function ListarCRT() {
     if (usarPaginadoBackend || Object.values(filtrosAvanzados).some((v) => v !== "")) {
       cargarCRTsPaginado();
     } else {
-      api.get("//crts")
+      api.get("/crts")
         .then((res) => {
           setCrts(res.data);
           setFiltered(res.data);
