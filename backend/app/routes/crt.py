@@ -331,7 +331,7 @@ def duplicar_crt(crt_id):
             factura_exportacion=None,  # Limpiar nÃºmero de factura
             nro_despacho=None,  # Limpiar nÃºmero de despacho
             transporte_sucesivos=original_crt.transporte_sucesivos,
-            observaciones=f"Duplicado de CRT {original_crt.numero_crt}\n{original_crt.observaciones or ''}",
+            observaciones=original_crt.observaciones,
             formalidades_aduana=original_crt.formalidades_aduana,
             fecha_firma=None  # Limpiar fecha de firma
         )
