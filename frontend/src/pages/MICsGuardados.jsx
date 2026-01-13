@@ -108,6 +108,14 @@ export default function MICsGuardados() {
     } catch (error) { toast.error('Error descargando PDF'); }
   };
 
+  const verPrevia = async (micId) => {
+    try {
+      const response = await axios.get(`http://localhost:5000/api/mic-guardados/${micId}`);
+      setPreviewMic(response.data);
+      setShowPreview(true);
+    } catch (error) { toast.error('Error cargando vista previa'); }
+  };
+
 
 
   const formatearFecha = (fecha) => {
@@ -280,6 +288,15 @@ export default function MICsGuardados() {
             </div>
           </div>
         </div>
+      )}
+
+      {showPreview && previewMic && (
+        <MICPreview
+          micData={previewMic}
+          isOpen={showPreview}
+          onClose={() => setShowPreview(false)}
+          onDownloadPDF={() => descargarPDF(previewMic.id, previewMic.campo_23_numero_campo2_crt)}
+        />
       )}
     </div>
   );
