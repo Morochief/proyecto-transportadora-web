@@ -317,6 +317,7 @@ class Honorario(db.Model):
     moneda_id = db.Column(db.Integer, db.ForeignKey(
         'monedas.id'), nullable=False)
     crt_id = db.Column(db.Integer, db.ForeignKey('crts.id'), nullable=True) # Link to CRT
+    tipo_operacion = db.Column(db.String(20), default='EXPORTACION')  # EXPORTACION o IMPORTACION
     
     # Nuevos campos para datos manuales/auto del MIC
     mic_numero = db.Column(db.String(50))
