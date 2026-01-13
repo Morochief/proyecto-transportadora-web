@@ -57,6 +57,7 @@ def crear_honorario():
         moneda_id=moneda_id,
         fecha=data.get('fecha'),
         descripcion=data.get('descripcion'),
+        tipo_operacion=data.get('tipo_operacion', 'EXPORTACION'),
         mic_numero=data.get('mic_numero'),
         chofer=data.get('chofer'),
         placas=data.get('placas')
@@ -77,6 +78,7 @@ def modificar_honorario(id):
     honorario.moneda_id = moneda_id
     honorario.fecha = data.get('fecha', honorario.fecha)
     honorario.descripcion = data.get('descripcion', honorario.descripcion)
+    honorario.tipo_operacion = data.get('tipo_operacion', honorario.tipo_operacion)
     
     # Campos manuales opcionales
     if 'mic_numero' in data: honorario.mic_numero = data['mic_numero']
