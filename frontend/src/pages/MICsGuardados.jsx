@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from "react";
+import MICPreview from "../components/MICPreview";
 import axios from "axios";
 import { toast, ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
@@ -208,7 +209,7 @@ export default function MICsGuardados() {
                     <td className="px-6 py-4 text-slate-600">{mic.destino}</td>
                     <td className="px-6 py-4 text-slate-600 font-mono">{mic.placa_camion}</td>
                     <td className="px-6 py-4 text-right flex justify-end gap-2">
-                      <button onClick={() => verDetalles(mic.id)} className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-slate-100 rounded-lg" title="Ver Detalles"><Eye className="w-4 h-4" /></button>
+                      <button onClick={() => verPrevia(mic.id)} className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-slate-100 rounded-lg" title="Vista Previa"><Eye className="w-4 h-4" /></button>
                       <button onClick={() => descargarPDF(mic.id, mic.numero_carta_porte)} className="p-2 text-slate-400 hover:text-blue-600 hover:bg-slate-100 rounded-lg" title="Descargar PDF"><Download className="w-4 h-4" /></button>
 
                       {mic.estado === 'ANULADO' ? (
