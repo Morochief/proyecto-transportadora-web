@@ -125,28 +125,6 @@ export default function MICsGuardados() {
   };
 
   const handleEditMic = (mic) => {
-
-  const handleEditMic = (mic) => {
-    setEditMic(mic);
-    setEditForm({
-      numero: mic.campo_23_numero_campo2_crt || '',
-      estado: mic.campo_4_estado || 'PROVISORIO'
-    });
-    setModalEdit(true);
-  };
-
-  const handleSaveEdit = async () => {
-    if (!editMic) return;
-    try {
-      await api.put(`/mic-guardados/${editMic.id}`, {
-        campo_23_numero_campo2_crt: editForm.numero,
-        campo_4_estado: editForm.estado
-      });
-      toast.success('✅ MIC actualizado (sincronizado con Honorarios)');
-      setModalEdit(false);
-      cargarMics(currentPage, filters);
-    }
-  };
     setEditMic(mic);
     setEditForm({
       numero: mic.campo_23_numero_campo2_crt || '',
@@ -168,8 +146,6 @@ export default function MICsGuardados() {
     } catch (error) {
       toast.error('❌ Error al actualizar MIC');
     }
-  };
-    } catch (error) { toast.error('Error descargando PDF'); }
   };
 
   const verPrevia = async (micId) => {
