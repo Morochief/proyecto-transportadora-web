@@ -332,6 +332,7 @@ function CRT() {
 
       const payload = {
         ...form,
+        estado: "EMITIDO",  // Forzar estado EMITIDO al emitir
         gastos: form.gastos.map(g => ({ ...g, moneda: monedaCodigo })),
         moneda_id: monedaGasto?.value
       };
