@@ -103,7 +103,18 @@ export default function MICsGuardados() {
       const blob = new Blob([response.data], { type: 'application/pdf' });
       const url = window.URL.createObjectURL(blob);
       const link = document.createElement('a'); link.href = url;
-      link.download = `MIC_${numeroCarta || micId}_${new Date().toISOString().split('T')[0]}.pdf`;
+      // Usar el nombre que viene del backend (Content-Disposition header)
+      const contentDisposition = response.headers['content-disposition'];
+      let filename = `MIC_${numeroCarta || micId}.pdf`;
+      
+      if (contentDisposition) {
+        const filenameMatch = contentDisposition.match(/filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/);
+        if (filenameMatch && filenameMatch[1]) {
+          filename = filenameMatch[1].replace(/['"]/g, '');
+        }
+      }
+      
+      link.download = filename;
       document.body.appendChild(link); link.click(); document.body.removeChild(link);
       window.URL.revokeObjectURL(url);
       toast.success('📄 PDF descargado');
