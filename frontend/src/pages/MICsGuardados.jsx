@@ -243,7 +243,6 @@ export default function MICsGuardados() {
               </thead>
               <tbody className="divide-y divide-slate-100">
                 {mics.map(mic => (
-                      <button onClick={() => handleEditMic(mic)} className="p-2 text-slate-400 hover:text-purple-600 hover:bg-slate-100 rounded-lg" title="Editar MIC"><Edit3 className="w-4 h-4" /></button>
                   <tr key={mic.id} className="hover:bg-slate-50 transition-colors">
                     <td className="px-6 py-4 font-mono text-xs text-slate-400">#{mic.id}</td>
                     <td className="px-6 py-4 font-medium text-slate-700">{mic.numero_carta_porte || '-'}</td>
