@@ -154,13 +154,18 @@ function ListarCRT() {
     } else {
       api.get("/crts")
         .then((res) => {
+          console.log("✅ Datos recibidos:", res.data.length, "CRTs");
           setCrts(res.data);
           setFiltered(res.data);
           setTotalItems(res.data.length);
           setTotalPages(Math.ceil(res.data.length / itemsPerPage));
           toast.success("✅ CRTs cargados");
         })
-        .catch(() => toast.error("❌ Error al cargar CRTs"))
+        .catch((err) => {
+          console.error("❌ Error cargando CRTs:", err);
+          console.error("Error completo:", err.response?.data || err.message);
+          toast.error("❌ Error al cargar CRTs");
+        })
         .finally(() => setLoading(false));
     }
   };
