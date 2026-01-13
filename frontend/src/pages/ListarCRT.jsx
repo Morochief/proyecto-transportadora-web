@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import axios from "axios";
+import api from "../api/api";
 import { useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
 import {
@@ -126,12 +126,12 @@ function ListarCRT() {
   const cargarDatosIniciales = async () => {
     try {
       const [estRes, transRes, entRes, monRes, ciuRes, paiRes] = await Promise.all([
-        axios.get("http://localhost:5000/api/crts/estados"),
-        axios.get("http://localhost:5000/api/crts/data/transportadoras"),
-        axios.get("http://localhost:5000/api/crts/data/entidades"),
-        axios.get("http://localhost:5000/api/crts/data/monedas"),
-        axios.get("http://localhost:5000/api/ciudades/"),
-        axios.get("http://localhost:5000/api/paises/")
+        api.get("//crts/estados"),
+        api.get("//crts/data/transportadoras"),
+        api.get("//crts/data/entidades"),
+        api.get("//crts/data/monedas"),
+        api.get("//ciudades/"),
+        api.get("//paises/")
       ]);
 
       setEstados(estRes.data.estados || []);
@@ -152,7 +152,7 @@ function ListarCRT() {
     if (usarPaginadoBackend || Object.values(filtrosAvanzados).some((v) => v !== "")) {
       cargarCRTsPaginado();
     } else {
-      axios.get("http://localhost:5000/api/crts")
+      api.get("//crts")
         .then((res) => {
           setCrts(res.data);
           setFiltered(res.data);
@@ -174,7 +174,7 @@ function ListarCRT() {
         ...Object.fromEntries(Object.entries(filtrosAvanzados).filter(([_, value]) => value !== "")),
       });
 
-      const response = await axios.get(`http://localhost:5000/api/crts/paginated?${params}`);
+      const response = await api.get(`/crts/paginated?${params}`);
       const data = response.data;
       setCrts(data.crts || []);
       setFiltered(data.crts || []);
@@ -214,9 +214,8 @@ function ListarCRT() {
   const imprimirPDF = async (crt_id) => {
     setLoadingPDF(crt_id);
     try {
-      const res = await fetch(`http://localhost:5000/api/crts/${crt_id}/pdf`, { method: "POST" });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const blob = await res.blob();
+      const res = await api.post(`/crts/${crt_id}/pdf`, {}, { responseType: 'blob' });
+      const blob = new Blob([res.data], { type: 'application/pdf' });
       const url = window.URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
@@ -235,7 +234,7 @@ function ListarCRT() {
   const eliminarCRT = async (crt_id) => {
     if (!window.confirm("¿Eliminar este CRT?")) return;
     try {
-      await axios.delete(`http://localhost:5000/api/crts/${crt_id}`);
+      await api.delete(`/crts/${crt_id}`);
       toast.success("✅ CRT eliminado");
       cargarCRTs();
     } catch (err) {
@@ -257,11 +256,11 @@ function ListarCRT() {
     setLoadingMIC(crt.id);
     try {
       // 1. Guardar MIC
-      const saveResponse = await axios.post(`http://localhost:5000/api/mic-guardados/crear-desde-crt/${crt.id}`, datosModal);
+      const saveResponse = await api.post(`/mic-guardados/crear-desde-crt/${crt.id}`, datosModal);
       const { pdf_url } = saveResponse.data;
 
       // 2. Descargar PDF
-      const pdfResponse = await axios.get(`http://localhost:5000${pdf_url}`, {
+      const pdfResponse = await api.get(pdf_url, {
         responseType: "blob", timeout: 30000
       });
 
@@ -284,7 +283,7 @@ function ListarCRT() {
 
   const mostrarVistaPrevia = async (crt) => {
     try {
-      const response = await axios.get(`http://localhost:5000/api/crts/${crt.id}`);
+      const response = await api.get(`/crts/${crt.id}`);
       const crtData = response.data;
       const previewData = {
         ...crtData,
@@ -314,9 +313,8 @@ function ListarCRT() {
   const descargarPDFFromPreview = async () => {
     if (!previewData) return;
     try {
-      const response = await fetch(`http://localhost:5000/api/crts/${previewData.id}/pdf`, { method: "POST" });
-      if (!response.ok) throw new Error(`HTTP ${response.status}`);
-      const blob = await response.blob();
+      const response = await api.post(`/crts/${previewData.id}/pdf`, {}, { responseType: 'blob' });
+      const blob = new Blob([response.data], { type: 'application/pdf' });
       const url = window.URL.createObjectURL(blob);
       const link = document.createElement('a'); link.href = url;
       document.body.appendChild(link); link.click(); document.body.removeChild(link);
@@ -340,7 +338,7 @@ function ListarCRT() {
 
   const duplicarCRT = async (crtId) => {
     try {
-      const response = await axios.post(`http://localhost:5000/api/crts/${crtId}/duplicate`);
+      const response = await api.post(`/crts/${crtId}/duplicate`);
       toast.success(`✅ CRT duplicado: ${response.data.nuevo_numero}`);
       cargarCRTs();
     } catch (error) { toast.error("❌ Error duplicando CRT"); }
@@ -396,7 +394,7 @@ function ListarCRT() {
       camposNumericos.forEach((campo) => { if (data[campo]) data[campo] = parsearEntradaNumerica(data[campo]); });
       data.campo15_items = JSON.stringify(campo15Items);
 
-      await axios.put(`http://localhost:5000/api/crts/${crtEditando.id}`, data);
+      await api.put(`/crts/${crtEditando.id}`, data);
       toast.success("✅ CRT actualizado");
       setModalEditar(false);
       setCrtEditando(null);
