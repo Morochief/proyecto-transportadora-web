@@ -28,6 +28,8 @@ export default function MICsGuardados() {
   // Modal de eliminaciÃ³n
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [micToDelete, setMicToDelete] = useState(null);
+  const [showPreview, setShowPreview] = useState(false);
+  const [previewMic, setPreviewMic] = useState(null);
 
   const confirmDelete = (mic) => {
     setMicToDelete(mic);
