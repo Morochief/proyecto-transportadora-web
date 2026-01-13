@@ -26,6 +26,7 @@ def listar_honorarios():
             "fecha": h.fecha.isoformat() if h.fecha else None,
             "descripcion": h.descripcion or "",
             "tipo_operacion": h.tipo_operacion or "EXPORTACION",
+            "observaciones": h.observaciones or "",
             
             # Datos extendidos vinculados
             # Datos extendidos (Prioridad: Campo en Honorario > Campo en RelaciÃ³n)
@@ -58,6 +59,7 @@ def crear_honorario():
         moneda_id=moneda_id,
         fecha=data.get('fecha'),
         descripcion=data.get('descripcion'),
+        observaciones=data.get('observaciones'),
         tipo_operacion=data.get('tipo_operacion', 'EXPORTACION'),
         mic_numero=data.get('mic_numero'),
         chofer=data.get('chofer'),
@@ -79,6 +81,7 @@ def modificar_honorario(id):
     honorario.moneda_id = moneda_id
     honorario.fecha = data.get('fecha', honorario.fecha)
     honorario.descripcion = data.get('descripcion', honorario.descripcion)
+    honorario.observaciones = data.get('observaciones', honorario.observaciones)
     honorario.tipo_operacion = data.get('tipo_operacion', honorario.tipo_operacion)
     
     # Campos manuales opcionales
