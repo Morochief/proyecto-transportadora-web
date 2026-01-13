@@ -251,6 +251,13 @@ function Honorarios() {
       name: "moneda_id", label: "Moneda", required: true, type: "select",
       options: [{ value: "", label: "-- Seleccionar --" }, ...monedas.map((m) => ({ value: m.id, label: m.nombre + " (" + m.simbolo + ")" }))]
     },
+    {
+      name: "tipo_operacion", label: "Tipo de Operación", required: true, type: "select",
+      options: [
+        { value: "EXPORTACION", label: "EXPORTACIÓN" },
+        { value: "IMPORTACION", label: "IMPORTACIÓN" }
+      ]
+    },
     { name: "fecha", label: "Fecha", required: false, type: "date" },
     { name: "descripcion", label: "Descripción", required: false, type: "text" },
     { name: "mic_numero", label: "Número MIC (Manual/Auto)", required: false, type: "text", placeholder: "Opcional" },
@@ -304,6 +311,16 @@ function Honorarios() {
                 <Calendar className="w-3 h-3" />
                 <span>{val || '-'}</span>
               </div>
+            )
+          },
+          {
+            field: "tipo_operacion", label: "Tipo", render: (val) => (
+              <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${val === 'EXPORTACION'
+                  ? 'bg-blue-100 text-blue-800 border border-blue-200'
+                  : 'bg-green-100 text-green-800 border border-green-200'
+                }`}>
+                {val === 'EXPORTACION' ? '📤 Exportación' : '📥 Importación'}
+              </span>
             )
           },
           { field: "descripcion", label: "Descripción" },
