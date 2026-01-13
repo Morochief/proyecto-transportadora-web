@@ -25,6 +25,7 @@ def listar_honorarios():
             "moneda_nombre": h.moneda.nombre if h.moneda else "",
             "fecha": h.fecha.isoformat() if h.fecha else None,
             "descripcion": h.descripcion or "",
+            "tipo_operacion": h.tipo_operacion or "EXPORTACION",
             
             # Datos extendidos vinculados
             # Datos extendidos (Prioridad: Campo en Honorario > Campo en RelaciÃ³n)
