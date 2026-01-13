@@ -580,7 +580,7 @@ def generar_pdf_mic_guardado(mic_id):
 
         response = send_file(
             filename,
-            as_attachment=True,
+            as_attachment=not request.args.get('inline', 'false').lower() == 'true',
             download_name=download_name,
             mimetype='application/pdf'
         )

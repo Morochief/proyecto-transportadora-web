@@ -6,7 +6,7 @@ const MICPreview = ({ micData, onClose, onDownloadPDF, isOpen }) => {
 
     if (!isOpen || !micData) return null;
 
-    const pdfUrl = `http://localhost:5000/api/mic-guardados/${micData.id}/pdf`;
+    const pdfUrl = `http://localhost:5000/api/mic-guardados/${micData.id}/pdf?inline=true`;
 
     return (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
