@@ -86,7 +86,9 @@ def create_app():
             'CORS_ALLOW_HEADERS', 'Content-Type, Authorization')
         response.headers['Access-Control-Allow-Credentials'] = 'true'
         response.headers['X-Content-Type-Options'] = 'nosniff'
-        response.headers['X-Frame-Options'] = 'DENY'
+        # Solo agregar X-Frame-Options si no se configuró explícitamente en la ruta
+        if 'X-Frame-Options' not in response.headers:
+            response.headers['X-Frame-Options'] = 'DENY'
         csp_default = app.config.get('CSP_DEFAULT_SRC', "'self'")
         csp_script = app.config.get('CSP_SCRIPT_SRC', "'self'")
         csp_style = app.config.get('CSP_STYLE_SRC', "'self'")
