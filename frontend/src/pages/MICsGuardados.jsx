@@ -127,8 +127,8 @@ export default function MICsGuardados() {
   const handleEditMic = (mic) => {
     setEditMic(mic);
     setEditForm({
-      numero: mic.campo_23_numero_campo2_crt || '',
-      estado: mic.campo_4_estado || 'PROVISORIO'
+      numero: mic.numero_carta_porte || '',
+      estado: mic.estado || 'PROVISORIO'
     });
     setModalEdit(true);
   };

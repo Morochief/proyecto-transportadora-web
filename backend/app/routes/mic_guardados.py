@@ -259,7 +259,7 @@ def listar_mics_guardados():
                 "numero_carta_porte": mic.campo_23_numero_campo2_crt,
                 "estado": mic.campo_4_estado,
                 "fecha_emision": mic.campo_6_fecha.strftime('%Y-%m-%d') if mic.campo_6_fecha else "",
-                "transportadora": mic.campo_1_transporte[:100] + "..." if len(mic.campo_1_transporte or "") > 100 else (mic.campo_1_transporte or ""),
+                "transportadora": mic.campo_1_transporte.split('\n')[0] if mic.campo_1_transporte else '' + "..." if len(mic.campo_1_transporte or "") > 100 else (mic.campo_1_transporte or ""),
                 "destino": mic.campo_8_destino or "",
                 "placa_camion": mic.campo_11_placa or "",
                 "peso_bruto": str(mic.campo_32_peso_bruto or ""),
