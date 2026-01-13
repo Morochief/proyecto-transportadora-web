@@ -125,7 +125,7 @@ def crear_mic_guardado():
             "numero_carta_porte": mic.campo_23_numero_campo2_crt,
             "estado": mic.campo_4_estado,
             "fecha_creacion": mic.creado_en.strftime('%Y-%m-%d %H:%M:%S'),
-            "pdf_url": f"/api/mic-guardados/{mic.id}/pdf"
+            "pdf_url": f"/mic-guardados/{mic.id}/pdf"
         }), 201
 
     except Exception as e:
@@ -1032,7 +1032,7 @@ def crear_mic_desde_crt_y_guardar(crt_id):
                 "flete": mic_data_final.get('campo_28_total', ''),
                 "seguro": mic_data_final.get('campo_29_seguro', '')
             },
-            "pdf_url": f"/api/mic-guardados/{mic.id}/pdf"
+            "pdf_url": f"/mic-guardados/{mic.id}/pdf"
         }), 201
 
     except Exception as e:
