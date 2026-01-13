@@ -152,7 +152,7 @@ function ListarCRT() {
     if (usarPaginadoBackend || Object.values(filtrosAvanzados).some((v) => v !== "")) {
       cargarCRTsPaginado();
     } else {
-      api.get("/crts")
+      api.get("/crts/")
         .then((res) => {
           console.log("✅ Datos recibidos:", res.data.length, "CRTs");
           setCrts(res.data);
