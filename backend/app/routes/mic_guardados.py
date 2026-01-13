@@ -382,6 +382,9 @@ def actualizar_mic(mic_id):
         if logger.isEnabledFor(logging.DEBUG):
             logger.debug("Payload keys: %s", sorted(data.keys()) if isinstance(data, dict) else [])
 
+        # Guardar número anterior para sincronización
+        numero_anterior = mic.campo_23_numero_campo2_crt
+
         # Actualizar campos permitidos
         campos_actualizables = [
             'campo_1_transporte', 'campo_2_numero', 'campo_3_transporte', 'campo_4_estado',
@@ -421,6 +424,17 @@ def actualizar_mic(mic_id):
                 campos_actualizados.append('campo_9_datos_transporte')
 
         db.session.commit()
+        # Sincronizar número de MIC con Honorarios si cambió
+        nuevo_numero = mic.campo_23_numero_campo2_crt
+        if nuevo_numero and nuevo_numero != numero_anterior and mic.crt_id:
+            from app.models import Honorario
+            honorario = Honorario.query.filter_by(crt_id=mic.crt_id).first()
+            if honorario:
+                honorario.mic_numero = nuevo_numero
+                db.session.commit()
+                logger.info(f"Honorario {honorario.id} actualizado con MIC número: {nuevo_numero}")
+                campos_actualizados.append('honorario_sincronizado')
+        
         
         # Verificar y crear honorario automÃ¡ticamente
         verificar_crear_honorario(mic)
