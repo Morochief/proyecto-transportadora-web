@@ -262,7 +262,8 @@ function Honorarios() {
     { name: "descripcion", label: "Descripción", required: false, type: "text" },
     { name: "mic_numero", label: "Número MIC (Manual/Auto)", required: false, type: "text", placeholder: "Opcional" },
     { name: "chofer", label: "Chofer", required: false, type: "text", placeholder: "Opcional" },
-    { name: "placas", label: "Placas (Camión / Semi)", required: false, type: "text", placeholder: "Opcional" }
+    { name: "placas", label: "Placas (Camión / Semi)", required: false, type: "text", placeholder: "Opcional" },
+    { name: "observaciones", label: "Observaciones", required: false, type: "text", placeholder: "Opcional" }
   ];
 
   return (
@@ -316,8 +317,8 @@ function Honorarios() {
           {
             field: "tipo_operacion", label: "Tipo", render: (val) => (
               <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${val === 'EXPORTACION'
-                  ? 'bg-blue-100 text-blue-800 border border-blue-200'
-                  : 'bg-green-100 text-green-800 border border-green-200'
+                ? 'bg-blue-100 text-blue-800 border border-blue-200'
+                : 'bg-green-100 text-green-800 border border-green-200'
                 }`}>
                 {val === 'EXPORTACION' ? '📤 Exportación' : '📥 Importación'}
               </span>
@@ -329,7 +330,8 @@ function Honorarios() {
           { field: "placas", label: "Placas" },
           { field: "chofer", label: "Chofer" },
           { field: "exportador", label: "Exportador" },
-          { field: "importador", label: "Importador" }
+          { field: "importador", label: "Importador" },
+          { field: "observaciones", label: "Observaciones" }
         ]}
         data={honorarios}
         onEdit={handleEdit}
