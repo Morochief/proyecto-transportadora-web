@@ -341,33 +341,6 @@ export default function MICsGuardados() {
           onDownloadPDF={() => descargarPDF(previewMic.id, previewMic.campo_23_numero_campo2_crt)}
         />
       )}
-    </div>
-  );
-}
-
-const StatCard = ({ label, value, color }) => (
-  <div className={`bg-${color}-50 border border-${color}-100 p-4 rounded-xl flex flex-col items-center justify-center`}>
-    <span className={`text-2xl font-bold text-${color}-700`}>{value}</span>
-    <span className={`text-xs font-semibold text-${color}-600 uppercase tracking-wider`}>{label}</span>
-  </div>
-);
-
-function MICDetalles({ mic }) {
-  const fields = [
-    { k: 'campo_23_numero_campo2_crt', l: 'Nº Carta' }, { k: 'campo_4_estado', l: 'Estado' }, { k: 'campo_6_fecha', l: 'Fecha' },
-    { k: 'campo_1_transporte', l: 'Transportadora', full: true }, { k: 'campo_8_destino', l: 'Destino' },
-    { k: 'campo_11_placa', l: 'Placa' }, { k: 'campo_12_modelo_chasis', l: 'Modelo' },
-    { k: 'campo_28_total', l: 'Flete Total' }, { k: 'campo_27_valor_campo16', l: 'Valor FOT' },
-    { k: 'campo_38_datos_campo11_crt', l: 'Mercadería', full: true }
-  ];
-  return (
-    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-      {fields.map(f => (
-        <div key={f.k} className={`${f.full ? 'md:col-span-2' : ''} bg-slate-50 p-3 rounded-lg border border-slate-100`}>
-          <label className="block text-xs font-bold text-slate-500 uppercase mb-1">{f.l}</label>
-          <p className="text-sm text-slate-800 break-words whitespace-pre-wrap">{mic[f.k] || '-'}</p>
-        </div>
-      ))}
 
       {/* Modal de Edición de MIC */}
       {modalEdit && editMic && (
@@ -408,6 +381,33 @@ function MICDetalles({ mic }) {
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+const StatCard = ({ label, value, color }) => (
+  <div className={`bg-${color}-50 border border-${color}-100 p-4 rounded-xl flex flex-col items-center justify-center`}>
+    <span className={`text-2xl font-bold text-${color}-700`}>{value}</span>
+    <span className={`text-xs font-semibold text-${color}-600 uppercase tracking-wider`}>{label}</span>
+  </div>
+);
+
+function MICDetalles({ mic }) {
+  const fields = [
+    { k: 'campo_23_numero_campo2_crt', l: 'Nº Carta' }, { k: 'campo_4_estado', l: 'Estado' }, { k: 'campo_6_fecha', l: 'Fecha' },
+    { k: 'campo_1_transporte', l: 'Transportadora', full: true }, { k: 'campo_8_destino', l: 'Destino' },
+    { k: 'campo_11_placa', l: 'Placa' }, { k: 'campo_12_modelo_chasis', l: 'Modelo' },
+    { k: 'campo_28_total', l: 'Flete Total' }, { k: 'campo_27_valor_campo16', l: 'Valor FOT' },
+    { k: 'campo_38_datos_campo11_crt', l: 'Mercadería', full: true }
+  ];
+  return (
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      {fields.map(f => (
+        <div key={f.k} className={`${f.full ? 'md:col-span-2' : ''} bg-slate-50 p-3 rounded-lg border border-slate-100`}>
+          <label className="block text-xs font-bold text-slate-500 uppercase mb-1">{f.l}</label>
+          <p className="text-sm text-slate-800 break-words whitespace-pre-wrap">{mic[f.k] || '-'}</p>
+        </div>
+      ))}
     </div>
   );
 }
