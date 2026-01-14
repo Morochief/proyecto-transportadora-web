@@ -16,8 +16,22 @@ usuarios_bp = Blueprint('usuarios', __name__, url_prefix='/api/usuarios')
 @roles_required('admin')
 def listar_usuarios():
     page = request.args.get('page', 1, type=int)
-    per_page = request.args.get('per_page', 10, type=int)
-    usuarios = Usuario.query.order_by(Usuario.id.desc()).paginate(page=page, per_page=per_page)
+    per_page = request.args.get('per_page', 15, type=int)
+    search = request.args.get('search', '', type=str)
+    
+    query = Usuario.query
+    
+    if search:
+        search_term = f"%{search}%"
+        query = query.filter(
+            db.or_(
+                Usuario.nombre_completo.ilike(search_term),
+                Usuario.usuario.ilike(search_term),
+                Usuario.email.ilike(search_term)
+            )
+        )
+    
+    usuarios = query.order_by(Usuario.id.desc()).paginate(page=page, per_page=per_page)
     return jsonify({
         'items': [
             {
