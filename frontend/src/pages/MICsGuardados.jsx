@@ -125,12 +125,15 @@ export default function MICsGuardados() {
   };
 
   const handleEditMic = (mic) => {
+    console.log("🔧 handleEditMic llamado con:", mic);
+    console.log("🔧 modalEdit antes:", modalEdit);
     setEditMic(mic);
     setEditForm({
       numero: mic.numero_carta_porte || '',
       estado: mic.estado || 'PROVISORIO'
     });
     setModalEdit(true);
+    console.log("🔧 setModalEdit(true) ejecutado");
   };
 
   const handleSaveEdit = async () => {
