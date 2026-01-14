@@ -524,12 +524,13 @@ function ListarCRT() {
                 <th className="px-6 py-3">Transportadora</th>
                 <th className="px-6 py-3">Remitente / Destinatario</th>
                 <th className="px-6 py-3">Factura</th>
+                <th className="px-6 py-3">MIC</th>
                 <th className="px-6 py-3 text-right">Acciones</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-200">
               {loading ? (
-                <tr><td colSpan="6" className="p-12 text-center text-slate-500">Cargando datos...</td></tr>
+                <tr><td colSpan="7" className="p-12 text-center text-slate-500">Cargando datos...</td></tr>
               ) : currentItems.map((crt) => (
                 <tr key={crt.id} className="group hover:bg-slate-50 transition-colors">
                   <td className="px-6 py-4">
@@ -553,6 +554,21 @@ function ListarCRT() {
                     </div>
                   </td>
                   <td className="px-6 py-4 text-sm text-slate-600 font-mono">{crt.factura_exportacion || '-'}</td>
+                  <td className="px-6 py-4">
+                    {crt.tiene_mic ? (
+                      <div className="flex flex-col items-start cursor-help" title={`MIC: ${crt.mic_numero} (${crt.mic_estado})`}>
+                        <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium border ${crt.mic_estado === 'ANULADO' ? 'bg-red-50 text-red-700 border-red-200' :
+                            crt.mic_estado === 'DEFINITIVO' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' :
+                              'bg-purple-50 text-purple-700 border-purple-200'
+                          }`}>
+                          <FileCheck className="w-3 h-3" />
+                          {crt.mics_count > 1 ? `${crt.mics_count} MICs` : (crt.mic_numero || 'Generado')}
+                        </span>
+                      </div>
+                    ) : (
+                      <span className="text-slate-300 text-xs pl-2">-</span>
+                    )}
+                  </td>
                   <td className="px-6 py-4 text-right">
                     <div className="flex justify-end gap-1 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
                       <button onClick={() => mostrarVistaPrevia(crt)} className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-all" title="Ver"><Eye className="w-4 h-4" /></button>

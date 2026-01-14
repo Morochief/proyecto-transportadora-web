@@ -127,7 +127,8 @@ def listar_crts_paginated_con_acciones():
             joinedload(CRT.moneda),
             joinedload(CRT.gastos),
             joinedload(CRT.ciudad_emision),
-            joinedload(CRT.pais_emision)
+            joinedload(CRT.pais_emision),
+            joinedload(CRT.mics)
         )
 
         # Filtro de bÃºsqueda (outerjoin para no excluir nulos) + distinct para evitar duplicados
@@ -183,6 +184,12 @@ def listar_crts_paginated_con_acciones():
 
                 "transportadora_ciudad": crt.transportadora.ciudad.nombre if crt.transportadora and crt.transportadora.ciudad else "",
                 "transportadora_pais": crt.transportadora.ciudad.pais.nombre if crt.transportadora and crt.transportadora.ciudad and crt.transportadora.ciudad.pais else "",
+
+                # Información de MIC vinculado
+                "tiene_mic": len(crt.mics) > 0 if crt.mics else False,
+                "mics_count": len(crt.mics) if crt.mics else 0,
+                "mic_numero": crt.mics[0].campo_23_numero_campo2_crt if crt.mics and len(crt.mics) > 0 else None,
+                "mic_estado": crt.mics[0].campo_4_estado if crt.mics and len(crt.mics) > 0 else None,
 
                 "acciones": {
                     "puede_editar": True,
