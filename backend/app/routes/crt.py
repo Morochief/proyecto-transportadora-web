@@ -643,14 +643,53 @@ def editar_crt(crt_id):
 
 @crt_bp.route('/<int:crt_id>', methods=['DELETE'])
 def eliminar_crt(crt_id):
+    """
+    Elimina un CRT. Si tiene MICs vinculados, requiere parámetro force=true.
+    """
     try:
-        crt = CRT.query.options(joinedload(CRT.gastos)).filter_by(
-            id=crt_id).first_or_404()
+        force = request.args.get('force', 'false').lower() == 'true'
+        
+        crt = CRT.query.options(
+            joinedload(CRT.gastos),
+            joinedload(CRT.mics)
+        ).filter_by(id=crt_id).first_or_404()
+        
+        # Verificar si tiene MICs vinculados
+        mics_count = len(crt.mics) if crt.mics else 0
+        mics_activos = [m for m in (crt.mics or []) if m.campo_4_estado != 'ANULADO']
+        
+        if mics_count > 0 and not force:
+            # Devolver información de los MICs para que el frontend muestre la advertencia
+            mics_info = [{
+                'id': m.id,
+                'numero': m.campo_23_numero_campo2_crt or f'MIC-{m.id}',
+                'estado': m.campo_4_estado or 'PROVISORIO'
+            } for m in crt.mics]
+            
+            return jsonify({
+                "error": "CRT tiene MICs vinculados",
+                "requires_confirmation": True,
+                "mics_count": mics_count,
+                "mics_activos": len(mics_activos),
+                "mics": mics_info,
+                "message": f"Este CRT tiene {mics_count} MIC(s) vinculado(s). ¿Desea eliminar el CRT y todos sus MICs asociados?"
+            }), 409
+        
+        # Si force=true o no hay MICs, proceder con la eliminación
+        for mic in (crt.mics or []):
+            db.session.delete(mic)
+        
         for g in crt.gastos:
             db.session.delete(g)
+        
         db.session.delete(crt)
         db.session.commit()
-        return jsonify({"message": "CRT eliminado"})
+        
+        mensaje = "CRT eliminado"
+        if mics_count > 0:
+            mensaje = f"CRT eliminado junto con {mics_count} MIC(s) asociado(s)"
+        
+        return jsonify({"message": mensaje, "mics_deleted": mics_count})
     except Exception as e:
         logger.exception("Error deleting CRT %s", crt_id)
         return jsonify({"error": str(e)}), 500
@@ -1507,7 +1546,8 @@ def crear_honorario_desde_crt(crt):
             transportadora_id=crt.transportadora.id,
             moneda_id=crt.transportadora.moneda_honorarios_id or 1, # Default USD
             fecha=datetime.now().date(),
-            crt_id=crt.id,
+            crt_id=crt.id
+,
             tipo_operacion='EXPORTACION'  # CRT siempre es exportación
         )
         db.session.add(nuevo_honorario)

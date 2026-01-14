@@ -236,14 +236,36 @@ function ListarCRT() {
     }
   };
 
-  const eliminarCRT = async (crt_id) => {
-    if (!window.confirm("¿Eliminar este CRT?")) return;
+  const eliminarCRT = async (crt_id, forceDelete = false) => {
+    // Primera confirmación básica
+    if (!forceDelete && !window.confirm("¿Está seguro de que desea eliminar este CRT?")) return;
+
     try {
-      await api.delete(`/crts/${crt_id}`);
-      toast.success("✅ CRT eliminado");
+      const url = forceDelete ? `/crts/${crt_id}?force=true` : `/crts/${crt_id}`;
+      const response = await api.delete(url);
+      toast.success(`✅ ${response.data.message}`);
       cargarCRTs();
     } catch (err) {
-      toast.error("❌ Error al eliminar");
+      // Verificar si es un error de MICs vinculados (409)
+      if (err.response?.status === 409 && err.response?.data?.requires_confirmation) {
+        const data = err.response.data;
+        const micsInfo = data.mics || [];
+
+        // Construir mensaje detallado
+        let mensaje = `⚠️ ATENCIÓN: Este CRT tiene ${data.mics_count} MIC(s) vinculado(s):\n\n`;
+        micsInfo.forEach((mic, i) => {
+          mensaje += `${i + 1}. ${mic.numero} - Estado: ${mic.estado}\n`;
+        });
+        mensaje += `\n¿Desea ELIMINAR PERMANENTEMENTE el CRT junto con TODOS sus MICs asociados?\n\n`;
+        mensaje += `⛔ Esta acción NO se puede deshacer.`;
+
+        if (window.confirm(mensaje)) {
+          // Usuario confirmó, eliminar con force=true
+          eliminarCRT(crt_id, true);
+        }
+      } else {
+        toast.error("❌ Error al eliminar: " + (err.response?.data?.error || err.message));
+      }
     }
   };
 
