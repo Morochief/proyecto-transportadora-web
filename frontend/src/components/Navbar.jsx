@@ -122,8 +122,8 @@ function Navbar() {
   // DOCUMENTOS (dropdown) - CRT y MICs
   const documentItems = [
     { path: '/crt', label: 'Nuevo CRT', icon: FileText },
-    { path: '/listar-crt', label: 'Historial CRT', icon: History },
-    { path: '/mics-guardados', label: 'MICs Guardados', icon: FileText },
+    { path: '/listar-crt', label: 'Historial CRTs', icon: History },
+    { path: '/mics-guardados', label: 'Historial MICs', icon: FileText },
   ];
 
   // CATÁLOGOS (dropdown)
