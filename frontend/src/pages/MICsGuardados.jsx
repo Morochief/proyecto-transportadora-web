@@ -110,14 +110,14 @@ export default function MICsGuardados() {
       // Usar el nombre que viene del backend (Content-Disposition header)
       const contentDisposition = response.headers['content-disposition'];
       let filename = `MIC_${numeroCarta || micId}.pdf`;
-      
+
       if (contentDisposition) {
         const filenameMatch = contentDisposition.match(/filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/);
         if (filenameMatch && filenameMatch[1]) {
           filename = filenameMatch[1].replace(/['"]/g, '');
         }
       }
-      
+
       link.download = filename;
       document.body.appendChild(link); link.click(); document.body.removeChild(link);
       window.URL.revokeObjectURL(url);
@@ -127,8 +127,8 @@ export default function MICsGuardados() {
   const handleEditMic = (mic) => {
     setEditMic(mic);
     setEditForm({
-      numero: mic.campo_23_numero_campo2_crt || '',
-      estado: mic.campo_4_estado || 'PROVISORIO'
+      numero: mic.numero_carta_porte || '',
+      estado: mic.estado || 'PROVISORIO'
     });
     setModalEdit(true);
   };
@@ -377,10 +377,10 @@ function MICDetalles({ mic }) {
             <div className="p-6 space-y-4">
               <div>
                 <label className="block text-sm font-semibold text-slate-700 mb-2">Número de MIC</label>
-                <input 
-                  type="text" 
+                <input
+                  type="text"
                   value={editForm.numero}
-                  onChange={(e) => setEditForm({...editForm, numero: e.target.value})}
+                  onChange={(e) => setEditForm({ ...editForm, numero: e.target.value })}
                   className="w-full p-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
                   placeholder="Ej: MIC-2026-001"
                 />
@@ -388,9 +388,9 @@ function MICDetalles({ mic }) {
               </div>
               <div>
                 <label className="block text-sm font-semibold text-slate-700 mb-2">Estado</label>
-                <select 
+                <select
                   value={editForm.estado}
-                  onChange={(e) => setEditForm({...editForm, estado: e.target.value})}
+                  onChange={(e) => setEditForm({ ...editForm, estado: e.target.value })}
                   className="w-full p-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
                 >
                   <option value="PROVISORIO">PROVISORIO</option>
