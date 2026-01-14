@@ -1,7 +1,7 @@
 ﻿# ========== IMPORTS LIMPIOS ==========
 from flask import Blueprint, request, jsonify, send_file
 from sqlalchemy import text, or_
-from sqlalchemy.orm import joinedload, aliased
+from sqlalchemy.orm import joinedload, aliased, subqueryload
 from datetime import datetime, timedelta
 from io import BytesIO
 import logging
@@ -125,10 +125,10 @@ def listar_crts_paginated_con_acciones():
             joinedload(CRT.notificar_a).joinedload(
                 Remitente.ciudad).joinedload(Ciudad.pais),
             joinedload(CRT.moneda),
-            joinedload(CRT.gastos),
+            subqueryload(CRT.gastos),
             joinedload(CRT.ciudad_emision),
             joinedload(CRT.pais_emision),
-            joinedload(CRT.mics)
+            subqueryload(CRT.mics)
         )
 
         # Filtro de bÃºsqueda (outerjoin para no excluir nulos) + distinct para evitar duplicados
