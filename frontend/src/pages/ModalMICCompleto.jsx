@@ -2,7 +2,8 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { X, Save, FileText, RefreshCw, AlertCircle } from 'lucide-react';
 import Select from 'react-select'; // Importando react-select
 
-const ModalMICCompleto = ({ isOpen, onClose, crt, onGenerate, loading = false, diagnostico }) => {
+const ModalMICCompleto = ({ isOpen, onClose, crt, onGenerate, loading = false, diagnostico, micToEdit = null, onUpdate = null }) => {
+  const isEditMode = !!micToEdit;
   const [formData, setFormData] = useState({
     campo_1_porteador: '', campo_2_numero: '', campo_3_transporte: '', campo_7_pto_seguro: '',
     campo_8_destino: '', campo_9_datos_transporte: '', campo_10_numero: '', campo_11_placa: '',
@@ -46,14 +47,64 @@ const ModalMICCompleto = ({ isOpen, onClose, crt, onGenerate, loading = false, d
   }, [isOpen]);
 
   useEffect(() => {
-    if (isOpen && crt) {
+    if (isOpen && isEditMode && micToEdit) {
+      // Modo edición: cargar datos del MIC existente
+      fetch(`http://localhost:5000/api/mic-guardados/${micToEdit.id}`)
+        .then(res => res.json())
+        .then(mic => {
+          setFormData({
+            campo_1_transporte: mic.campo_1_transporte || '',
+            campo_2_numero: mic.campo_2_numero || '',
+            campo_3_transporte: mic.campo_3_transporte || '',
+            campo_4_estado: mic.campo_4_estado || 'PROVISORIO',
+            campo_5_hoja: mic.campo_5_hoja || '1 / 1',
+            campo_6_fecha: mic.campo_6_fecha ? mic.campo_6_fecha.split('/').reverse().join('-') : new Date().toISOString().split('T')[0],
+            campo_7_pto_seguro: mic.campo_7_pto_seguro || '',
+            campo_8_destino: mic.campo_8_destino || '',
+            campo_9_datos_transporte: mic.campo_9_datos_transporte || '',
+            campo_10_numero: mic.campo_10_numero || '',
+            campo_11_placa: mic.campo_11_placa || '',
+            campo_12_modelo_chasis: mic.campo_12_modelo_chasis || '',
+            campo_13_siempre_45: mic.campo_13_siempre_45 || '45 TON',
+            campo_14_anio: mic.campo_14_anio || '',
+            campo_15_placa_semi: mic.campo_15_placa_semi || '',
+            campo_23_numero_campo2_crt: mic.campo_23_numero_campo2_crt || '',
+            campo_24_aduana: mic.campo_24_aduana || '',
+            campo_25_moneda: mic.campo_25_moneda || '',
+            campo_26_pais: mic.campo_26_pais || '',
+            campo_27_valor_campo16: mic.campo_27_valor_campo16 || '',
+            campo_28_total: mic.campo_28_total || '',
+            campo_29_seguro: mic.campo_29_seguro || '',
+            campo_30_tipo_bultos: mic.campo_30_tipo_bultos || '',
+            campo_31_cantidad: mic.campo_31_cantidad || '',
+            campo_32_peso_bruto: mic.campo_32_peso_bruto || '',
+            campo_33_datos_campo1_crt: mic.campo_33_datos_campo1_crt || '',
+            campo_34_datos_campo4_crt: mic.campo_34_datos_campo4_crt || '',
+            campo_35_datos_campo6_crt: mic.campo_35_datos_campo6_crt || '',
+            campo_36_factura_despacho: mic.campo_36_factura_despacho || '',
+            campo_37_valor_manual: mic.campo_37_valor_manual || '',
+            campo_38_datos_campo11_crt: mic.campo_38_datos_campo11_crt || '',
+            campo_40_tramo: mic.campo_40_tramo || '',
+            chofer: mic.chofer || '',
+            campo_16_asteriscos_1: mic.campo_16_asteriscos_1 || '******',
+            campo_17_asteriscos_2: mic.campo_17_asteriscos_2 || '******',
+            campo_18_asteriscos_3: mic.campo_18_asteriscos_3 || '******',
+            campo_19_asteriscos_4: mic.campo_19_asteriscos_4 || '******',
+            campo_20_asteriscos_5: mic.campo_20_asteriscos_5 || '******',
+            campo_21_asteriscos_6: mic.campo_21_asteriscos_6 || '******',
+            campo_22_asteriscos_7: mic.campo_22_asteriscos_7 || '******',
+          });
+        })
+        .catch(err => console.error('Error cargando MIC para edición:', err));
+    } else if (isOpen && crt && !isEditMode) {
+      // Modo creación: cargar datos del CRT
       const endpoint = `http://localhost:5000/api/mic/cargar-datos-crt/${crt.id || crt.numero_crt}`;
       fetch(endpoint)
         .then(res => res.json())
         .then(datos => {
           setFormData(prev => ({
             ...prev, ...datos,
-            campo_37_valor_manual: '', // Reset field 37 to empty on CRT load
+            campo_37_valor_manual: '',
             campo_9_datos_transporte: datos.campo_9_datos_transporte || getTransportadoraNombre(datos.campo_1_transporte?.split('\n')[0] || ''),
           }));
         })
@@ -68,7 +119,7 @@ const ModalMICCompleto = ({ isOpen, onClose, crt, onGenerate, loading = false, d
           }));
         });
     }
-  }, [isOpen, crt, getTransportadoraNombre]);
+  }, [isOpen, crt, micToEdit, isEditMode, getTransportadoraNombre]);
 
   useEffect(() => {
     if (formData.campo_1_porteador) {
@@ -110,7 +161,7 @@ const ModalMICCompleto = ({ isOpen, onClose, crt, onGenerate, loading = false, d
       campo_18_asteriscos_3: formData.campo_18_asteriscos_3, campo_19_asteriscos_4: formData.campo_19_asteriscos_4,
       campo_20_asteriscos_5: formData.campo_20_asteriscos_5, campo_21_asteriscos_6: formData.campo_21_asteriscos_6,
       campo_22_asteriscos_7: formData.campo_22_asteriscos_7,
-      campo_23_numero_campo2_crt: crt?.numero_crt || '',
+      campo_23_numero_campo2_crt: isEditMode ? formData.campo_23_numero_campo2_crt : (crt?.numero_crt || ''),
       campo_24_aduana: formData.campo_24_aduana,
       campo_25_moneda: formData.campo_25_moneda || 'USD',
       campo_26_pais: formData.campo_26_pais || '520-PARAGUAY',
@@ -134,7 +185,12 @@ const ModalMICCompleto = ({ isOpen, onClose, crt, onGenerate, loading = false, d
     for (const [key, value] of Object.entries(datosPDF)) {
       datosPDFSeguros[key] = (value === null || value === undefined) ? '' : value.toString();
     }
-    onGenerate(datosPDFSeguros);
+
+    if (isEditMode && onUpdate) {
+      onUpdate(micToEdit.id, datosPDFSeguros);
+    } else {
+      onGenerate(datosPDFSeguros);
+    }
   };
 
   const resetForm = () => {
@@ -206,8 +262,8 @@ const ModalMICCompleto = ({ isOpen, onClose, crt, onGenerate, loading = false, d
               <FileText className="w-6 h-6 text-indigo-700" />
             </div>
             <div>
-              <h2 className="text-xl font-bold text-slate-800">Completar Datos MIC</h2>
-              <p className="text-slate-500 text-sm">CRT: {crt?.numero_crt || 'N/A'}</p>
+              <h2 className="text-xl font-bold text-slate-800">{isEditMode ? 'Editar MIC' : 'Completar Datos MIC'}</h2>
+              <p className="text-slate-500 text-sm">{isEditMode ? `MIC #${micToEdit?.id}` : `CRT: ${crt?.numero_crt || 'N/A'}`}</p>
             </div>
           </div>
           <button onClick={onClose} className="text-slate-400 hover:text-slate-600 transition-colors p-2 rounded-lg hover:bg-slate-100">
@@ -515,7 +571,7 @@ const ModalMICCompleto = ({ isOpen, onClose, crt, onGenerate, loading = false, d
             </button>
             <button onClick={handleSubmit} disabled={loading || !formData.campo_11_placa} className="px-6 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors font-medium shadow-sm flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed">
               {loading ? <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" /> : <Save className="w-4 h-4" />}
-              <span>Generar PDF MIC</span>
+              <span>{isEditMode ? 'Guardar Cambios' : 'Generar PDF MIC'}</span>
             </button>
           </div>
         </div>
