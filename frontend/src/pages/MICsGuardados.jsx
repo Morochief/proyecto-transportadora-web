@@ -206,7 +206,7 @@ export default function MICsGuardados() {
         <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm animate-in fade-in">
           <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-4 mb-4">
             <div> <label className="block text-xs font-bold text-slate-500 mb-1">Estado</label> <select value={filters.estado} onChange={e => setFilters({ ...filters, estado: e.target.value })} className="w-full p-2 border rounded-lg text-sm"><option value="">Todos</option><option value="PROVISORIO">PROVISORIO</option><option value="DEFINITIVO">DEFINITIVO</option><option value="ANULADO">ANULADO</option></select> </div>
-            <div> <label className="block text-xs font-bold text-slate-500 mb-1">Nº Carta</label> <input value={filters.numero_carta} onChange={e => setFilters({ ...filters, numero_carta: e.target.value })} className="w-full p-2 border rounded-lg text-sm" placeholder="Buscar..." /> </div>
+            <div> <label className="block text-xs font-bold text-slate-500 mb-1">Nº MIC</label> <input value={filters.numero_carta} onChange={e => setFilters({ ...filters, numero_carta: e.target.value })} className="w-full p-2 border rounded-lg text-sm" placeholder="Buscar..." /> </div>
             <div> <label className="block text-xs font-bold text-slate-500 mb-1">Transportadora</label> <input value={filters.transportadora} onChange={e => setFilters({ ...filters, transportadora: e.target.value })} className="w-full p-2 border rounded-lg text-sm" placeholder="Buscar..." /> </div>
             <div> <label className="block text-xs font-bold text-slate-500 mb-1">Placa</label> <input value={filters.placa} onChange={e => setFilters({ ...filters, placa: e.target.value })} className="w-full p-2 border rounded-lg text-sm" placeholder="Buscar..." /> </div>
             <div> <label className="block text-xs font-bold text-slate-500 mb-1">Destino</label> <input value={filters.destino} onChange={e => setFilters({ ...filters, destino: e.target.value })} className="w-full p-2 border rounded-lg text-sm" placeholder="Buscar..." /> </div>
@@ -235,7 +235,7 @@ export default function MICsGuardados() {
               <thead className="bg-slate-50 text-slate-500 font-semibold border-b border-slate-200">
                 <tr>
                   <th className="px-6 py-3">ID</th>
-                  <th className="px-6 py-3">Nº Carta</th>
+                  <th className="px-6 py-3">Nº MIC</th>
                   <th className="px-6 py-3">Estado</th>
                   <th className="px-6 py-3">Fecha</th>
                   <th className="px-6 py-3">Transportadora</th>
@@ -394,7 +394,7 @@ const StatCard = ({ label, value, color }) => (
 
 function MICDetalles({ mic }) {
   const fields = [
-    { k: 'campo_23_numero_campo2_crt', l: 'Nº Carta' }, { k: 'campo_4_estado', l: 'Estado' }, { k: 'campo_6_fecha', l: 'Fecha' },
+    { k: 'campo_23_numero_campo2_crt', l: 'Nº MIC' }, { k: 'campo_4_estado', l: 'Estado' }, { k: 'campo_6_fecha', l: 'Fecha' },
     { k: 'campo_1_transporte', l: 'Transportadora', full: true }, { k: 'campo_8_destino', l: 'Destino' },
     { k: 'campo_11_placa', l: 'Placa' }, { k: 'campo_12_modelo_chasis', l: 'Modelo' },
     { k: 'campo_28_total', l: 'Flete Total' }, { k: 'campo_27_valor_campo16', l: 'Valor FOT' },
