@@ -359,8 +359,8 @@ function Honorarios() {
             label: "Tipo",
             render: (val) => (
               <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium whitespace-nowrap ${val === 'EXPORTACION'
-                  ? 'bg-blue-100 text-blue-800 border border-blue-200'
-                  : 'bg-green-100 text-green-800 border border-green-200'
+                ? 'bg-blue-100 text-blue-800 border border-blue-200'
+                : 'bg-green-100 text-green-800 border border-green-200'
                 }`}>
                 {val === 'EXPORTACION' ? '📤 Exp' : '📥 Imp'}
               </span>
@@ -368,12 +368,16 @@ function Honorarios() {
           },
           {
             field: "crt_numero",
-            label: "CRT / MIC",
-            render: (val, row) => (
-              <div className="text-xs">
-                <div className="font-medium text-slate-700">{val || 'N/A'}</div>
-                {row.mic_numero && <div className="text-slate-400 text-[10px]">{row.mic_numero}</div>}
-              </div>
+            label: "CRT",
+            render: (val) => (
+              <span className="font-mono text-xs text-slate-700">{val || 'N/A'}</span>
+            )
+          },
+          {
+            field: "mic_numero",
+            label: "MIC",
+            render: (val) => (
+              <span className="font-mono text-xs text-emerald-600">{val || '-'}</span>
             )
           }
         ]}
