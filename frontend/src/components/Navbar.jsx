@@ -123,7 +123,7 @@ function Navbar() {
   const documentItems = [
     { path: '/crt', label: 'Nuevo CRT', icon: FileText },
     { path: '/listar-crt', label: 'Historial CRTs', icon: History },
-    { path: '/mics-guardados', label: 'Historial MICs', icon: FileText },
+    { path: '/mic', label: 'Historial MICs', icon: FileText },
   ];
 
   // CATÁLOGOS (dropdown)
