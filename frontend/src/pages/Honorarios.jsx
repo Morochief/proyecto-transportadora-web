@@ -362,7 +362,7 @@ function Honorarios() {
                 ? 'bg-blue-100 text-blue-800 border border-blue-200'
                 : 'bg-green-100 text-green-800 border border-green-200'
                 }`}>
-                {val === 'EXPORTACION' ? '📤 Exp' : '📥 Imp'}
+                {val === 'EXPORTACION' ? '📤 Exportación' : '📥 Importación'}
               </span>
             )
           },
