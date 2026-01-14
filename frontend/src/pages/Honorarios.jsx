@@ -418,7 +418,7 @@ function Honorarios() {
               </div>
               <div className="lg:col-span-3">
                 <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider block mb-1">Observaciones</label>
-                <div className="text-slate-700 bg-white p-3 rounded border border-slate-200">{row.observaciones || '-'}</div>
+                <div className="text-slate-700">{row.observaciones || '-'}</div>
               </div>
             </div>
           </div>
