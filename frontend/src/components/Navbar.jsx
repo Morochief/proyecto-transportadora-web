@@ -137,6 +137,7 @@ function Navbar() {
     { path: '/sesiones', label: 'Sesiones', icon: ShieldCheck },
     { path: '/audit-logs', label: 'Auditoría', icon: History },
     { path: '/honorarios', label: 'Honorarios', icon: Wallet },
+    { path: '/mics-guardados', label: 'MICs Guardados', icon: FileText },
   ];
 
   // Todos los items para el menú móvil
