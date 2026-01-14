@@ -531,61 +531,58 @@ function ListarCRT() {
             <tbody className="divide-y divide-slate-200">
               {loading ? (
                 <tr><td colSpan="7" className="p-12 text-center text-slate-500">Cargando datos...</td></tr>
-              ) : currentItems.map((crt) => {
-                if (crt.id === 13) console.log("🔍 CRT 13 Data:", crt);
-                return (
-                  <tr key={crt.id} className="group hover:bg-slate-50 transition-colors">
-                    <td className="px-6 py-4">
-                      <button onClick={() => navigate(`/crt/${crt.id}`)} className="font-bold text-indigo-600 hover:underline">{crt.numero_crt}</button>
-                      <div className="text-xs text-slate-400 mt-1">{crt.fecha_emision || 'Sin fecha'}</div>
-                    </td>
-                    <td className="px-6 py-4">
-                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border ${crt.estado === 'EMITIDO' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' :
-                        crt.estado === 'BORRADOR' ? 'bg-amber-50 text-amber-700 border-amber-200' :
-                          crt.estado === 'EN_TRANSITO' ? 'bg-blue-50 text-blue-700 border-blue-200' :
-                            'bg-slate-100 text-slate-600 border-slate-200'
-                        }`}>
-                        {crt.estado.replace("_", " ")}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 text-sm text-slate-700">{crt.transportadora}</td>
-                    <td className="px-6 py-4">
-                      <div className="flex flex-col text-sm">
-                        <span className="font-medium text-slate-700">{crt.remitente}</span>
-                        <span className="text-slate-400 text-xs">🡢 {crt.destinatario}</span>
+              ) : currentItems.map((crt) => (
+                <tr key={crt.id} className="group hover:bg-slate-50 transition-colors">
+                  <td className="px-6 py-4">
+                    <button onClick={() => navigate(`/crt/${crt.id}`)} className="font-bold text-indigo-600 hover:underline">{crt.numero_crt}</button>
+                    <div className="text-xs text-slate-400 mt-1">{crt.fecha_emision || 'Sin fecha'}</div>
+                  </td>
+                  <td className="px-6 py-4">
+                    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border ${crt.estado === 'EMITIDO' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' :
+                      crt.estado === 'BORRADOR' ? 'bg-amber-50 text-amber-700 border-amber-200' :
+                        crt.estado === 'EN_TRANSITO' ? 'bg-blue-50 text-blue-700 border-blue-200' :
+                          'bg-slate-100 text-slate-600 border-slate-200'
+                      }`}>
+                      {crt.estado.replace("_", " ")}
+                    </span>
+                  </td>
+                  <td className="px-6 py-4 text-sm text-slate-700">{crt.transportadora}</td>
+                  <td className="px-6 py-4">
+                    <div className="flex flex-col text-sm">
+                      <span className="font-medium text-slate-700">{crt.remitente}</span>
+                      <span className="text-slate-400 text-xs">🡢 {crt.destinatario}</span>
+                    </div>
+                  </td>
+                  <td className="px-6 py-4 text-sm text-slate-600 font-mono">{crt.factura_exportacion || '-'}</td>
+                  <td className="px-6 py-4">
+                    {crt.tiene_mic ? (
+                      <div className="flex flex-col items-start cursor-help" title={`MIC: ${crt.mic_numero} (${crt.mic_estado})`}>
+                        <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium border ${crt.mic_estado === 'ANULADO' ? 'bg-red-50 text-red-700 border-red-200' :
+                          crt.mic_estado === 'DEFINITIVO' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' :
+                            'bg-purple-50 text-purple-700 border-purple-200'
+                          }`}>
+                          <FileCheck className="w-3 h-3" />
+                          {crt.mics_count > 1 ? `${crt.mics_count} MICs` : (crt.mic_numero || 'Generado')}
+                        </span>
                       </div>
-                    </td>
-                    <td className="px-6 py-4 text-sm text-slate-600 font-mono">{crt.factura_exportacion || '-'}</td>
-                    <td className="px-6 py-4">
-                      {crt.tiene_mic ? (
-                        <div className="flex flex-col items-start cursor-help" title={`MIC: ${crt.mic_numero} (${crt.mic_estado})`}>
-                          <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium border ${crt.mic_estado === 'ANULADO' ? 'bg-red-50 text-red-700 border-red-200' :
-                            crt.mic_estado === 'DEFINITIVO' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' :
-                              'bg-purple-50 text-purple-700 border-purple-200'
-                            }`}>
-                            <FileCheck className="w-3 h-3" />
-                            {crt.mics_count > 1 ? `${crt.mics_count} MICs` : (crt.mic_numero || 'Generado')}
-                          </span>
-                        </div>
-                      ) : (
-                        <span className="text-slate-300 text-xs pl-2">-</span>
+                    ) : (
+                      <span className="text-slate-300 text-xs pl-2">-</span>
+                    )}
+                  </td>
+                  <td className="px-6 py-4 text-right">
+                    <div className="flex justify-end gap-1 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
+                      <button onClick={() => mostrarVistaPrevia(crt)} className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-all" title="Ver"><Eye className="w-4 h-4" /></button>
+                      <button onClick={() => imprimirPDF(crt.id)} disabled={loadingPDF === crt.id} className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all" title="PDF">{loadingPDF === crt.id ? <div className="w-4 h-4 border-2 border-blue-600 border-t-transparent rounded-full animate-spin" /> : <FileText className="w-4 h-4" />}</button>
+                      <button onClick={() => editarCRT(crt.id)} className="p-2 text-slate-400 hover:text-orange-600 hover:bg-orange-50 rounded-lg transition-all" title="Editar"><Edit3 className="w-4 h-4" /></button>
+                      <button onClick={() => duplicarCRT(crt.id)} className="p-2 text-slate-400 hover:text-green-600 hover:bg-green-50 rounded-lg transition-all" title="Duplicar"><Copy className="w-4 h-4" /></button>
+                      {crt.estado === "EMITIDO" && (
+                        <button onClick={() => emitirMIC(crt)} disabled={loadingMIC === crt.id} className="p-2 text-slate-400 hover:text-purple-600 hover:bg-purple-50 rounded-lg transition-all" title="MIC">{loadingMIC === crt.id ? <div className="w-4 h-4 border-2 border-purple-600 border-t-transparent rounded-full animate-spin" /> : <FileCheck className="w-4 h-4" />}</button>
                       )}
-                    </td>
-                    <td className="px-6 py-4 text-right">
-                      <div className="flex justify-end gap-1 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
-                        <button onClick={() => mostrarVistaPrevia(crt)} className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-all" title="Ver"><Eye className="w-4 h-4" /></button>
-                        <button onClick={() => imprimirPDF(crt.id)} disabled={loadingPDF === crt.id} className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all" title="PDF">{loadingPDF === crt.id ? <div className="w-4 h-4 border-2 border-blue-600 border-t-transparent rounded-full animate-spin" /> : <FileText className="w-4 h-4" />}</button>
-                        <button onClick={() => editarCRT(crt.id)} className="p-2 text-slate-400 hover:text-orange-600 hover:bg-orange-50 rounded-lg transition-all" title="Editar"><Edit3 className="w-4 h-4" /></button>
-                        <button onClick={() => duplicarCRT(crt.id)} className="p-2 text-slate-400 hover:text-green-600 hover:bg-green-50 rounded-lg transition-all" title="Duplicar"><Copy className="w-4 h-4" /></button>
-                        {crt.estado === "EMITIDO" && (
-                          <button onClick={() => emitirMIC(crt)} disabled={loadingMIC === crt.id} className="p-2 text-slate-400 hover:text-purple-600 hover:bg-purple-50 rounded-lg transition-all" title="MIC">{loadingMIC === crt.id ? <div className="w-4 h-4 border-2 border-purple-600 border-t-transparent rounded-full animate-spin" /> : <FileCheck className="w-4 h-4" />}</button>
-                        )}
-                        <button onClick={() => eliminarCRT(crt.id)} className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all" title="Eliminar"><Trash2 className="w-4 h-4" /></button>
-                      </div>
-                    </td>
-                  </tr>
-                );
-              })}
+                      <button onClick={() => eliminarCRT(crt.id)} className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all" title="Eliminar"><Trash2 className="w-4 h-4" /></button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
             </tbody>
           </table>
         </div>
