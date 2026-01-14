@@ -246,7 +246,7 @@ export default function MICsGuardados() {
               </thead>
               <tbody className="divide-y divide-slate-100">
                 {mics.map(mic => (
-                  <tr key={mic.id} className="hover:bg-slate-50 transition-colors">
+                  <tr key={mic.id} className="group hover:bg-slate-50 transition-colors">
                     <td className="px-6 py-4 font-mono text-xs text-slate-400">#{mic.id}</td>
                     <td className="px-6 py-4 font-medium text-slate-700">{mic.numero_carta_porte || '-'}</td>
                     <td className="px-6 py-4">
@@ -259,17 +259,17 @@ export default function MICsGuardados() {
                     <td className="px-6 py-4 text-slate-600 truncate max-w-xs" title={mic.transportadora}>{mic.transportadora}</td>
                     <td className="px-6 py-4 text-slate-600">{mic.destino}</td>
                     <td className="px-6 py-4 text-slate-600 font-mono">{mic.placa_camion}</td>
-                    <td className="px-6 py-4 text-right flex justify-end gap-2">
-                      <button onClick={() => verPrevia(mic.id)} className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-slate-100 rounded-lg" title="Vista Previa"><Eye className="w-4 h-4" /></button>
-                      <button onClick={() => descargarPDF(mic.id, mic.numero_carta_porte)} className="p-2 text-slate-400 hover:text-blue-600 hover:bg-slate-100 rounded-lg" title="Descargar PDF"><Download className="w-4 h-4" /></button>
-                      <button onClick={() => handleEditMic(mic)} className="p-2 text-slate-400 hover:text-purple-600 hover:bg-slate-100 rounded-lg" title="Editar"><Edit3 className="w-4 h-4" /></button>
-
-                      {mic.estado === 'ANULADO' ? (
-                        <button onClick={() => restaurarMic(mic)} className="p-2 text-orange-400 hover:text-orange-600 hover:bg-orange-50 rounded-lg" title="Restaurar MIC"><RefreshCw className="w-4 h-4" /></button>
-                      ) : (
-                        <button onClick={() => confirmDelete(mic)} className="p-2 text-slate-400 hover:text-red-600 hover:bg-slate-100 rounded-lg" title="Eliminar/Anular"><Trash2 className="w-4 h-4" /></button>
-                      )}
-
+                    <td className="px-6 py-4 text-right">
+                      <div className="flex justify-end gap-1 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
+                        <button onClick={() => verPrevia(mic.id)} className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-all" title="Ver"><Eye className="w-4 h-4" /></button>
+                        <button onClick={() => descargarPDF(mic.id, mic.numero_carta_porte)} className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all" title="PDF"><Download className="w-4 h-4" /></button>
+                        <button onClick={() => handleEditMic(mic)} className="p-2 text-slate-400 hover:text-orange-600 hover:bg-orange-50 rounded-lg transition-all" title="Editar"><Edit3 className="w-4 h-4" /></button>
+                        {mic.estado === 'ANULADO' ? (
+                          <button onClick={() => restaurarMic(mic)} className="p-2 text-slate-400 hover:text-green-600 hover:bg-green-50 rounded-lg transition-all" title="Restaurar"><RefreshCw className="w-4 h-4" /></button>
+                        ) : (
+                          <button onClick={() => confirmDelete(mic)} className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all" title="Eliminar"><Trash2 className="w-4 h-4" /></button>
+                        )}
+                      </div>
                     </td>
                   </tr>
                 ))}
