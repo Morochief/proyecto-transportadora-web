@@ -222,22 +222,40 @@ function Honorarios() {
   const [editHonorario, setEditHonorario] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
 
+  // Paginación
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalItems, setTotalItems] = useState(0);
+  const perPage = 15;
+
+  // Filtros
+  const [search, setSearch] = useState('');
+  const [filterTipo, setFilterTipo] = useState('');
+
   useEffect(() => {
     fetchData();
-    // eslint-disable-next-line
-  }, []);
+  }, [currentPage, search, filterTipo]);
 
   const fetchData = async () => {
     setIsLoading(true);
     try {
+      const params = new URLSearchParams({
+        page: currentPage,
+        per_page: perPage,
+        ...(search && { search }),
+        ...(filterTipo && { tipo_operacion: filterTipo })
+      });
+
       const [transRes, monRes, honRes] = await Promise.all([
         api.get("/transportadoras/"),
         api.get("/monedas/"),
-        api.get("/honorarios/")
+        api.get(`/honorarios/?${params}`)
       ]);
       setTransportadoras(transRes.data.items || transRes.data);
       setMonedas(monRes.data.items || monRes.data);
-      setHonorarios(honRes.data);
+      setHonorarios(honRes.data.items || []);
+      setTotalPages(honRes.data.pages || 1);
+      setTotalItems(honRes.data.total || 0);
     } catch (err) {
       console.error("Error cargando datos", err);
     } finally {
@@ -321,10 +339,32 @@ function Honorarios() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
-          <div className="text-sm font-medium text-slate-500">Total Registros</div>
-          <div className="text-3xl font-bold text-slate-800 mt-2">{honorarios.length}</div>
+      {/* Filtros */}
+      <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex flex-wrap gap-4 items-end">
+        <div className="flex-1 min-w-[200px]">
+          <label className="block text-xs font-semibold text-slate-500 mb-1">Buscar</label>
+          <input
+            type="text"
+            value={search}
+            onChange={(e) => { setSearch(e.target.value); setCurrentPage(1); }}
+            placeholder="MIC, chofer, descripción..."
+            className="w-full p-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500"
+          />
+        </div>
+        <div className="w-48">
+          <label className="block text-xs font-semibold text-slate-500 mb-1">Tipo Operación</label>
+          <select
+            value={filterTipo}
+            onChange={(e) => { setFilterTipo(e.target.value); setCurrentPage(1); }}
+            className="w-full p-2 border border-slate-300 rounded-lg text-sm"
+          >
+            <option value="">Todos</option>
+            <option value="EXPORTACION">Exportación</option>
+            <option value="IMPORTACION">Importación</option>
+          </select>
+        </div>
+        <div className="text-sm text-slate-500">
+          <span className="font-bold text-indigo-600">{totalItems}</span> registros
         </div>
       </div>
 
@@ -424,6 +464,31 @@ function Honorarios() {
           </div>
         )}
       />
+
+      {/* Paginación */}
+      {totalPages > 1 && (
+        <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex items-center justify-between">
+          <span className="text-sm text-slate-500">
+            Página <span className="font-bold">{currentPage}</span> de <span className="font-bold">{totalPages}</span>
+          </span>
+          <div className="flex gap-2">
+            <button
+              onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+              disabled={currentPage === 1}
+              className="px-3 py-1 border rounded-lg text-sm disabled:opacity-50 hover:bg-slate-50"
+            >
+              ← Anterior
+            </button>
+            <button
+              onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+              disabled={currentPage === totalPages}
+              className="px-3 py-1 border rounded-lg text-sm disabled:opacity-50 hover:bg-slate-50"
+            >
+              Siguiente →
+            </button>
+          </div>
+        </div>
+      )}
 
       <EnhancedFormModal
         open={modalOpen}

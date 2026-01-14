@@ -6,12 +6,42 @@ honorarios_bp = Blueprint('honorarios', __name__, url_prefix='/api/honorarios')
 
 @honorarios_bp.route('/', methods=['GET'])
 def listar_honorarios():
-    from app.models import CRT, MIC  # Import locally to avoid circulars if any
+    from app.models import CRT, MIC
     
-    honorarios = Honorario.query.order_by(Honorario.id.desc()).all()
+    # Parámetros de paginación
+    page = request.args.get('page', 1, type=int)
+    per_page = request.args.get('per_page', 15, type=int)
+    
+    # Filtros
+    search = request.args.get('search', '', type=str)
+    tipo_operacion = request.args.get('tipo_operacion', '', type=str)
+    transportadora_id = request.args.get('transportadora_id', type=int)
+    
+    # Query base
+    query = Honorario.query
+    
+    # Aplicar filtros
+    if tipo_operacion:
+        query = query.filter(Honorario.tipo_operacion == tipo_operacion)
+    if transportadora_id:
+        query = query.filter(Honorario.transportadora_id == transportadora_id)
+    if search:
+        search_term = f"%{search}%"
+        query = query.filter(
+            db.or_(
+                Honorario.descripcion.ilike(search_term),
+                Honorario.mic_numero.ilike(search_term),
+                Honorario.chofer.ilike(search_term),
+                Honorario.observaciones.ilike(search_term)
+            )
+        )
+    
+    # Ordenar y paginar
+    query = query.order_by(Honorario.id.desc())
+    paginated = query.paginate(page=page, per_page=per_page, error_out=False)
+    
     resultado = []
-    
-    for h in honorarios:
+    for h in paginated.items:
         crt_data = h.crt
         mic_data = crt_data.mics[0] if (crt_data and crt_data.mics) else None
         
@@ -27,21 +57,21 @@ def listar_honorarios():
             "descripcion": h.descripcion or "",
             "tipo_operacion": h.tipo_operacion or "EXPORTACION",
             "observaciones": h.observaciones or "",
-            
-            # Datos extendidos vinculados
-            # Datos extendidos (Prioridad: Campo en Honorario > Campo en RelaciÃ³n)
-            # Esto permite ediciÃ³n manual que sobrescribe el dato automÃ¡tico,
-            # pero sÃ­ el dato automÃ¡tico se actualiza (ej. nuevo MIC), se actualiza el campo en Honorario.
-            
             "mic_numero": h.mic_numero or (mic_data.campo_23_numero_campo2_crt if mic_data else ""),
             "chofer": h.chofer or (mic_data.chofer if (mic_data and hasattr(mic_data, 'chofer')) else ""),
             "placas": h.placas or (f"{mic_data.campo_11_placa or ''} / {mic_data.campo_15_placa_semi or ''}" if mic_data else ""),
-            
             "crt_numero": crt_data.numero_crt if crt_data else "N/A",
             "exportador": crt_data.remitente.nombre if (crt_data and crt_data.remitente) else "N/A",
             "importador": crt_data.destinatario.nombre if (crt_data and crt_data.destinatario) else "N/A",
         })
-    return jsonify(resultado)
+    
+    return jsonify({
+        "items": resultado,
+        "total": paginated.total,
+        "pages": paginated.pages,
+        "current_page": page,
+        "per_page": per_page
+    })
 
 @honorarios_bp.route('/', methods=['POST'])
 def crear_honorario():
@@ -84,13 +114,12 @@ def modificar_honorario(id):
     honorario.observaciones = data.get('observaciones', honorario.observaciones)
     honorario.tipo_operacion = data.get('tipo_operacion', honorario.tipo_operacion)
     
-    # Campos manuales opcionales
     if 'mic_numero' in data: honorario.mic_numero = data['mic_numero']
     if 'chofer' in data: honorario.chofer = data['chofer']
     if 'placas' in data: honorario.placas = data['placas']
 
     db.session.commit()
-    return jsonify({"message": "Honorario modificado"})
+    return jsonify({"message": "Honorario actualizado"})
 
 @honorarios_bp.route('/<int:id>', methods=['DELETE'])
 def eliminar_honorario(id):
