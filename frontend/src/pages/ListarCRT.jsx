@@ -154,11 +154,21 @@ function ListarCRT() {
     } else {
       api.get("/crts/")
         .then((res) => {
-          console.log("✅ Datos recibidos:", res.data.length, "CRTs");
-          setCrts(res.data);
-          setFiltered(res.data);
-          setTotalItems(res.data.length);
-          setTotalPages(Math.ceil(res.data.length / itemsPerPage));
+          // Soporte para nueva estructura unificada { crts: [], total: ... }
+          const data = res.data;
+          const listaCrts = Array.isArray(data) ? data : (data.crts || []);
+          const total = Array.isArray(data) ? data.length : (data.total || listaCrts.length);
+
+          console.log("✅ Datos recibidos:", listaCrts.length, "CRTs");
+
+          setCrts(listaCrts);
+          setFiltered(listaCrts);
+          setTotalItems(total);
+
+          // Si es paginado desde backend, usar pages. Si no, calcular localmente
+          const pages = (data.pagination && data.pagination.pages) || Math.ceil(total / itemsPerPage) || 1;
+          setTotalPages(pages);
+
           toast.success("✅ CRTs cargados");
         })
         .catch((err) => {
