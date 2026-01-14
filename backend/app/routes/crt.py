@@ -57,44 +57,14 @@ def get_next_crt_number():
 # ========== LISTAR CRTs ==========
 
 
+# ========== LISTAR CRTs (Paginado y con Acciones) ==========
+
+
 @crt_bp.route('/', methods=['GET'])
 def listar_crts():
-    # Permite page_size o per_page (ambos vÃ¡lidos)
-    page = request.args.get('page', type=int, default=None)
-    page_size = request.args.get('page_size', type=int, default=None) \
-        or request.args.get('per_page', type=int, default=None)
-
-    q = CRT.query.options(
-        joinedload(CRT.gastos),
-        joinedload(CRT.remitente),
-        joinedload(CRT.transportadora),
-        joinedload(CRT.destinatario),
-        joinedload(CRT.consignatario),
-        joinedload(CRT.moneda),
-        joinedload(CRT.notificar_a)
-    ).order_by(CRT.id.desc())
-
-    if page and page_size:
-        items = q.paginate(page=page, per_page=page_size, error_out=False)
-        crts = [to_dict_crt(c) for c in items.items]
-        return jsonify({
-            "total": items.total,
-            "page": items.page,
-            "pages": items.pages,
-            "crts": crts
-        })
-    else:
-        crts = q.all()
-        return jsonify([to_dict_crt(c) for c in crts])
-
-
-# ========== âœ… NUEVO: LISTADO PAGINADO CON ACCIONES ==========
-
-
-@crt_bp.route('/paginated', methods=['GET'])
-def listar_crts_paginated_con_acciones():
     """
     Listado paginado con filtros, outerjoin + distinct, y fecha_hasta inclusivo.
+    Reemplaza la antigua implementación simple.
     """
     try:
         # ParÃ¡metros de paginaciÃ³n
