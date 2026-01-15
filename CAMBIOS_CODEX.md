@@ -6,6 +6,7 @@ Documento con todos los cambios aplicados por Codex en este arbol de trabajo.
 - `backend/app/security/decorators.py`: agregado `verify_authentication` para usar en `before_request` y cargar usuario desde token.
 - `backend/app/security/rbac.py`: agregado `DEFAULT_ROLE`, alias `usuario -> operador` y `normalize_role`.
 - `backend/app/services/auth_service.py`: registro valida rol contra `ROLE_MATRIX`, normaliza `estado/is_active`, acepta `estado` en alta y aplica politicas de contrasena/historial.
+- `backend/app/services/email_service.py`: ruteo SMTP por dominio (si hay config) con fallback al SMTP por defecto.
 - `backend/app/schemas/auth.py`: `RegisterRequest` incluye `estado`; `UpdateUserRequest` acepta `clave` para reset admin.
 - `backend/app/routes/auth.py`: registro acepta `estado`; admin update soporta `estado`, `is_active`, roles normalizados y reset de clave con politica/historial; revoca sesiones cuando corresponde; agrega `DELETE /api/auth/admin/users/<id>`; agrega `GET /api/auth/roles`.
 - `backend/app/routes/usuarios.py`: endpoint deprecado con respuesta 410; agrega politica de contrasena, historial, revocacion y auditoria en alta/edicion; normaliza roles.
@@ -23,6 +24,7 @@ Documento con todos los cambios aplicados por Codex en este arbol de trabajo.
 - `backend/app/routes/paises.py`: protege con `before_request`.
 - `backend/app/docs.py`: `/api/docs` ahora requiere rol `admin`; documenta delete de usuarios y `estado` en registro.
 - `backend/config.py`: corrige regex de complejidad de contrasena (`\\d` -> `\d`).
+- `backend/config.py`: agrega `SMTP_DOMAIN_ROUTES` y perfiles SMTP por dominio.
 - `backend/app/utils/layout_crt.py`: evita generar `CRT.pdf` al importar; solo en ejecucion directa.
 - `backend/CRT.pdf`: eliminado artefacto generado.
 

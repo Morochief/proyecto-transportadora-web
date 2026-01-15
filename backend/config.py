@@ -36,6 +36,51 @@ def _get_list(name: str, default: str = ""):
     return [item.strip() for item in raw.split(",") if item.strip()]
 
 
+def _get_kv_map(name: str, default: str = ""):
+    raw = os.environ.get(name, default)
+    mapping = {}
+    if not raw:
+        return mapping
+    for item in raw.split(","):
+        item = item.strip()
+        if not item or "=" not in item:
+            continue
+        key, value = item.split("=", 1)
+        key = key.strip().lower()
+        value = value.strip()
+        if key and value:
+            mapping[key] = value
+    return mapping
+
+
+def _get_int_env(name: str, default: int) -> int:
+    raw = os.environ.get(name)
+    if raw is None or raw == "":
+        return default
+    try:
+        return int(raw)
+    except ValueError:
+        return default
+
+
+def _get_smtp_profiles(routes):
+    profiles = {}
+    for profile in set(routes.values()):
+        key = profile.strip().upper()
+        if not key:
+            continue
+        profiles[key] = {
+            "host": os.environ.get(f"SMTP_{key}_HOST"),
+            "port": _get_int_env(f"SMTP_{key}_PORT", 0),
+            "username": os.environ.get(f"SMTP_{key}_USERNAME"),
+            "password": os.environ.get(f"SMTP_{key}_PASSWORD"),
+            "use_tls": _get_bool_env(f"SMTP_{key}_USE_TLS", False),
+            "from_email": os.environ.get(f"SMTP_{key}_FROM_EMAIL"),
+            "from_name": os.environ.get(f"SMTP_{key}_FROM_NAME"),
+        }
+    return profiles
+
+
 class Config:
     SQLALCHEMY_DATABASE_URI = _get_database_url()
     SQLALCHEMY_TRACK_MODIFICATIONS = False
@@ -91,6 +136,8 @@ class Config:
     SMTP_FROM_EMAIL = os.environ.get(
         "SMTP_FROM_EMAIL", "no-reply@transportadora.local")
     SMTP_FROM_NAME = os.environ.get("SMTP_FROM_NAME", "Sistema Logistico")
+    SMTP_DOMAIN_ROUTES = _get_kv_map("SMTP_DOMAIN_ROUTES", "")
+    SMTP_PROFILE_SETTINGS = _get_smtp_profiles(SMTP_DOMAIN_ROUTES)
 
     SECURITY_LOG_LEVEL = os.environ.get("SECURITY_LOG_LEVEL", "INFO")
     AUDIT_SIEM_ENDPOINT = os.environ.get("AUDIT_SIEM_ENDPOINT")
