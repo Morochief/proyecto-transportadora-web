@@ -1,8 +1,10 @@
 from flask import Blueprint, request, jsonify
 from app import db
-from app.security.decorators import roles_required
+from app import db
+from app.security.decorators import roles_required, verify_authentication
 
 aduanas_bp = Blueprint('aduanas', __name__, url_prefix='/api/aduanas')
+aduanas_bp.before_request(verify_authentication)
 
 @aduanas_bp.route('/', methods=['GET'])
 # @roles_required('operador') # Opcional

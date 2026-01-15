@@ -1,8 +1,9 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { User, Lock, ArrowRight, ShieldCheck, KeyRound } from 'lucide-react';
 import api from '../api/api';
-import { login as storeLogin } from '../utils/auth';
+import useAuthStore from '../store/authStore';
+import { isLoggedIn, login as storeLogin } from '../utils/auth';
 
 function Login() {
   const [identifier, setIdentifier] = useState('');
@@ -16,6 +17,13 @@ function Login() {
   const navigate = useNavigate();
   const location = useLocation();
   const from = location.state?.from?.pathname || '/';
+  const { authReady } = useAuthStore();
+
+  useEffect(() => {
+    if (authReady && isLoggedIn()) {
+      navigate(from, { replace: true });
+    }
+  }, [authReady, navigate, from]);
 
   const handleSubmit = async (event) => {
     event.preventDefault();

@@ -1,14 +1,29 @@
-from flask import Blueprint, jsonify, request
+from flask import Blueprint, jsonify, request, g
 from sqlalchemy.exc import IntegrityError
 
 from app import db
 from app.models import Role, Usuario
 from app.security.decorators import auth_required, roles_required
-from app.security.rbac import ensure_roles_permissions
-from app.utils.security import hash_password
+from app.security.rbac import ensure_roles_permissions, normalize_role
+from app.services.audit_service import audit_event
+from app.utils.security import (
+    hash_password,
+    password_not_reused,
+    password_policy_checks,
+    register_password_history,
+    revoke_all_tokens,
+    update_password_metadata,
+)
 
 
 usuarios_bp = Blueprint('usuarios', __name__, url_prefix='/api/usuarios')
+
+
+@usuarios_bp.before_request
+def _deprecated_api():
+    if request.method == 'OPTIONS':
+        return None
+    return jsonify({'error': 'Endpoint deprecado. Use /api/auth/admin/users.'}), 410
 
 
 @usuarios_bp.route('/', methods=['GET'])
@@ -63,7 +78,16 @@ def crear_usuario():
     if missing:
         return jsonify({'error': 'Faltan campos', 'missing': missing}), 400
 
+    ok, errors = password_policy_checks(data['clave'])
+    if not ok:
+        return jsonify({'error': 'Politica de contrasena', 'details': errors}), 400
+
     ensure_roles_permissions()
+    role_name = normalize_role(data.get('rol', 'operador'))
+    role = Role.query.filter_by(name=role_name).first()
+    if not role:
+        return jsonify({'error': 'Rol desconocido'}), 400
+
     usuario = Usuario(
         nombre_completo=data['nombre_completo'],
         display_name=data['nombre_completo'],
@@ -71,16 +95,23 @@ def crear_usuario():
         email=data['email'].lower(),
         telefono=data.get('telefono'),
         clave_hash=hash_password(data['clave']),
-        rol=data.get('rol', 'operador'),
+        rol=role_name,
         estado=data.get('estado', 'activo'),
         is_active=data.get('estado', 'activo') == 'activo',
     )
-    role_name = data.get('rol', 'operador')
-    role = Role.query.filter_by(name=role_name).first()
-    if role:
-        usuario.roles.append(role)
+    usuario.roles.append(role)
     try:
         db.session.add(usuario)
+        db.session.flush()
+        register_password_history(usuario, usuario.clave_hash)
+        update_password_metadata(usuario)
+        audit_event(
+            'user.admin_create',
+            user_id=usuario.id,
+            ip=request.headers.get('X-Forwarded-For', request.remote_addr),
+            user_agent=request.headers.get('User-Agent'),
+            metadata={'actor': getattr(g, 'current_user', None).id if getattr(g, 'current_user', None) else None},
+        )
         db.session.commit()
         return jsonify({'message': 'Usuario creado', 'id': usuario.id}), 201
     except IntegrityError:
@@ -94,6 +125,7 @@ def crear_usuario():
 def modificar_usuario(user_id: int):
     usuario = Usuario.query.get_or_404(user_id)
     data = request.get_json(force=True)
+    revoke_sessions = False
     if 'nombre_completo' in data:
         usuario.nombre_completo = data['nombre_completo']
         usuario.display_name = data['nombre_completo']
@@ -102,16 +134,38 @@ def modificar_usuario(user_id: int):
     if 'estado' in data:
         usuario.estado = data['estado']
         usuario.is_active = usuario.estado == 'activo'
+        if not usuario.is_active:
+            revoke_sessions = True
     if 'email' in data:
         usuario.email = data['email'].lower()
     if 'rol' in data:
         ensure_roles_permissions()
-        role = Role.query.filter_by(name=data['rol']).first()
-        if role:
-            usuario.roles = [role]
-            usuario.rol = role.name
+        role_name = normalize_role(data['rol'])
+        role = Role.query.filter_by(name=role_name).first()
+        if not role:
+            return jsonify({'error': 'Rol desconocido'}), 400
+        usuario.roles = [role]
+        usuario.rol = role.name
     if data.get('clave'):
-        usuario.clave_hash = hash_password(data['clave'])
+        ok, errors = password_policy_checks(data['clave'])
+        if not ok:
+            return jsonify({'error': 'Politica de contrasena', 'details': errors}), 400
+        hashed = hash_password(data['clave'])
+        if not password_not_reused(usuario, hashed):
+            return jsonify({'error': 'Politica de contrasena', 'details': ['No puede reutilizar contrasenas recientes']}), 400
+        usuario.clave_hash = hashed
+        update_password_metadata(usuario)
+        register_password_history(usuario, hashed)
+        revoke_sessions = True
+        audit_event(
+            'password.admin_reset',
+            user_id=usuario.id,
+            ip=request.headers.get('X-Forwarded-For', request.remote_addr),
+            user_agent=request.headers.get('User-Agent'),
+            metadata={'actor': getattr(g, 'current_user', None).id if getattr(g, 'current_user', None) else None},
+        )
+    if revoke_sessions:
+        revoke_all_tokens(usuario)
     db.session.commit()
     return jsonify({'message': 'Usuario modificado'})
 

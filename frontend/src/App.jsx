@@ -1,10 +1,11 @@
 
-import React from 'react';
+import React, { useEffect } from 'react';
 import { BrowserRouter as Router, Navigate, Route, Routes } from 'react-router-dom';
 import './App.css';
 
 import Layout from './components/Layout';
 import PrivateRoute from './components/PrivateRoute';
+import { bootstrapSession } from './utils/auth';
 
 import Dashboard from './pages/Dashboard';
 import Login from './pages/Login';
@@ -27,6 +28,10 @@ import Sessions from './pages/Sessions';
 import AuditLogs from './pages/AuditLogs';
 
 function App() {
+  useEffect(() => {
+    bootstrapSession();
+  }, []);
+
   return (
     <Router>
       <Routes>

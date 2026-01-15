@@ -64,7 +64,7 @@ class Config:
     PASSWORD_MIN_LENGTH = int(os.environ.get("PASSWORD_MIN_LENGTH", "12"))
     PASSWORD_COMPLEXITY_REGEX = os.environ.get(
         "PASSWORD_COMPLEXITY_REGEX",
-        r"^(?=.*[a-z])(?=.*[A-Z])(?=.*\\d)(?=.*[^A-Za-z0-9]).+$"
+        r"^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z0-9]).+$"
     )
     PASSWORD_HISTORY_SIZE = int(os.environ.get("PASSWORD_HISTORY_SIZE", "5"))
     PASSWORD_EXPIRATION_DAYS = int(

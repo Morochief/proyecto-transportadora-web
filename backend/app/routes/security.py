@@ -10,11 +10,12 @@ from sqlalchemy import and_, desc, or_
 
 from app import db
 from app.models import AuditLog, LoginAttempt, RefreshToken, Usuario
-from app.security.decorators import auth_required, roles_required
+from app.security.decorators import auth_required, roles_required, verify_authentication
 from app.security.tokens import find_valid_refresh_token, revoke_token
 from app.services.audit_service import audit_event
 
 security_bp = Blueprint('security', __name__, url_prefix='/api/security')
+security_bp.before_request(verify_authentication)
 logger = logging.getLogger(__name__)
 
 

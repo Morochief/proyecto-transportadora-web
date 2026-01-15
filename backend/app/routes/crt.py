@@ -16,9 +16,11 @@ from reportlab.pdfbase.pdfmetrics import stringWidth
 from app.utils.layout_crt import dibujar_lineas_dinamicas, lineas
 from app.utils.crt_helpers import parse_number, limpiar_numericos, NUMERIC_FIELDS
 from app.utils.crt_serializers import to_dict_crt, to_dict_gasto
+from app.security.decorators import verify_authentication
 
 
 crt_bp = Blueprint('crt', __name__, url_prefix='/api/crts')
+crt_bp.before_request(verify_authentication)
 logger = logging.getLogger(__name__)
 
 # ========== SIGUIENTE NÚMERO CRT ==========
@@ -658,8 +660,16 @@ def eliminar_crt(crt_id):
         
         for g in crt.gastos:
             db.session.delete(g)
-        
+        if crt.gastos:
+            for g in crt.gastos:
+                db.session.delete(g)
+                
         db.session.delete(crt)
+        
+        from app.services.audit_service import audit_event
+        from flask import g
+        audit_event('crt.delete', user_id=g.current_user.id, metadata={'crt_id': crt_id})
+
         db.session.commit()
         
         mensaje = "CRT eliminado"

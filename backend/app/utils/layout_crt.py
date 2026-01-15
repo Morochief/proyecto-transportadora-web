@@ -375,10 +375,11 @@ lineas = [
 ]
 
 # ----- Ejemplo de uso -----
-output = BytesIO()
-c = canvas.Canvas(output, pagesize=A4)
-dibujar_lineas_dinamicas(c, lineas)
-c.save()
+if __name__ == '__main__':
+    output = BytesIO()
+    c = canvas.Canvas(output, pagesize=A4)
+    dibujar_lineas_dinamicas(c, lineas)
+    c.save()
 
-with open('CRT.pdf', 'wb') as f:
-    f.write(output.getvalue())
+    with open('CRT.pdf', 'wb') as f:
+        f.write(output.getvalue())

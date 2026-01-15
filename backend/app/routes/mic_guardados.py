@@ -7,12 +7,14 @@ from app.utils.layout_mic import generar_micdta_pdf_con_datos
 import tempfile
 import logging
 import os
+from app.security.decorators import verify_authentication
 
 logger = logging.getLogger(__name__)
 
 # Blueprint para MICs guardados
 mic_guardados_bp = Blueprint(
     'mic_guardados', __name__, url_prefix='/api/mic-guardados')
+mic_guardados_bp.before_request(verify_authentication)
 
 # ========== CREAR MIC Y GUARDARLO ==========
 
@@ -478,6 +480,10 @@ def eliminar_mic(mic_id):
             mensaje = "MIC anulado exitosamente"
             estado_final = "ANULADO"
 
+        from app.services.audit_service import audit_event
+        from flask import g
+        audit_event('mic.delete', user_id=g.current_user.id, metadata={'mic_id': mic.id, 'hard_delete': hard_delete})
+        
         db.session.commit()
 
         return jsonify({

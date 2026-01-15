@@ -1,8 +1,10 @@
 from flask import Blueprint, request, jsonify
 from app.models import Ciudad, Pais
 from app import db
+from app.security.decorators import verify_authentication
 
 ciudades_bp = Blueprint('ciudades', __name__, url_prefix='/api/ciudades')
+ciudades_bp.before_request(verify_authentication)
 
 # Listar ciudades (puede filtrar por país)
 @ciudades_bp.route('/', methods=['GET'])

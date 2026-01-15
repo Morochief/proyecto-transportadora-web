@@ -2,8 +2,10 @@ from flask import Blueprint, request, jsonify
 from app.models import Transportadora, Ciudad
 from app import db
 from sqlalchemy.orm import joinedload
+from app.security.decorators import verify_authentication
 
 transportadoras_bp = Blueprint('transportadoras', __name__, url_prefix='/api/transportadoras')
+transportadoras_bp.before_request(verify_authentication)
 
 # Listar transportadoras (paginado y búsqueda opcional, honorarios relacionados)
 @transportadoras_bp.route('/', methods=['GET'])

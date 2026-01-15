@@ -2,8 +2,10 @@ from flask import Blueprint, request, jsonify
 from app.models import Moneda
 from app import db
 from sqlalchemy.exc import IntegrityError
+from app.security.decorators import verify_authentication
 
 monedas_bp = Blueprint('monedas', __name__, url_prefix='/api/monedas')
+monedas_bp.before_request(verify_authentication)
 
 # Listar monedas
 @monedas_bp.route('/', methods=['GET'])

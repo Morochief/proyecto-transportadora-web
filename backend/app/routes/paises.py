@@ -2,8 +2,10 @@ from flask import Blueprint, request, jsonify
 from app.models import Pais
 from app import db
 from sqlalchemy.exc import IntegrityError
+from app.security.decorators import verify_authentication
 
 paises_bp = Blueprint('paises', __name__, url_prefix='/api/paises')
+paises_bp.before_request(verify_authentication)
 
 # Listar países
 @paises_bp.route('/', methods=['GET'])

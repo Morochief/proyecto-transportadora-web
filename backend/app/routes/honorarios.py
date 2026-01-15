@@ -1,8 +1,10 @@
 from flask import Blueprint, request, jsonify
 from app.models import Honorario, Transportadora, Moneda
 from app import db
+from app.security.decorators import verify_authentication
 
 honorarios_bp = Blueprint('honorarios', __name__, url_prefix='/api/honorarios')
+honorarios_bp.before_request(verify_authentication)
 
 @honorarios_bp.route('/', methods=['GET'])
 def listar_honorarios():

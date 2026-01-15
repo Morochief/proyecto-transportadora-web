@@ -128,6 +128,19 @@ spec = {
                     }
                 ],
                 "responses": {"200": {"description": "Actualizado"}}
+            },
+            "delete": {
+                "summary": "Eliminar usuario",
+                "tags": ["Admin"],
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": True,
+                        "schema": {"type": "integer"}
+                    }
+                ],
+                "responses": {"200": {"description": "Eliminado"}}
             }
         }
     },
@@ -141,7 +154,8 @@ spec = {
                     "usuario": {"type": "string"},
                     "password": {"type": "string"},
                     "telefono": {"type": "string"},
-                    "role": {"type": "string"}
+                    "role": {"type": "string"},
+                    "estado": {"type": "string"}
                 },
                 "required": ["nombre", "email", "usuario", "password"]
             },
@@ -183,9 +197,11 @@ spec = {
 }
 
 from flask import Blueprint, jsonify
+from app.security.decorators import roles_required
 
 docs_bp = Blueprint('docs', __name__)
 
 @docs_bp.route('/api/docs', methods=['GET'])
+@roles_required('admin')
 def openapi_docs():
     return jsonify(spec)

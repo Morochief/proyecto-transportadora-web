@@ -3,6 +3,7 @@ import { FiEdit2, FiTrash2, FiSearch, FiLock, FiUnlock, FiUser, FiMail } from 'r
 import { HiOutlineUserAdd } from 'react-icons/hi';
 import api from '../api/api';
 import FormModal from '../components/FormModal';
+import { roleOptions as defaultRoleOptions } from '../utils/roles';
 
 function Usuarios() {
   const [usuarios, setUsuarios] = useState([]);
@@ -12,13 +13,26 @@ function Usuarios() {
   const [modalError, setModalError] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
   const [loading, setLoading] = useState(true);
+  const [rolesList, setRolesList] = useState(defaultRoleOptions);
+  const estadoOptions = [
+    { value: 'activo', label: 'Activo' },
+    { value: 'inactivo', label: 'Inactivo' },
+    { value: 'suspendido', label: 'Suspendido' },
+  ];
 
   const formFields = [
     { name: 'nombre_completo', label: 'Nombre completo', type: 'text', required: true },
     { name: 'email', label: 'Email', type: 'email', required: true },
     { name: 'telefono', label: 'Telefono', type: 'tel', required: false },
-    { name: 'rol', label: 'Rol principal', type: 'text', required: true },
-    { name: 'estado', label: 'Estado', type: 'text', required: false },
+    {
+      name: 'rol',
+      label: 'Rol principal',
+      label: 'Rol principal',
+      type: 'select',
+      options: rolesList,
+      required: true,
+    },
+    { name: 'estado', label: 'Estado', type: 'select', options: estadoOptions, required: false },
     { name: 'clave', label: 'Clave (solo nuevo usuario o cambio)', type: 'password', required: false },
   ];
 
@@ -35,8 +49,20 @@ function Usuarios() {
     }
   };
 
+  const loadRoles = async () => {
+    try {
+      const response = await api.get('/auth/roles');
+      if (response.data && response.data.length > 0) {
+        setRolesList(response.data);
+      }
+    } catch (err) {
+      console.error('Error cargando roles, usando defaults', err);
+    }
+  };
+
   useEffect(() => {
     loadUsuarios();
+    loadRoles();
   }, []);
 
   const handleAdd = () => {
@@ -50,6 +76,7 @@ function Usuarios() {
       ...user,
       nombre_completo: user.display_name || user.usuario,
       rol: user.roles?.[0] || 'operador',
+      estado: user.estado || 'activo',
     });
     setModalError('');
     setModalOpen(true);
@@ -60,7 +87,7 @@ function Usuarios() {
       return;
     }
     try {
-      await api.delete(`/usuarios/${id}`);
+      await api.delete(`/auth/admin/users/${id}`);
       loadUsuarios();
     } catch (err) {
       setError(err.response?.data?.error || 'No se pudo eliminar');
@@ -78,15 +105,18 @@ function Usuarios() {
         const payload = {
           nombre: data.nombre_completo,
           telefono: data.telefono,
-          estado: data.estado,
           email: data.email,
           roles: [data.rol],
         };
+        if (data.estado) {
+          payload.estado = data.estado.toLowerCase();
+        }
         if (data.clave) {
           payload.clave = data.clave;
         }
         await api.patch(`/auth/admin/users/${editUser.id}`, payload);
       } else {
+        const estadoValue = (data.estado || 'activo').toLowerCase();
         await api.post('/auth/register', {
           nombre: data.nombre_completo,
           email: data.email,
@@ -94,6 +124,7 @@ function Usuarios() {
           password: data.clave,
           telefono: data.telefono,
           role: data.rol,
+          estado: estadoValue,
         });
       }
       setModalOpen(false);
@@ -229,6 +260,7 @@ function Usuarios() {
                     <td className="px-6 py-4">
                       <span className={`px-2.5 py-0.5 rounded-full text-xs font-medium border capitalize
                             ${user.estado === 'activo' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' :
+                          user.estado === 'inactivo' ? 'bg-amber-50 text-amber-700 border-amber-200' :
                           user.estado === 'suspendido' ? 'bg-red-50 text-red-700 border-red-200' :
                             'bg-slate-100 text-slate-600 border-slate-200'}`}>
                         {user.estado || 'activo'}
@@ -274,7 +306,7 @@ function Usuarios() {
           }}
           onSubmit={handleSubmit}
           fields={formFields}
-          initialValues={editUser || {}}
+          initialValues={editUser || { rol: 'operador', estado: 'activo' }}
           title={editUser ? 'Editar usuario' : 'Crear usuario'}
           error={modalError}
         />

@@ -10,6 +10,7 @@ class RegisterRequest(BaseModel):
     password: constr(min_length=8, max_length=256)
     telefono: Optional[constr(strip_whitespace=True, max_length=30)] = None
     role: Optional[str] = None
+    estado: Optional[constr(strip_whitespace=True, max_length=15)] = None
 
 
 class LoginRequest(BaseModel):
@@ -47,6 +48,7 @@ class UpdateUserRequest(BaseModel):
     estado: Optional[str] = Field(default=None)
     is_active: Optional[bool] = None
     roles: Optional[List[str]] = None
+    clave: Optional[constr(min_length=8, max_length=256)] = None
 
 
 class InvitationSeedResponse(BaseModel):

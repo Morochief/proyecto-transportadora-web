@@ -18,8 +18,8 @@ from app.schemas.auth import (
     UpdateUserRequest,
 )
 from app.security.decorators import auth_required, permissions_required, roles_required
-from app.security.rbac import ensure_roles_permissions, get_user_permissions
-from app.security.tokens import find_valid_refresh_token
+from app.security.rbac import ensure_roles_permissions, get_user_permissions, normalize_role
+from app.security.tokens import find_valid_refresh_token, revoke_all_tokens
 from app.services import auth_service
 from app.services.auth_service import (
     MFARequired,
@@ -28,6 +28,14 @@ from app.services.auth_service import (
     InvalidCredentials,
     PasswordPolicyError,
     RateLimitExceeded,
+)
+from app.services.audit_service import audit_event
+from app.utils.security import (
+    hash_password,
+    password_not_reused,
+    password_policy_checks,
+    register_password_history,
+    update_password_metadata,
 )
 
 
@@ -87,6 +95,7 @@ def register_user():
             password=payload.password,
             telefono=payload.telefono,
             role=payload.role or 'operador',
+            estado=payload.estado,
             actor=g.current_user,
             ip=ctx['ip'],
             user_agent=ctx['user_agent'],
@@ -282,6 +291,7 @@ def admin_update_user(user_id: int):
     if errors:
         return jsonify({'error': 'Datos invalidos', 'details': errors}), 400
     user = Usuario.query.get_or_404(user_id)
+    revoke_sessions = False
     if payload.nombre is not None:
         user.nombre_completo = payload.nombre
         user.display_name = payload.nombre
@@ -289,17 +299,90 @@ def admin_update_user(user_id: int):
         user.telefono = payload.telefono
     if payload.estado is not None:
         user.estado = payload.estado
+        user.is_active = payload.estado == 'activo'
+        if not user.is_active:
+            revoke_sessions = True
     if payload.is_active is not None:
         user.is_active = payload.is_active
+        if payload.estado is None:
+            user.estado = 'activo' if payload.is_active else 'inactivo'
+        if not user.is_active:
+            revoke_sessions = True
     if payload.roles is not None:
         ensure_roles_permissions()
-        roles = Role.query.filter(Role.name.in_(payload.roles)).all()
+        normalized_roles = []
+        for name in payload.roles:
+            normalized = normalize_role(name)
+            if normalized not in normalized_roles:
+                normalized_roles.append(normalized)
+        roles = Role.query.filter(Role.name.in_(normalized_roles)).all()
         role_map = {role.name: role for role in roles}
-        missing = [name for name in payload.roles if name not in role_map]
+        missing = [name for name in normalized_roles if name not in role_map]
         if missing:
             return jsonify({'error': 'Roles desconocidos', 'missing': missing}), 400
-        user.roles = [role_map[name] for name in payload.roles]
+        user.roles = [role_map[name] for name in normalized_roles]
         if user.roles:
             user.rol = user.roles[0].name
+    if payload.clave:
+        ok, errors = password_policy_checks(payload.clave)
+        if not ok:
+            return jsonify({'error': 'Politica de contrasena', 'details': errors}), 400
+        hashed = hash_password(payload.clave)
+        if not password_not_reused(user, hashed):
+            return jsonify({'error': 'Politica de contrasena', 'details': ['No puede reutilizar contrasenas recientes']}), 400
+        user.clave_hash = hashed
+        update_password_metadata(user)
+        register_password_history(user, hashed)
+        revoke_sessions = True
+        audit_event(
+            'password.admin_reset',
+            user_id=user.id,
+            ip=request.headers.get('X-Forwarded-For', request.remote_addr),
+            user_agent=request.headers.get('User-Agent'),
+            metadata={'actor': getattr(g, 'current_user', None).id if getattr(g, 'current_user', None) else None},
+        )
+    if revoke_sessions:
+        revoke_all_tokens(user)
     db.session.commit()
     return jsonify({'status': 'ok'})
+
+
+@auth_bp.route('/admin/users/<int:user_id>', methods=['DELETE'])
+@auth_required
+@roles_required('admin')
+def admin_delete_user(user_id: int):
+    if g.current_user.id == user_id:
+        return jsonify({'error': 'No puede eliminar su propio usuario'}), 400
+    user = Usuario.query.get_or_404(user_id)
+    revoke_all_tokens(user)
+    audit_event(
+        'user.admin_delete',
+        user_id=user.id,
+        ip=request.headers.get('X-Forwarded-For', request.remote_addr),
+        user_agent=request.headers.get('User-Agent'),
+        metadata={'actor': g.current_user.id, 'deleted_user_id': user.id},
+    )
+    db.session.delete(user)
+    db.session.commit()
+    return jsonify({'status': 'ok'})
+
+@auth_bp.route('/roles', methods=['GET'])
+@auth_required
+def get_roles():
+    """Devuelve listado de roles disponibles para asignaciÃ³n."""
+    from app.security.rbac import ROLE_MATRIX
+    
+    # Construir lista limpia de roles
+    roles_list = []
+    seen = set()
+    
+    # Roles principales
+    for role_key in sorted(ROLE_MATRIX.keys()):
+        if role_key not in seen:
+            roles_list.append({
+                "value": role_key,
+                "label": role_key.title() if role_key != 'operador' else 'Usuario'
+            })
+            seen.add(role_key)
+            
+    return jsonify(roles_list)

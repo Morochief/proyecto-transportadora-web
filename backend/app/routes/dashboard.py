@@ -1,13 +1,13 @@
-"""Dashboard routes for aggregated statistics."""
-
+from datetime import datetime
 from flask import Blueprint, jsonify
 from sqlalchemy import func
 
 from app import db
-from app.models import Pais, Ciudad, Remitente, Transportadora, Moneda, Aduana, Honorario, CRT
-from app.security.decorators import auth_required
+from app.models import Pais, Ciudad, Remitente, Transportadora, Moneda, Aduana, Honorario, CRT, Usuario, MIC, RefreshToken
+from app.security.decorators import auth_required, verify_authentication
 
 dashboard_bp = Blueprint('dashboard', __name__, url_prefix='/api/dashboard')
+dashboard_bp.before_request(verify_authentication)
 
 
 @dashboard_bp.route('/stats', methods=['GET'])
@@ -25,9 +25,11 @@ def get_dashboard_stats():
             'honorarios': db.session.query(func.count(Honorario.id)).scalar() or 0,
             'crt': db.session.query(func.count(CRT.id)).scalar() or 0,
             'totalHonorarios': db.session.query(func.coalesce(func.sum(Honorario.monto), 0)).scalar() or 0,
-            'usuarios': 0,  # TODO: add user count if needed
-            'mic': 0,  # TODO: add MIC count when model is ready
-            'usuariosConectados': 1,  # TODO: implement active sessions count
+            'usuarios': db.session.query(func.count(Usuario.id)).scalar() or 0,
+            'mic': db.session.query(func.count(MIC.id)).scalar() or 0,
+            'usuariosConectados': db.session.query(func.count(func.distinct(RefreshToken.user_id)))
+                                    .filter(RefreshToken.revoked_at.is_(None), RefreshToken.expires_at > datetime.utcnow())
+                                    .scalar() or 0,
         }
         return jsonify(stats)
     except Exception as e:

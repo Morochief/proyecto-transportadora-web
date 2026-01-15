@@ -28,6 +28,22 @@ def _load_user_from_token() -> Optional[Usuario]:
     return user
 
 
+def verify_authentication():
+    """Helper para usar en before_request de blueprints."""
+    if request.method == 'OPTIONS':
+        return None
+    
+    user = getattr(g, 'current_user', None)
+    if not user:
+        user = _load_user_from_token()
+    
+    if not user:
+        return _unauthorized('Autenticacion requerida')
+    
+    g.current_user = user
+    return None
+
+
 def auth_required(fn: Callable) -> Callable:
     @wraps(fn)
     def wrapper(*args, **kwargs):
@@ -40,6 +56,7 @@ def auth_required(fn: Callable) -> Callable:
         return fn(*args, **kwargs)
 
     return wrapper
+
 
 
 def permissions_required(*permission_keys: str) -> Callable:

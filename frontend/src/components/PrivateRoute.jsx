@@ -6,7 +6,15 @@ import useAuthStore from '../store/authStore';
 
 function PrivateRoute({ children, roles = [], permissions = [] }) {
   const location = useLocation();
-  const { user } = useAuthStore();
+  const { user, authReady } = useAuthStore();
+
+  if (!authReady) {
+    return (
+      <div className="min-h-screen flex items-center justify-center text-slate-500">
+        Cargando sesion...
+      </div>
+    );
+  }
 
   if (!isLoggedIn()) {
     return <Navigate to="/login" replace state={{ from: location }} />;

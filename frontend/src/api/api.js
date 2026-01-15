@@ -18,7 +18,7 @@ api.interceptors.request.use((config) => {
 let isRefreshing = false;
 let refreshQueue = [];
 
-async function refreshSession() {
+export async function refreshSession() {
   const { setSession, clearSession, user } = useAuthStore.getState();
   try {
     // Cookie is sent automatically via withCredentials
@@ -37,7 +37,10 @@ async function refreshSession() {
     });
     return newAccess;
   } catch (error) {
-    clearSession();
+    const { accessToken } = useAuthStore.getState();
+    if (!accessToken) {
+      clearSession();
+    }
     throw error;
   }
 }

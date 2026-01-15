@@ -32,6 +32,18 @@ ROLE_MATRIX = {
     },
 }
 
+DEFAULT_ROLE = 'operador'
+ROLE_ALIASES = {
+    'usuario': DEFAULT_ROLE,
+}
+
+
+def normalize_role(role: str | None) -> str:
+    if not role:
+        return DEFAULT_ROLE
+    value = role.strip().lower()
+    return ROLE_ALIASES.get(value, value)
+
 
 def ensure_roles_permissions() -> None:
     from app import db

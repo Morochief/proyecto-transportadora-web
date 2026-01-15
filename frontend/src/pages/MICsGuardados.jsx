@@ -44,7 +44,7 @@ export default function MICsGuardados() {
   const executeDelete = async (hardDelete = false) => {
     if (!micToDelete) return;
     try {
-      await axios.delete(`http://localhost:5000/api/mic-guardados/${micToDelete.id}`, {
+      await api.delete(`/mic-guardados/${micToDelete.id}`, {
         params: { hard_delete: hardDelete }
       });
       toast.success(hardDelete ? '✅ MIC eliminado definitivamente' : '✅ MIC anulado');
@@ -57,7 +57,7 @@ export default function MICsGuardados() {
   const restaurarMic = async (mic) => {
     if (!window.confirm(`¿Seguro desea restaurar el MIC ${mic.numero_carta_porte}?`)) return;
     try {
-      await axios.post(`http://localhost:5000/api/mic-guardados/${mic.id}/restaurar`);
+      await api.post(`/mic-guardados/${mic.id}/restaurar`);
       toast.success('✅ MIC restaurado');
       cargarMics(currentPage, filters);
     } catch (error) { toast.error('Error al restaurar MIC'); }
@@ -67,7 +67,7 @@ export default function MICsGuardados() {
     setLoading(true);
     try {
       const params = { page, per_page: perPage, ...filtros };
-      const response = await axios.get('http://localhost:5000/api/mic-guardados/', { params });
+      const response = await api.get('/mic-guardados/', { params });
       setMics(response.data.mics);
       setCurrentPage(response.data.pagination.page);
       setTotalPages(response.data.pagination.pages);
@@ -81,7 +81,7 @@ export default function MICsGuardados() {
 
   const cargarEstadisticas = async () => {
     try {
-      const response = await axios.get('http://localhost:5000/api/mic-guardados/stats');
+      const response = await api.get('/mic-guardados/stats');
       setStats(response.data);
     } catch (error) { console.error('Error stats', error); }
   };
@@ -96,7 +96,7 @@ export default function MICsGuardados() {
 
   const verDetalles = async (micId) => {
     try {
-      const response = await axios.get(`http://localhost:5000/api/mic-guardados/${micId}`);
+      const response = await api.get(`/mic-guardados/${micId}`);
       setSelectedMic(response.data);
       setShowModal(true);
     } catch (error) { toast.error('Error cargando detalles'); }
@@ -104,7 +104,7 @@ export default function MICsGuardados() {
 
   const descargarPDF = async (micId, numeroCarta) => {
     try {
-      const response = await axios.get(`http://localhost:5000/api/mic-guardados/${micId}/pdf`, { responseType: 'blob' });
+      const response = await api.get(`/mic-guardados/${micId}/pdf`, { responseType: 'blob' });
       const blob = new Blob([response.data], { type: 'application/pdf' });
       const url = window.URL.createObjectURL(blob);
       const link = document.createElement('a'); link.href = url;
@@ -146,7 +146,7 @@ export default function MICsGuardados() {
 
   const verPrevia = async (micId) => {
     try {
-      const response = await axios.get(`http://localhost:5000/api/mic-guardados/${micId}`);
+      const response = await api.get(`/mic-guardados/${micId}`);
       setPreviewMic(response.data);
       setShowPreview(true);
     } catch (error) { toast.error('Error cargando vista previa'); }

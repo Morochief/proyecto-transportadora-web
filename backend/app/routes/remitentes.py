@@ -1,8 +1,10 @@
 from flask import Blueprint, request, jsonify
 from app.models import Remitente, Ciudad
 from app import db
+from app.security.decorators import verify_authentication
 
 remitentes_bp = Blueprint('remitentes', __name__, url_prefix='/api/remitentes')
+remitentes_bp.before_request(verify_authentication)
 
 # Listar remitentes (paginado, búsqueda por nombre/documento)
 

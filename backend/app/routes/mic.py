@@ -7,8 +7,10 @@ from sqlalchemy.orm import joinedload
 from datetime import datetime
 from app.models import db, MIC, CRT, CRT_Gasto, Ciudad, Transportadora, Remitente
 from app.utils.layout_mic import generar_micdta_pdf_con_datos_y_diagnostico
+from app.security.decorators import verify_authentication
 
 mic_bp = Blueprint('mic', __name__, url_prefix='/api/mic')
+mic_bp.before_request(verify_authentication)
 logger = logging.getLogger(__name__)
 
 # ========== UTIL MULTILINEA ==========

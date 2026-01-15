@@ -157,7 +157,9 @@ function ListarCRT() {
           // Soporte para nueva estructura unificada { crts: [], total: ... }
           const data = res.data;
           const listaCrts = Array.isArray(data) ? data : (data.crts || []);
-          const total = Array.isArray(data) ? data.length : (data.total || listaCrts.length);
+          const total = Array.isArray(data)
+            ? data.length
+            : (data.pagination?.total || data.total || listaCrts.length);
 
           console.log("✅ Datos recibidos:", listaCrts.length, "CRTs");
 
@@ -189,13 +191,14 @@ function ListarCRT() {
         ...Object.fromEntries(Object.entries(filtrosAvanzados).filter(([_, value]) => value !== "")),
       });
 
-      const response = await api.get(`/crts/paginated?${params}`);
+      const response = await api.get(`/crts/?${params}`);
       const data = response.data;
-      setCrts(data.crts || []);
-      setFiltered(data.crts || []);
-      setTotalItems(data.pagination.total);
-      setTotalPages(data.pagination.pages);
-      setCurrentPage(data.pagination.page);
+      const listaCrts = data.crts || [];
+      setCrts(listaCrts);
+      setFiltered(listaCrts);
+      setTotalItems(data.pagination?.total || listaCrts.length);
+      setTotalPages(data.pagination?.pages || 1);
+      setCurrentPage(data.pagination?.page || currentPage);
       toast.success("✅ CRTs cargados con filtros avanzados");
     } catch (error) {
       setUsarPaginadoBackend(false);

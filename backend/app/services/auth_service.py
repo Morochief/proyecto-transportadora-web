@@ -39,6 +39,8 @@ from app.security.passwords import (
 from app.security.rbac import (
     ensure_roles_permissions,
     get_user_permissions,
+    normalize_role,
+    ROLE_MATRIX,
     sync_legacy_role,
 )
 from app.security.tokens import (
@@ -84,6 +86,22 @@ class PasswordPolicyError(AuthServiceError):
 
 class InvalidCredentials(AuthServiceError):
     pass
+
+
+ALLOWED_USER_ESTADOS = {'activo', 'inactivo', 'suspendido'}
+
+
+def _normalize_user_estado(estado: Optional[str], is_active: Optional[bool]) -> Tuple[str, bool]:
+    estado_value = estado.strip().lower() if estado else None
+    if estado_value:
+        if estado_value not in ALLOWED_USER_ESTADOS:
+            raise AuthServiceError('Estado desconocido')
+        if is_active is not None and (estado_value == 'activo') != is_active:
+            raise AuthServiceError('Estado e is_active inconsistentes')
+        return estado_value, estado_value == 'activo'
+    if is_active is None:
+        return 'activo', True
+    return ('activo' if is_active else 'inactivo'), is_active
 
 
 def _hash_reset_token(raw: str) -> str:
@@ -239,9 +257,15 @@ def authenticate(identifier: str, password: str, *, ip: Optional[str], user_agen
     }
 
 
-def register_user(*, nombre: str, email: str, usuario: str, password: str, telefono: Optional[str], role: str = 'operador', actor: Optional[Usuario] = None, ip: Optional[str] = None, user_agent: Optional[str] = None) -> Usuario:
+def register_user(*, nombre: str, email: str, usuario: str, password: str, telefono: Optional[str], role: str = 'operador', estado: Optional[str] = None, is_active: Optional[bool] = None, actor: Optional[Usuario] = None, ip: Optional[str] = None, user_agent: Optional[str] = None) -> Usuario:
     if not current_app.config['ALLOW_SELF_REGISTRATION'] and actor is None:
         raise AuthServiceError('Registro deshabilitado')
+
+    role = normalize_role(role)
+    if role not in ROLE_MATRIX:
+        raise AuthServiceError('Rol desconocido')
+
+    estado_value, is_active_value = _normalize_user_estado(estado, is_active)
 
     ensure_roles_permissions()
     ok, errors = password_policy_checks(password)
@@ -257,8 +281,8 @@ def register_user(*, nombre: str, email: str, usuario: str, password: str, telef
         telefono=telefono,
         clave_hash=hashed,
         rol=role,
-        estado='activo',
-        is_active=True,
+        estado=estado_value,
+        is_active=is_active_value,
     )
     sync_legacy_role(user)
     try:
@@ -407,6 +431,7 @@ def complete_password_reset(token: str, new_password: str) -> None:
     register_password_history(user, hashed_password)
 
     matched.used_at = _now()
+    revoke_all_tokens(user)
     audit_event('password.reset.complete', user_id=user.id)
     db.session.commit()
 
@@ -424,5 +449,6 @@ def change_password(user: Usuario, current_password: str, new_password: str) -> 
     user.clave_hash = hashed
     update_password_metadata(user)
     register_password_history(user, hashed)
+    revoke_all_tokens(user)
     audit_event('password.change', user_id=user.id)
     db.session.commit()
