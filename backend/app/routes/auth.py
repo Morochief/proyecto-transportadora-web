@@ -276,6 +276,8 @@ def admin_list_users():
             'roles': [role.name for role in user.roles],
             'estado': user.estado,
             'is_active': user.is_active,
+            'is_locked': user.is_locked,
+            'locked_until': user.locked_until.isoformat() if user.locked_until else None,
             'mfa_enabled': user.mfa_enabled,
             'last_login_at': user.last_login_at.isoformat() if user.last_login_at else None,
         }
@@ -369,7 +371,7 @@ def admin_delete_user(user_id: int):
 @auth_bp.route('/roles', methods=['GET'])
 @auth_required
 def get_roles():
-    """Devuelve listado de roles disponibles para asignaciÃ³n."""
+    """Devuelve listado de roles disponibles para asignación."""
     from app.security.rbac import ROLE_MATRIX
     
     # Construir lista limpia de roles
@@ -386,3 +388,30 @@ def get_roles():
             seen.add(role_key)
             
     return jsonify(roles_list)
+
+
+@auth_bp.route('/admin/users/<int:user_id>/unlock', methods=['POST'])
+@auth_required
+@roles_required('admin')
+def admin_unlock_user(user_id: int):
+    """Desbloquear manualmente una cuenta bloqueada por intentos fallidos."""
+    user = Usuario.query.get_or_404(user_id)
+    
+    if not user.is_locked:
+        return jsonify({'error': 'El usuario no está bloqueado'}), 400
+    
+    # Desbloquear la cuenta
+    user.is_locked = False
+    user.locked_until = None
+    user.failed_login_attempts = 0
+    
+    audit_event(
+        'user.admin_unlock',
+        user_id=user.id,
+        ip=request.headers.get('X-Forwarded-For', request.remote_addr),
+        user_agent=request.headers.get('User-Agent'),
+        metadata={'actor': g.current_user.id, 'unlocked_user_id': user.id},
+    )
+    
+    db.session.commit()
+    return jsonify({'status': 'ok', 'message': f'Usuario {user.email} desbloqueado exitosamente'})

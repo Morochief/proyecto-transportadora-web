@@ -1,6 +1,6 @@
 from typing import List, Optional
 
-from pydantic import BaseModel, EmailStr, Field, constr
+from pydantic import BaseModel, EmailStr, Field, constr, field_validator
 
 
 class RegisterRequest(BaseModel):
@@ -48,7 +48,21 @@ class UpdateUserRequest(BaseModel):
     estado: Optional[str] = Field(default=None)
     is_active: Optional[bool] = None
     roles: Optional[List[str]] = None
-    clave: Optional[constr(min_length=8, max_length=256)] = None
+    clave: Optional[str] = None
+
+    @field_validator('clave', mode='before')
+    @classmethod
+    def empty_clave_to_none(cls, v):
+        # Convertir strings vacíos en None para que no se valide
+        if v is None or (isinstance(v, str) and not v.strip()):
+            return None
+        # Si hay valor, validar longitud
+        if isinstance(v, str):
+            if len(v) < 8:
+                raise ValueError('La contraseña debe tener al menos 8 caracteres')
+            if len(v) > 256:
+                raise ValueError('La contraseña no puede exceder 256 caracteres')
+        return v
 
 
 class InvitationSeedResponse(BaseModel):

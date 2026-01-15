@@ -33,7 +33,7 @@ function Usuarios() {
       required: true,
     },
     { name: 'estado', label: 'Estado', type: 'select', options: estadoOptions, required: false },
-    { name: 'clave', label: 'Clave (solo nuevo usuario o cambio)', type: 'password', required: false },
+    { name: 'clave', label: 'Nueva Clave (dejar vacío para no cambiar)', type: 'password', required: false },
   ];
 
   const loadUsuarios = async () => {
@@ -91,6 +91,18 @@ function Usuarios() {
       loadUsuarios();
     } catch (err) {
       setError(err.response?.data?.error || 'No se pudo eliminar');
+    }
+  };
+
+  const handleUnlock = async (id) => {
+    if (!window.confirm('¿Seguro que desea desbloquear al usuario?')) {
+      return;
+    }
+    try {
+      await api.post(`/auth/admin/users/${id}/unlock`);
+      loadUsuarios();
+    } catch (err) {
+      setError(err.response?.data?.error || 'No se pudo desbloquear');
     }
   };
 
@@ -261,8 +273,8 @@ function Usuarios() {
                       <span className={`px-2.5 py-0.5 rounded-full text-xs font-medium border capitalize
                             ${user.estado === 'activo' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' :
                           user.estado === 'inactivo' ? 'bg-amber-50 text-amber-700 border-amber-200' :
-                          user.estado === 'suspendido' ? 'bg-red-50 text-red-700 border-red-200' :
-                            'bg-slate-100 text-slate-600 border-slate-200'}`}>
+                            user.estado === 'suspendido' ? 'bg-red-50 text-red-700 border-red-200' :
+                              'bg-slate-100 text-slate-600 border-slate-200'}`}>
                         {user.estado || 'activo'}
                       </span>
                     </td>
@@ -277,12 +289,23 @@ function Usuarios() {
                         <button
                           onClick={() => handleEdit(user)}
                           className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-all"
+                          title="Editar"
                         >
                           <FiEdit2 className="w-4 h-4" />
                         </button>
+                        {user.is_locked && (
+                          <button
+                            onClick={() => handleUnlock(user.id)}
+                            className="p-2 text-amber-500 hover:text-amber-700 hover:bg-amber-50 rounded-lg transition-all"
+                            title="Desbloquear cuenta"
+                          >
+                            <FiUnlock className="w-4 h-4" />
+                          </button>
+                        )}
                         <button
                           onClick={() => handleDelete(user.id)}
                           className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all"
+                          title="Eliminar"
                         >
                           <FiTrash2 className="w-4 h-4" />
                         </button>
