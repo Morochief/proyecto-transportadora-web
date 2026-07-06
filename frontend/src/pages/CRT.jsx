@@ -255,7 +255,10 @@ function CRT() {
     if (selectedTransportadora?.id && selectedTransportadora.codigo) {
       api.get(`/crts/next_number?transportadora_id=${selectedTransportadora.id}&codigo=${selectedTransportadora.codigo}`)
         .then((res) => setForm((f) => ({ ...f, numero_crt: res.data.next_number })))
-        .catch(() => setForm((f) => ({ ...f, numero_crt: "" })));
+        .catch((err) => {
+          console.error("Error fetching next CRT number:", err.response?.status, err.response?.data || err.message);
+          setForm((f) => ({ ...f, numero_crt: "" }));
+        });
     } else { setForm((f) => ({ ...f, numero_crt: "" })); }
   }, [selectedTransportadora]);
 

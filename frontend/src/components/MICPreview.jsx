@@ -1,13 +1,17 @@
 import React from 'react';
 import { FileText, Download, X, ExternalLink } from 'lucide-react';
+import api from '../api/api';
 
 const MICPreview = ({ micData, onClose, onDownloadPDF, isOpen }) => {
     if (!isOpen || !micData) return null;
 
-    const pdfUrl = `http://localhost:5000/api/mic-guardados/${micData.id}/pdf?inline=true`;
-
     const abrirPDF = () => {
-        window.open(pdfUrl, '_blank');
+        api.get(`/mic-guardados/${micData.id}/pdf`, { responseType: 'blob' })
+            .then(res => {
+                const url = window.URL.createObjectURL(new Blob([res.data], { type: 'application/pdf' }));
+                window.open(url, '_blank');
+            })
+            .catch(err => console.error('Error abriendo PDF:', err));
     };
 
     return (

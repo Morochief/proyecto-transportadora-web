@@ -66,8 +66,10 @@ def listar_transportadoras():
 @transportadoras_bp.route('/', methods=['POST'])
 def crear_transportadora():
     data = request.json
+    import sys
+    print(f"[DEBUG] transportadoras POST data: {data}", file=sys.stderr)
     if not data.get('nombre') or not data.get('codigo') or not data.get('ciudad_id'):
-        return jsonify({"error": "Faltan campos obligatorios"}), 400
+        return jsonify({"error": f"Faltan campos obligatorios. Recibido: nombre={data.get('nombre')!r} codigo={data.get('codigo')!r} ciudad_id={data.get('ciudad_id')!r}"}), 400
     ciudad = Ciudad.query.get(data['ciudad_id'])
     if not ciudad:
         return jsonify({"error": "Ciudad no encontrada"}), 404

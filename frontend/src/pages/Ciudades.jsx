@@ -1,8 +1,6 @@
 import React, { useEffect, useState, useCallback } from "react";
 import { Search, Plus, Edit3, Trash2, Building2, Flag, AlertCircle, CheckCircle, Loader2 } from "lucide-react";
-
-// Configuración de la API
-const API_BASE_URL = "http://localhost:5000/api";
+import api from "../api/api";
 
 const EnhancedTable = ({ columns, data, onEdit, onDelete, loading }) => {
   const [searchTerm, setSearchTerm] = useState("");
@@ -237,10 +235,12 @@ function Ciudades() {
   const showNotification = (message, type = 'info') => setNotification({ message, type });
 
   const apiCall = async (url, method = 'GET', data = null) => {
-    const config = { method, headers: { 'Content-Type': 'application/json' }, body: data ? JSON.stringify(data) : undefined };
-    const res = await fetch(`${API_BASE_URL}${url}`, config);
-    if (!res.ok) throw new Error(`Error ${res.status}`);
-    return await res.json();
+    try {
+      const res = await api({ method, url, data });
+      return res.data;
+    } catch (err) {
+      throw new Error(`Error ${err.response?.status || 500}`);
+    }
   };
 
   const fetchPaises = useCallback(async () => {

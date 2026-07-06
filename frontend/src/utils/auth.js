@@ -47,6 +47,11 @@ export async function bootstrapSession() {
       setAuthReady(true);
       return true;
     }
+    // Solo intentar refresh si hay sesión previa (user persistido)
+    if (!user) {
+      setAuthReady(true);
+      return false;
+    }
     try {
       const newAccess = await refreshSession();
       if (!newAccess) {
@@ -56,19 +61,11 @@ export async function bootstrapSession() {
         const meResponse = await api.get('/auth/me');
         setSession({ user: meResponse.data, accessToken: newAccess });
       } catch (err) {
-        if (user) {
-          setSession({ user, accessToken: newAccess });
-        } else {
-          clearSession();
-          return false;
-        }
+        setSession({ user, accessToken: newAccess });
       }
       return true;
     } catch (err) {
-      const { accessToken: latestToken } = useAuthStore.getState();
-      if (!latestToken) {
-        clearSession();
-      }
+      clearSession();
       return false;
     } finally {
       setAuthReady(true);

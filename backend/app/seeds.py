@@ -32,7 +32,7 @@ def ensure_admin_user() -> None:
             return
 
         cfg = current_app.config
-        temp_password = _generate_temp_password()
+        temp_password = cfg.get('DEFAULT_ADMIN_PASSWORD') or _generate_temp_password()
         user = Usuario(
             nombre_completo=cfg['DEFAULT_ADMIN_NAME'],
             display_name=cfg['DEFAULT_ADMIN_NAME'],

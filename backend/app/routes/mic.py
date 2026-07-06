@@ -1,5 +1,6 @@
 ﻿# ========== IMPORTS COMPLETOS Y ORDENADOS ==========
 import os
+import re
 import tempfile
 import logging
 from flask import Blueprint, request, jsonify, send_file
@@ -8,6 +9,17 @@ from datetime import datetime
 from app.models import db, MIC, CRT, CRT_Gasto, Ciudad, Transportadora, Remitente
 from app.utils.layout_mic import generar_micdta_pdf_con_datos_y_diagnostico
 from app.security.decorators import verify_authentication
+
+
+def _extract_precintos(text):
+    if not text: return ''
+    m = re.search(r'PRECINTOS:.*', text)
+    return m.group(0) if m else ''
+
+
+def _strip_precintos(text):
+    if not text: return ''
+    return re.sub(r'\n?PRECINTOS:.*', '', text).strip()
 
 mic_bp = Blueprint('mic', __name__, url_prefix='/api/mic')
 mic_bp.before_request(verify_authentication)
@@ -268,7 +280,7 @@ def cargar_datos_crt(crt_id):
 
         datos_mic = {
             "campo_1_transporte": transportadora_formateada,
-            "campo_9_datos_transporte": crt.transportadora.nombre if crt.transportadora else "",
+            "campo_9_datos_transporte": (f"{crt.transportadora.nombre}\n{crt.transportadora.direccion}" if crt.transportadora and crt.transportadora.direccion else (crt.transportadora.nombre if crt.transportadora else "")),
             "campo_2_numero": crt.transportadora.rol_contribuyente if crt.transportadora and crt.transportadora.rol_contribuyente else "",
             "campo_3_transporte": "",
             "campo_4_estado": "PROVISORIO",
@@ -303,7 +315,7 @@ def cargar_datos_crt(crt_id):
             "campo_34_datos_campo4_crt": destinatario_formateado,
             "campo_35_datos_campo6_crt": consignatario_formateado,
             "campo_36_factura_despacho": f"{crt.factura_exportacion or ''} {crt.nro_despacho or ''}".strip(),
-            "campo_37_valor_manual": crt.peso_neto or "",
+            "campo_37_valor_manual": _extract_precintos(crt.detalles_mercaderia or ""),
             "campo_38_datos_campo11_crt": crt.detalles_mercaderia or "",
             "campo_38": crt.detalles_mercaderia or "",
             "campo_40_tramo": getattr(crt, 'tramo', '') or "",

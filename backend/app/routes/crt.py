@@ -1075,7 +1075,7 @@ def generar_pdf_crt(crt_id):
         # ========== Campo 5 ==========
         x_emision = 300
         y_emision = 842 - 168 - 20
-        texto_emision = "ASUNCIÃ“N - PARAGUAY"
+        texto_emision = "ASUNCION - PARAGUAY"
         c.setFont("Helvetica", 8)
         w_emision = stringWidth(texto_emision, "Helvetica", 8)
         c.drawString(x_emision + (max_width_trans - w_emision) / 2, y_emision, texto_emision)

@@ -7,7 +7,23 @@ from app.utils.layout_mic import generar_micdta_pdf_con_datos
 import tempfile
 import logging
 import os
+import re
 from app.security.decorators import verify_authentication
+
+
+def _extract_precintos(text):
+    """Extrae 'PRECINTOS: ...' del final del texto."""
+    if not text:
+        return ''
+    m = re.search(r'PRECINTOS:.*', text)
+    return m.group(0) if m else ''
+
+
+def _strip_precintos(text):
+    """Elimina 'PRECINTOS: ...' del final del texto."""
+    if not text:
+        return ''
+    return re.sub(r'\n?PRECINTOS:.*', '', text).strip()
 
 logger = logging.getLogger(__name__)
 
@@ -45,9 +61,11 @@ def crear_mic_guardado():
             if not data.get(campo_key) or data.get(campo_key).strip() == "":
                 data[campo_key] = "******"
 
-        # Asegurar que campo 9 = campo 1 (datos transportadora)
+        # Asegurar que campo 9 = nombre + dirección (sin ciudad/doc/tel)
         if data.get('campo_1_transporte') and not data.get('campo_9_datos_transporte'):
-            data['campo_9_datos_transporte'] = data['campo_1_transporte']
+            lines = data['campo_1_transporte'].split('\n')
+            lines = lines[:2]  # solo nombre y dirección
+            data['campo_9_datos_transporte'] = '\n'.join(lines) if len(lines) > 1 else lines[0]
 
         # Procesar fecha si viene como string
         fecha_emision = None
@@ -419,9 +437,11 @@ def actualizar_mic(mic_id):
                     setattr(mic, campo, data[campo])
                 campos_actualizados.append(campo)
 
-        # Asegurar que campo 9 = campo 1 si se actualiza campo 1
+        # Asegurar que campo 9 = nombre + dirección (sin ciudad/doc/tel)
         if 'campo_1_transporte' in data and not data.get('campo_9_datos_transporte'):
-            mic.campo_9_datos_transporte = data['campo_1_transporte']
+            lines = data['campo_1_transporte'].split('\n')
+            lines = lines[:2]
+            mic.campo_9_datos_transporte = '\n'.join(lines) if len(lines) > 1 else lines[0]
             if 'campo_9_datos_transporte' not in campos_actualizados:
                 campos_actualizados.append('campo_9_datos_transporte')
 
@@ -902,7 +922,7 @@ def crear_mic_desde_crt_y_guardar(crt_id):
         mic_data_base = {
             "crt_id": crt.id,
             "campo_1_transporte": campo_1_transportadora,
-            "campo_9_datos_transporte": campo_1_transportadora,
+            "campo_9_datos_transporte": (f"{crt.transportadora.nombre}\n{crt.transportadora.direccion}" if crt.transportadora and crt.transportadora.direccion else (crt.transportadora.nombre or "")),
             "campo_33_datos_campo1_crt": campo_33_remitente,
             "campo_34_datos_campo4_crt": campo_34_destinatario,
             "campo_35_datos_campo6_crt": campo_35_consignatario,
@@ -940,8 +960,8 @@ def crear_mic_desde_crt_y_guardar(crt_id):
                 f"Factura: {crt.factura_exportacion or ''} | Despacho: {crt.nro_despacho or ''}"
                 if crt.factura_exportacion or crt.nro_despacho else ""
             ),
-            "campo_37_valor_manual": 0.0,
-            "campo_38_datos_campo11_crt": (crt.detalles_mercaderia or "")[:1500],
+            "campo_37_valor_manual": _extract_precintos(crt.detalles_mercaderia or ""),
+            "campo_38_datos_campo11_crt": (crt.detalles_mercaderia or ""),
             "campo_40_tramo": "",
         }
 
@@ -953,7 +973,7 @@ def crear_mic_desde_crt_y_guardar(crt_id):
         if 'campo_28_total' in user_data: mic_data_final['campo_28_total'] = clean_decimal(user_data['campo_28_total'])
         if 'campo_29_seguro' in user_data: mic_data_final['campo_29_seguro'] = clean_decimal(user_data['campo_29_seguro'])
         if 'campo_31_cantidad' in user_data: mic_data_final['campo_31_cantidad'] = clean_decimal(user_data['campo_31_cantidad'])
-        if 'campo_37_valor_manual' in user_data: mic_data_final['campo_37_valor_manual'] = clean_decimal(user_data['campo_37_valor_manual'])
+        if 'campo_37_valor_manual' in user_data: mic_data_final['campo_37_valor_manual'] = user_data['campo_37_valor_manual']
 
         # Procesar fecha
         fecha_emision = None

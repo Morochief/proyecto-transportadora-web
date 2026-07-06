@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { X, Save, FileText, RefreshCw, AlertCircle } from 'lucide-react';
 import Select from 'react-select'; // Importando react-select
+import api from '../api/api';
 
 const ModalMICCompleto = ({ isOpen, onClose, crt, onGenerate, loading = false, diagnostico, micToEdit = null, onUpdate = null }) => {
   const isEditMode = !!micToEdit;
@@ -11,7 +12,7 @@ const ModalMICCompleto = ({ isOpen, onClose, crt, onGenerate, loading = false, d
     campo_24_aduana: 'BRASIL - MULTILOG - FOZ DO IGUAZU 508 - 030', campo_26_pais: '520-PARAGUAY',
     campo_27_valor_campo16: '', campo_28_total: '', campo_29_seguro: '', campo_30_tipo_bultos: '',
     campo_31_cantidad: '', campo_32_peso_bruto: '', campo_37_valor_manual: '',
-    campo_36_factura_despacho: '', campo_40_tramo: '', campo_chofer: '', campo_4_estado: 'PROVISORIO',
+    campo_36_factura_despacho: '', campo_40_tramo: '', chofer: '', campo_4_estado: 'PROVISORIO',
     campo_5_hoja: '1 / 1', campo_6_fecha: new Date().toISOString().split('T')[0],
     campo_13_siempre_45: '45 TON', campo_25_moneda: '',
     campo_16_asteriscos_1: '******', campo_17_asteriscos_2: '******', campo_18_asteriscos_3: '******',
@@ -33,15 +34,13 @@ const ModalMICCompleto = ({ isOpen, onClose, crt, onGenerate, loading = false, d
   useEffect(() => {
     if (isOpen) {
       // Cargar Transportadoras
-      fetch('http://localhost:5000/api/transportadoras/')
-        .then(res => res.json())
-        .then(data => setTransportadoras(data.items || []))
+      api.get('/transportadoras/')
+        .then(res => setTransportadoras(res.data.items || res.data || []))
         .catch(err => console.error('Error cargando transportadoras:', err));
 
       // Cargar Aduanas
-      fetch('http://localhost:5000/api/aduanas/')
-        .then(res => res.json())
-        .then(data => setAduanas(data || []))
+      api.get('/aduanas/')
+        .then(res => setAduanas(res.data || []))
         .catch(err => console.error('Error cargando aduanas:', err));
     }
   }, [isOpen]);
@@ -49,9 +48,9 @@ const ModalMICCompleto = ({ isOpen, onClose, crt, onGenerate, loading = false, d
   useEffect(() => {
     if (isOpen && isEditMode && micToEdit) {
       // Modo edición: cargar datos del MIC existente
-      fetch(`http://localhost:5000/api/mic-guardados/${micToEdit.id}`)
-        .then(res => res.json())
-        .then(mic => {
+      api.get(`/mic-guardados/${micToEdit.id}`)
+        .then(res => {
+          const mic = res.data;
           setFormData({
             campo_1_transporte: mic.campo_1_transporte || '',
             campo_2_numero: mic.campo_2_numero || '',
@@ -98,14 +97,12 @@ const ModalMICCompleto = ({ isOpen, onClose, crt, onGenerate, loading = false, d
         .catch(err => console.error('Error cargando MIC para edición:', err));
     } else if (isOpen && crt && !isEditMode) {
       // Modo creación: cargar datos del CRT
-      const endpoint = `http://localhost:5000/api/mic/cargar-datos-crt/${crt.id || crt.numero_crt}`;
-      fetch(endpoint)
-        .then(res => res.json())
-        .then(datos => {
+      api.get(`/mic/cargar-datos-crt/${crt.id || crt.numero_crt}`)
+        .then(res => {
+          const datos = res.data;
           setFormData(prev => ({
             ...prev, ...datos,
             campo_37_valor_manual: '',
-            campo_9_datos_transporte: datos.campo_9_datos_transporte || getTransportadoraNombre(datos.campo_1_transporte?.split('\n')[0] || ''),
           }));
         })
         .catch(err => {
@@ -122,13 +119,13 @@ const ModalMICCompleto = ({ isOpen, onClose, crt, onGenerate, loading = false, d
   }, [isOpen, crt, micToEdit, isEditMode, getTransportadoraNombre]);
 
   useEffect(() => {
-    if (formData.campo_1_porteador) {
-      const transportadoraNombre = getTransportadoraNombre(formData.campo_1_porteador);
-      if (transportadoraNombre && transportadoraNombre !== formData.campo_9_datos_transporte) {
-        setFormData(prev => ({ ...prev, campo_9_datos_transporte: transportadoraNombre }));
+    if (formData.campo_1_porteador && !formData.campo_9_datos_transporte?.includes('\n')) {
+      const t = transportadoras.find(x => x.id.toString() === formData.campo_1_porteador.toString());
+      if (t?.nombre && t?.direccion) {
+        setFormData(prev => ({ ...prev, campo_9_datos_transporte: `${t.nombre}\n${t.direccion}` }));
       }
     }
-  }, [formData.campo_1_porteador, formData.campo_9_datos_transporte, getTransportadoraNombre]);
+  }, [formData.campo_1_porteador, formData.campo_9_datos_transporte, transportadoras]);
 
   const handleInputChange = (field, value) => {
     setFormData(prev => ({ ...prev, [field]: value }));
@@ -178,7 +175,7 @@ const ModalMICCompleto = ({ isOpen, onClose, crt, onGenerate, loading = false, d
       campo_36_factura_despacho: formData.campo_36_factura_despacho,
       campo_37_valor_manual: formData.campo_37_valor_manual,
       campo_40_tramo: formData.campo_40_tramo,
-      chofer: formData.chofer,
+      chofer: formData.chofer || formData.campo_chofer || '',
     };
 
     const datosPDFSeguros = {};
@@ -233,7 +230,7 @@ const ModalMICCompleto = ({ isOpen, onClose, crt, onGenerate, loading = false, d
   };
 
   // Convert aduanas to options for React-Select
-  const aduanaOptions = aduanas.map(a => ({ value: a.nombre, label: `${a.codigo} - ${a.nombre}` }));
+  const aduanaOptions = (Array.isArray(aduanas) ? aduanas : []).map(a => ({ value: a.nombre, label: `${a.codigo} - ${a.nombre}` }));
 
   // Custom Styles for Select to match Tailwind
   const selectStyles = {
@@ -311,7 +308,7 @@ const ModalMICCompleto = ({ isOpen, onClose, crt, onGenerate, loading = false, d
                 </div>
                 <div>
                   <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">CRT Referencia</label>
-                  <input type="text" value={crt?.numero_crt || ''} disabled className="w-full p-2 border border-slate-200 bg-slate-100 rounded-lg text-sm" />
+                  <input type="text" value={formData.campo_23_numero_campo2_crt || crt?.numero_crt || ''} disabled className="w-full p-2 border border-slate-200 bg-slate-100 rounded-lg text-sm" />
                 </div>
               </div>
             </div>
@@ -326,7 +323,7 @@ const ModalMICCompleto = ({ isOpen, onClose, crt, onGenerate, loading = false, d
                 </div>
                 <div className="lg:col-span-3">
                   <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Campo 9 - Nombre Transportista (Editable)</label>
-                  <input type="text" value={formData.campo_9_datos_transporte || ''} onChange={(e) => handleInputChange('campo_9_datos_transporte', e.target.value)} className="w-full p-2 border border-slate-300 rounded-lg text-sm" />
+                  <textarea rows={3} value={formData.campo_9_datos_transporte || ''} onChange={(e) => handleInputChange('campo_9_datos_transporte', e.target.value)} className="w-full p-2 border border-slate-300 rounded-lg text-sm resize-y" />
                 </div>
                 <div>
                   <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Campo 2 - Rol Contribuyente</label>
@@ -469,8 +466,8 @@ const ModalMICCompleto = ({ isOpen, onClose, crt, onGenerate, loading = false, d
                     <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Chofer</label>
                     <input
                       type="text"
-                      value={formData.campo_chofer || ''}
-                      onChange={(e) => handleInputChange('campo_chofer', e.target.value)}
+                      value={formData.campo_chofer || formData.chofer || ''}
+                      onChange={(e) => { handleInputChange('campo_chofer', e.target.value); handleInputChange('chofer', e.target.value); }}
                       className="w-full p-2 border border-slate-300 rounded-lg text-sm"
                       placeholder="Ingrese el nombre del chofer"
                     />

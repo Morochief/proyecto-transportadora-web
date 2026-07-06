@@ -155,7 +155,22 @@ const EnhancedFormModal = ({ open, onClose, onSubmit, initialValues, fields, tit
 
   useEffect(() => {
     if (open) {
-      setFormData(initialValues || {});
+      const defaults = initialValues ? { ...initialValues } : {};
+      fields.forEach(f => {
+        // Auto-inicializar selects required con primera opción disponible
+        if (f.type === 'select' && f.required && !defaults[f.name] && f.options?.length > 0) {
+          const firstVal = f.options[0].value;
+          if (firstVal !== '') defaults[f.name] = firstVal;
+        }
+        // Auto-inicializar moneda si hay honorarios pero no moneda seleccionada
+        if (f.name === 'moneda_honorarios_id' && !defaults[f.name]) {
+          const realOptions = (f.options || []).filter(o => o.value !== '');
+          if (realOptions.length > 0) {
+            defaults[f.name] = realOptions[0].value;
+          }
+        }
+      });
+      setFormData(defaults);
       setErrors({});
     }
   }, [open, initialValues]);
@@ -353,8 +368,8 @@ function Transportadoras() {
           { field: "codigo", label: "Código" },
           {
             field: "honorarios", label: "Honorarios",
-            render: (h, row) => row.honorarios && row.moneda_honorarios ? (
-              <span className="text-emerald-700 font-medium">{parseFloat(row.honorarios).toLocaleString('es-ES', { minimumFractionDigits: 2 })} {row.moneda_honorarios.simbolo}</span>
+            render: (h, row) => row.honorarios ? (
+              <span className="text-emerald-700 font-medium">{parseFloat(row.honorarios).toLocaleString('es-ES', { minimumFractionDigits: 2 })} {row.moneda_honorarios?.simbolo || ''}</span>
             ) : <span className="text-slate-400">Sin honorarios</span>
           },
           { field: "nombre", label: "Nombre" },

@@ -152,6 +152,7 @@ class Config:
     DEFAULT_ADMIN_NAME = os.environ.get(
         "DEFAULT_ADMIN_NAME", "Super Administrador")
     DEFAULT_ADMIN_USERNAME = os.environ.get("DEFAULT_ADMIN_USERNAME", "admin")
+    DEFAULT_ADMIN_PASSWORD = os.environ.get("DEFAULT_ADMIN_PASSWORD", "")
     ALLOW_SELF_REGISTRATION = _get_bool_env("ALLOW_SELF_REGISTRATION", True)
     MAIL_LINK_TTL_MINUTES = int(os.environ.get("MAIL_LINK_TTL_MINUTES", "30"))
     RESET_TOKEN_EXPIRATION_MINUTES = int(

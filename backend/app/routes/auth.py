@@ -160,8 +160,8 @@ def refresh():
     refresh_token = request.cookies.get('refresh_token')
     if not refresh_token:
         payload, errors = _parse(RefreshRequest)
-        if errors:
-            return jsonify({'error': 'Datos invalidos', 'details': errors}), 400
+        if errors or not payload.refresh_token:
+            return jsonify({'error': 'No se proporciono refresh token'}), 401
         refresh_token = payload.refresh_token
     ctx = _client_context()
     record = find_valid_refresh_token(refresh_token)
