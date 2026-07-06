@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Plus, Edit2, Trash2, Search, X, Check, MapPin, Building2, Globe } from 'lucide-react';
+import { toast } from 'react-toastify';
 import api from '../api/api';
 import Select from 'react-select';
 
@@ -58,7 +59,7 @@ function Aduanas() {
                 await api.delete(`/aduanas/${id}`);
                 fetchData();
             } catch (err) {
-                alert('Error al eliminar');
+                toast.error('Error al eliminar');
             }
         }
     };

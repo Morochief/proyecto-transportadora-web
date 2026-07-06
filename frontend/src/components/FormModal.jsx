@@ -1,146 +1,100 @@
 import React, { useState, useEffect } from "react";
-import { FiX, FiSave, FiUserPlus } from 'react-icons/fi';
+import { Loader2 } from "lucide-react";
 
-function FormModal({ open, onClose, onSubmit, initialValues, fields, title, error }) {
-  const [formData, setFormData] = useState(initialValues || {});
-  const editUser = initialValues && initialValues.id; // Check if editing
+const FormModal = ({ open, onClose, onSubmit, initialValues, fields, title }) => {
+  const [formData, setFormData] = useState({});
+  const [errors, setErrors] = useState({});
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
-    setFormData(initialValues || {});
-  }, [initialValues]);
+    if (open) {
+      const defaults = initialValues ? { ...initialValues } : {};
+      const fieldsList = Array.isArray(fields) ? fields : [];
+      fieldsList.forEach(f => {
+        if (f.type === 'select' && f.required && !defaults[f.name] && f.options?.length > 0) {
+          const firstVal = f.options[0].value;
+          if (firstVal !== '') defaults[f.name] = firstVal;
+        }
+      });
+      setFormData(defaults);
+      setErrors({});
+    }
+  }, [open, initialValues]);
+
+  const handleChange = (field, value) => {
+    setFormData(prev => ({ ...prev, [field]: value }));
+    if (errors[field]) setErrors(prev => ({ ...prev, [field]: null }));
+  };
+  const handleInputChange = (e) => handleChange(e.target.name, e.target.value);
+
+  const handleSubmit = async () => {
+    setIsSubmitting(true);
+    try {
+      await onSubmit(formData);
+    } catch (error) {
+      console.error(error);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
 
   if (!open) return null;
-
-  const disabled = fields.some(
-    (f) => f.required && (!formData[f.name] || formData[f.name] === "")
-  );
-
-  const handleChange = (e) => {
-    setFormData((prev) => ({
-      ...prev,
-      [e.target.name]: e.target.value,
-    }));
-  };
-
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    onSubmit(formData);
-  };
+  const fieldsArray = Array.isArray(fields) ? fields : [];
 
   return (
-    <div
-      className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50 backdrop-blur-sm"
-      onClick={onClose}
-    >
-      <div
-        onClick={(e) => e.stopPropagation()}
-        className="bg-white rounded-2xl p-8 min-w-[400px] max-w-[600px] shadow-2xl transform transition-all"
-        style={{
-          animation: 'slideIn 0.3s ease-out',
-        }}
-      >
-        <style>{`
-          @keyframes slideIn {
-            from {
-              opacity: 0;
-              transform: translateY(-20px) scale(0.95);
-            }
-            to {
-              opacity: 1;
-              transform: translateY(0) scale(1);
-            }
-          }
-        `}</style>
-        
-        <div className="flex items-center justify-between mb-6">
-          <h3 className="text-2xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">
-            {title}
-          </h3>
-          <button
-            onClick={onClose}
-            className="text-gray-400 hover:text-gray-600 transition-colors text-2xl font-bold w-8 h-8 flex items-center justify-center rounded-full hover:bg-gray-100"
-          >
-            <FiX size={24} />
+    <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+      <div className="bg-white rounded-xl shadow-xl max-w-lg w-full overflow-hidden flex flex-col max-h-[90vh]">
+        <div className="px-6 py-4 border-b border-slate-200 flex justify-between items-center bg-slate-50 shrink-0">
+          <h3 className="text-lg font-bold text-slate-800">{title}</h3>
+          <button onClick={onClose} className="text-slate-400 hover:text-slate-600 transition-colors">
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
           </button>
         </div>
-
-        {error && (
-          <div className="bg-gradient-to-r from-red-50 to-red-100 border-l-4 border-red-500 text-red-700 px-5 py-4 rounded-lg mb-6 shadow-sm">
-            <div className="flex items-center gap-2">
-              <span className="text-xl">⚠️</span>
-              <span className="font-semibold">{error}</span>
-            </div>
-          </div>
-        )}
-
-        <form onSubmit={handleSubmit} className="space-y-5">
-          {fields.map((field) => (
-            <div key={field.name}>
-              <label className="block text-sm mb-2 font-semibold text-gray-700">
-                {field.label}
-                {field.required && <span className="text-red-500 ml-1">*</span>}
+        <div className="p-6 space-y-4 overflow-y-auto">
+          {fieldsArray.map((field) => (
+            <div key={field.name} className="space-y-1">
+              <label className="block text-sm font-medium text-slate-700">
+                {field.label} {field.required && <span className="text-red-500">*</span>}
               </label>
-              {field.type === "select" ? (
-                <select
-                  name={field.name}
-                  value={formData[field.name] || ""}
-                  onChange={handleChange}
-                  required={field.required ? true : undefined}
-                  className="w-full border-2 border-gray-200 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all bg-gray-50 hover:bg-white"
-                >
-                  <option value="">
-                    {field.placeholder || `---Seleccionar ${field.label}---`}
-                  </option>
-                  {field.options &&
-                    field.options.map((opt) => (
-                      <option key={opt.value} value={opt.value}>
-                        {opt.label}
-                      </option>
+              <div className="relative">
+                {field.type === 'select' ? (
+                  <select
+                    value={formData[field.name] || ""}
+                    onChange={(e) => handleChange(field.name, e.target.value)}
+                    className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all ${errors[field.name] ? 'border-red-300' : 'border-slate-300'}`}
+                  >
+                    {field.options?.map((option) => (
+                      <option key={option.value} value={option.value}>{option.label}</option>
                     ))}
-                </select>
-              ) : (
-                <input
-                  type={field.type || "text"}
-                  name={field.name}
-                  value={formData[field.name] || ""}
-                  onChange={handleChange}
-                  required={field.required ? true : undefined}
-                  className="w-full border-2 border-gray-200 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all bg-gray-50 hover:bg-white"
-                  placeholder={field.placeholder || `Ingrese ${field.label.toLowerCase()}`}
-                />
-              )}
+                  </select>
+                ) : (
+                  <input
+                    type={field.type || "text"}
+                    name={field.name}
+                    value={formData[field.name] || ""}
+                    onChange={handleInputChange}
+                    placeholder={field.placeholder}
+                    readOnly={field.readOnly}
+                    className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all ${field.readOnly ? 'bg-slate-50 text-slate-500' : ''} ${errors[field.name] ? 'border-red-300' : 'border-slate-300'}`}
+                  />
+                )}
+              </div>
+              {errors[field.name] && <p className="text-red-500 text-xs mt-1">{errors[field.name]}</p>}
             </div>
           ))}
-          <div className="flex justify-end gap-3 pt-4 border-t border-gray-100">
-            <button
-              type="button"
-              onClick={onClose}
-              className="px-6 py-3 rounded-xl font-semibold text-gray-700 bg-gray-100 hover:bg-gray-200 transition-all"
-            >
-              Cancelar
-            </button>
-            <button
-              type="submit"
-              disabled={disabled}
-              className="px-6 py-3 rounded-xl font-semibold text-white bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 disabled:from-gray-300 disabled:to-gray-400 disabled:cursor-not-allowed transition-all shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 flex items-center gap-2"
-            >
-              {editUser ? (
-                <>
-                  <FiSave size={18} />
-                  Actualizar
-                </>
-              ) : (
-                <>
-                  <FiUserPlus size={18} />
-                  Crear
-                </>
-              )}
-            </button>
-          </div>
-        </form>
+        </div>
+        <div className="px-6 py-4 border-t border-slate-200 bg-slate-50 shrink-0 flex gap-3">
+          <button onClick={onClose} disabled={isSubmitting} className="flex-1 px-4 py-2 border border-slate-300 text-slate-700 rounded-lg hover:bg-white font-medium">
+            Cancelar
+          </button>
+          <button onClick={handleSubmit} disabled={isSubmitting} className="flex-1 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 font-medium flex justify-center items-center gap-2">
+            {isSubmitting && <Loader2 className="w-4 h-4 animate-spin" />}
+            {initialValues ? 'Guardar' : 'Crear'}
+          </button>
+        </div>
       </div>
     </div>
   );
-}
+};
 
 export default FormModal;

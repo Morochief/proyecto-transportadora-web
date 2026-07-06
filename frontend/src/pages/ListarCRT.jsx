@@ -11,6 +11,7 @@ import Modal from "./Modal";
 
 import ModalMICCompleto from "./ModalMICCompleto";
 import CRTPreview from "../components/CRTPreview";
+import { toast } from 'react-toastify';
 
 // Componente Toast personalizado para mantener consistencia visual si es necesario, 
 // o usamos Toastify pero intentamos que se vea bien.

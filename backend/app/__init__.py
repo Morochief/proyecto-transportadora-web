@@ -72,9 +72,11 @@ def create_app():
     @app.after_request
     def add_security_headers(response):
         allowed_origins = app.config.get('CORS_ALLOW_ORIGINS', ['*'])
+        if isinstance(allowed_origins, str):
+            allowed_origins = [o.strip() for o in allowed_origins.split(',') if o.strip()]
         origin = request.headers.get('Origin')
-        if '*' in allowed_origins:
-            cors_origin = '*' if origin is None else origin
+        if '*' in allowed_origins or not origin:
+            cors_origin = origin or '*'
         elif origin in allowed_origins:
             cors_origin = origin
         else:

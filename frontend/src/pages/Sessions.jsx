@@ -1,29 +1,11 @@
 import React, { useEffect, useState } from 'react';
 import api from '../api/api';
 import { Monitor, Smartphone, Globe, Clock, CheckCircle, AlertTriangle, Trash2, LogOut, Laptop } from 'lucide-react';
-
-const Toast = ({ message, type, onClose }) => {
-  useEffect(() => {
-    const timer = setTimeout(onClose, 5000);
-    return () => clearTimeout(timer);
-  }, [onClose]);
-
-  const styles = type === 'success' ? 'bg-emerald-50 text-emerald-800 border-emerald-200' :
-    type === 'error' ? 'bg-red-50 text-red-800 border-red-200' :
-      'bg-blue-50 text-blue-800 border-blue-200';
-
-  return (
-    <div className={`fixed top-20 right-4 z-50 px-4 py-3 rounded-lg border shadow-lg flex items-center gap-3 ${styles} animate-in slide-in-from-right duration-300`}>
-      <span className="font-medium text-sm">{message}</span>
-      <button onClick={onClose} className="opacity-60 hover:opacity-100"><svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg></button>
-    </div>
-  );
-};
+import { toast } from 'react-toastify';
 
 function Sessions() {
   const [sessions, setSessions] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [toast, setToast] = useState(null);
 
   useEffect(() => {
     fetchSessions();
@@ -33,25 +15,25 @@ function Sessions() {
     try {
       const response = await api.get('/security/sessions');
       setSessions(response.data);
-    } catch (err) { setToast({ message: 'Error cargando sesiones', type: 'error' }); } finally { setLoading(false); }
+    } catch (err) { toast.error('Error cargando sesiones'); } finally { setLoading(false); }
   };
 
   const handleRevokeSession = async (sessionId) => {
     if (!window.confirm('¿Está seguro de cerrar esta sesión?')) return;
     try {
       await api.delete(`/security/sessions/${sessionId}`);
-      setToast({ message: 'Sesión cerrada', type: 'success' });
+      toast.success('Sesión cerrada');
       fetchSessions();
-    } catch (err) { setToast({ message: 'Error al cerrar sesión', type: 'error' }); }
+    } catch (err) { toast.error('Error al cerrar sesión'); }
   };
 
   const handleRevokeAll = async () => {
     if (!window.confirm('¿Cerrar tadas las demás sesiones?')) return;
     try {
       const response = await api.post('/security/sessions/revoke-all');
-      setToast({ message: `${response.data.revoked_count} sesiones cerradas`, type: 'success' });
+      toast.success(`${response.data.revoked_count} sesiones cerradas`);
       fetchSessions();
-    } catch (err) { setToast({ message: 'Error al cerrar sesiones', type: 'error' }); }
+    } catch (err) { toast.error('Error al cerrar sesiones'); }
   };
 
   const formatDate = (dateString) => new Date(dateString).toLocaleString('es-ES', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' });
@@ -79,8 +61,7 @@ function Sessions() {
 
   return (
     <div className="min-h-full space-y-6 animate-in fade-in duration-500">
-      {toast && <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />}
-
+      
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <h1 className="text-3xl font-bold text-slate-800 tracking-tight">Sesiones Activas</h1>

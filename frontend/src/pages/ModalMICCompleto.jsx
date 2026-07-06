@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { X, Save, FileText, RefreshCw, AlertCircle } from 'lucide-react';
 import Select from 'react-select'; // Importando react-select
 import api from '../api/api';
+import { toast } from 'react-toastify';
 
 const ModalMICCompleto = ({ isOpen, onClose, crt, onGenerate, loading = false, diagnostico, micToEdit = null, onUpdate = null }) => {
   const isEditMode = !!micToEdit;

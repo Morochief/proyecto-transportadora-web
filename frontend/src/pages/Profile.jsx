@@ -5,32 +5,13 @@ import useAuthStore from '../store/authStore';
 import { login as storeLogin } from '../utils/auth';
 import PasswordStrength from '../components/PasswordStrength';
 import { User, Mail, Shield, Clock, Lock, Smartphone, CheckCircle, AlertTriangle, XCircle, Activity, Globe, Monitor } from 'lucide-react';
-
-const Toast = ({ message, type, onClose }) => {
-  useEffect(() => {
-    const timer = setTimeout(onClose, 5000);
-    return () => clearTimeout(timer);
-  }, [onClose]);
-
-  const styles = type === 'success' ? 'bg-emerald-50 text-emerald-800 border-emerald-200' :
-    type === 'error' ? 'bg-red-50 text-red-800 border-red-200' :
-      type === 'warning' ? 'bg-amber-50 text-amber-800 border-amber-200' :
-        'bg-blue-50 text-blue-800 border-blue-200';
-
-  return (
-    <div className={`fixed top-20 right-4 z-50 px-4 py-3 rounded-lg border shadow-lg flex items-center gap-3 ${styles} animate-in slide-in-from-right duration-300`}>
-      <span className="font-medium text-sm">{message}</span>
-      <button onClick={onClose} className="opacity-60 hover:opacity-100"><svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg></button>
-    </div>
-  );
-};
+import { toast } from 'react-toastify';
 
 function Profile() {
   const { user } = useAuthStore();
   const [profile, setProfile] = useState(user);
   const [loading, setLoading] = useState(true);
   const [passwords, setPasswords] = useState({ current: '', newPassword: '' });
-  const [toast, setToast] = useState(null);
   const [mfaData, setMfaData] = useState(null);
   const [mfaCode, setMfaCode] = useState('');
   const [passwordPolicy, setPasswordPolicy] = useState(null);
@@ -63,7 +44,7 @@ function Profile() {
   }, []);
 
   const showToast = (message, type = 'info') => {
-    setToast({ message, type });
+    type === 'success' ? toast.success(message) : type === 'error' ? toast.error(message) : type === 'warning' ? toast.warning(message) : toast.info(message);
   };
 
   const handlePasswordChange = async (event) => {
@@ -132,7 +113,7 @@ function Profile() {
 
   return (
     <div className="min-h-full space-y-8 animate-in fade-in duration-500">
-      {toast && <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />}
+      
 
       {/* Header */}
       <div>

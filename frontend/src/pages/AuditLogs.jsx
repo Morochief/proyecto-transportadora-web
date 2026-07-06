@@ -1,29 +1,11 @@
 import React, { useEffect, useState } from 'react';
 import api from '../api/api';
 import { Search, Filter, Download, ChevronLeft, ChevronRight, ChevronDown, ChevronUp, AlertCircle, Info, PauseCircle, Activity } from 'lucide-react';
-
-const Toast = ({ message, type, onClose }) => {
-  useEffect(() => {
-    const timer = setTimeout(onClose, 5000);
-    return () => clearTimeout(timer);
-  }, [onClose]);
-
-  const styles = type === 'success' ? 'bg-emerald-50 text-emerald-800 border-emerald-200' :
-    type === 'error' ? 'bg-red-50 text-red-800 border-red-200' :
-      'bg-blue-50 text-blue-800 border-blue-200';
-
-  return (
-    <div className={`fixed top-20 right-4 z-50 px-4 py-3 rounded-lg border shadow-lg flex items-center gap-3 ${styles} animate-in slide-in-from-right duration-300`}>
-      <span className="font-medium text-sm">{message}</span>
-      <button onClick={onClose} className="opacity-60 hover:opacity-100"><svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg></button>
-    </div>
-  );
-};
+import { toast } from 'react-toastify';
 
 function AuditLogs() {
   const [logs, setLogs] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [toast, setToast] = useState(null);
   const [pagination, setPagination] = useState(null);
   const [filters, setFilters] = useState({ page: 1, per_page: 20, action: '', level: '', search: '', start_date: '', end_date: '' });
   const [availableActions, setAvailableActions] = useState([]);
@@ -43,7 +25,7 @@ function AuditLogs() {
       const response = await api.get(`/security/audit-logs?${params}`);
       setLogs(response.data.logs);
       setPagination(response.data.pagination);
-    } catch (err) { setToast({ message: 'Error cargando logs', type: 'error' }); } finally { setLoading(false); }
+    } catch (err) { toast.error('Error cargando logs'); } finally { setLoading(false); }
   };
 
   const fetchActions = async () => {
@@ -74,13 +56,12 @@ function AuditLogs() {
     link.href = URL.createObjectURL(new Blob([csvContent], { type: 'text/csv;charset=utf-8;' }));
     link.download = `audit-logs-${new Date().toISOString()}.csv`;
     link.click();
-    setToast({ message: 'Exportado exitosamente', type: 'success' });
+    toast.success('Exportado exitosamente');
   };
 
   return (
     <div className="min-h-full space-y-6 animate-in fade-in duration-500">
-      {toast && <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />}
-
+      
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <h1 className="text-3xl font-bold text-slate-800 tracking-tight">Logs de Auditoría</h1>
