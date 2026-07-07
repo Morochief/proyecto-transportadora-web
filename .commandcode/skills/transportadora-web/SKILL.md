@@ -4,21 +4,27 @@
 > especializado en emisión de CRT (Carta de Porte Internacional) y MIC/DTA.
 > Stack: Flask 3.1 + React 19 + PostgreSQL 14 + Docker + Redis 7.
 
-## Backup y restauración de la base de datos
+## ⚠️ REGLA #1: Backup antes de tocar migraciones
 
-**Antes de cualquier operación riesgosa** (migraciones, limpieza de DB, reinicios forzados):
+**No importa lo que parezca, siempre preguntar antes de ejecutar:**
+- `flask db upgrade` / `flask db downgrade`
+- `flask db migrate`
+- Borrar `alembic_version`
+- Cualquier operación que modifique el esquema de la DB
+
+**Comando de backup:**
 
 ```bash
-docker compose exec -T db pg_dump -U postgres logistica > backups/timestamp_nombre.sql
+docker compose exec -T db pg_dump -U postgres logistica > backups/backup_$(date +%Y%m%d_%H%M%S).sql
 ```
 
-**Restaurar** un backup:
+**Restaurar:**
 
 ```bash
-docker compose exec -T db psql -U postgres -d logistica < backups/timestamp_nombre.sql
+docker compose exec -T db psql -U postgres -d logistica < backups/backup_archivo.sql
 ```
 
-**Regla fija:** cuando el asistente vaya a ejecutar `flask db upgrade`, `flask db downgrade`, borrar `alembic_version`, o cualquier operación que modifique el esquema, DEBE preguntar primero si el usuario quiere un backup antes de proceder.
+**Historia real:** en una sesión previa se borró `alembic_version` y se forzó `flask db upgrade` desde cero, eliminando todos los datos cargados (países, ciudades, monedas, CRTs, etc.). No repetir.
 
 ## Stack
 
@@ -52,22 +58,25 @@ Frontend: Zustand store → Axios interceptors → API REST
 
 ### Servicios Docker (dev)
 
-- `db`: PostgreSQL 14
-- `redis`: Redis 7 (rate limiting + futuro caché)
+- `db`: PostgreSQL 14 (volumen persistente `pgdata`)
+- `redis`: Redis 7 (rate limiting)
 - `mailhog`: Captura de correos en desarrollo (:8025)
 - `backend`: Flask con hot-reload (:5000)
 - `frontend`: Vite con HMR (:3000)
 - `pgadmin`: Administración DB (:5050)
+
+**La DB persiste automáticamente** en el volumen `pgdata` de Docker. No se pierde con `restart`, `up -d --build`, ni `down`. Solo se pierde al resetear migraciones forzosamente.
 
 ## Patrones y convenciones
 
 ### Backend
 
 - **App Factory:** `create_app()` en `app/__init__.py`. Inicializa DB, CORS, Migrate, rate limiter, seeds.
-- **Service Layer:** `auth_service.py` encapsula toda la lógica de autenticación (700+ líneas).
+- **Service Layer:** `auth_service.py` encapsula toda la lógica de autenticación.
 - **Config env-driven:** 40+ variables en `config.py` leídas de entorno con defaults seguros.
-- **Rate limiting:** Redis sliding window con fallback a DB. Se inicializa con `rate_limiter.init_app(app)` en la app factory.
+- **Rate limiting:** Redis sliding window via `rate_limiter.init_app(app)`. Fallback automático a DB si Redis no está disponible.
 - **MFA en seed admin:** El admin seed genera TOTP + backup codes automáticamente (excepto en TESTING=True).
+- **Modelo MIC:** Todos los campos de texto largo son `db.Text`, no `db.String(n)` — los VARCHAR pequeños causan `StringDataRightTruncation` con datos reales (campo_1_transporte, campo_24_aduana, campo_33/34/35, etc.).
 
 ### Frontend
 
@@ -75,6 +84,8 @@ Frontend: Zustand store → Axios interceptors → API REST
 - **Auth flow:** `bootstrapSession()` → refresh token cookie → `GET /auth/me`.
 - **Routing:** `PrivateRoute` con verificación de roles.
 - **Estilos:** Tailwind CSS como sistema único. No usar CSS modules ni clases globales sueltas.
+- **FormModal** requiere `fields` prop — si no se pasa, envía `{}` al backend y da 400.
+- **Páginas CRUD** usan `FormModal` compartido, no inline. No redefinir el modal en cada página.
 
 ### Docker
 
@@ -84,7 +95,7 @@ Frontend: Zustand store → Axios interceptors → API REST
 
 ## Deuda técnica saldada
 
-### Sesión anterior (críticos y altos)
+### Sesión 1 (críticos y altos)
 
 | Item | Solución |
 |------|----------|
@@ -93,7 +104,7 @@ Frontend: Zustand store → Axios interceptors → API REST
 | Dos sistemas de Toast | Unificado a `react-toastify` |
 | Sin SSL/TLS | Pendiente (requiere Certbot + dominio) |
 
-### Esta sesión (medios y bajos)
+### Sesión 2 (medios y bajos)
 
 | Item | Solución |
 |------|----------|
@@ -103,9 +114,10 @@ Frontend: Zustand store → Axios interceptors → API REST
 | Immer sin uso | Eliminado de package.json |
 | CSS modules vs inline | `App.css` reducido de 266→4 líneas; solo Tailwind |
 | Admin sin MFA | Seed genera TOTP + backup codes |
-| FormModal inline rotos | Componentes inline `FormModal` (~100 líneas c/u) eliminados de 6 páginas |
+| FormModal inline rotos | Componentes inline eliminados de 6 páginas CRUD |
 | Toast duplicado en ListarCRT | Import duplicado eliminado |
 | Key duplicada en Usuarios | `label` duplicado eliminado |
+| VARCHAR cortos en MIC | `campo_1`, `campo_24`, `campo_33/34/35`, etc. pasados a TEXT |
 
 ## Seguridad
 
@@ -123,6 +135,11 @@ Frontend: Zustand store → Axios interceptors → API REST
 docker compose up -d --build backend
 ```
 
+### Reconstruir frontend con cambios
+```bash
+cd frontend && npx vite build
+```
+
 ### Ver logs del backend
 ```bash
 docker compose logs --tail=50 backend
@@ -135,10 +152,25 @@ docker compose exec -T db psql -U postgres -d logistica -c "SQL AQUÍ"
 
 ### Backup rápido (antes de migraciones)
 ```bash
-docker compose exec -T db pg_dump -U postgres logistica > backup.sql
+docker compose exec -T db pg_dump -U postgres logistica > backups/backup_$(date +%Y%m%d_%H%M%S).sql
+```
+
+### Generar migración + aplicar
+```bash
+docker compose exec backend flask db migrate -m "descripcion"
+docker compose exec backend flask db upgrade
 ```
 
 ### Correr tests del backend
 ```bash
 cd backend && python -m pytest tests/ -v
+```
+
+### Commit y push
+```bash
+git add -A
+git commit -m "tipo: descripcion
+
+Co-authored-by: CommandCodeBot <noreply@commandcode.ai>"
+git push origin main
 ```
