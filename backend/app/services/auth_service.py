@@ -395,6 +395,7 @@ def start_password_reset(email: str) -> None:
     )
     db.session.add(record)
     reset_link = f"{current_app.config['FRONTEND_URL'].rstrip('/')}/reset-password?token={token}"
+    current_app.logger.info("Reset link: %s", reset_link)
     send_email(
         recipient=user.email,
         subject='Recuperar contrasena',

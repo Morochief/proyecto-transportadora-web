@@ -134,7 +134,7 @@ class Config:
     SMTP_PASSWORD = os.environ.get("SMTP_PASSWORD")
     SMTP_USE_TLS = _get_bool_env("SMTP_USE_TLS", False)
     SMTP_FROM_EMAIL = os.environ.get(
-        "SMTP_FROM_EMAIL", "no-reply@transportadora.local")
+        "SMTP_FROM_EMAIL", "noreply@transportadora.app")
     SMTP_FROM_NAME = os.environ.get("SMTP_FROM_NAME", "Sistema Logistico")
     SMTP_DOMAIN_ROUTES = _get_kv_map("SMTP_DOMAIN_ROUTES", "")
     SMTP_PROFILE_SETTINGS = _get_smtp_profiles(SMTP_DOMAIN_ROUTES)
@@ -148,7 +148,7 @@ class Config:
     CSP_STYLE_SRC = os.environ.get("CSP_STYLE_SRC", "'self'")
 
     DEFAULT_ADMIN_EMAIL = os.environ.get(
-        "DEFAULT_ADMIN_EMAIL", "admin@transportadora.local")
+        "DEFAULT_ADMIN_EMAIL", "morochief95@gmail.com")
     DEFAULT_ADMIN_NAME = os.environ.get(
         "DEFAULT_ADMIN_NAME", "Super Administrador")
     DEFAULT_ADMIN_USERNAME = os.environ.get("DEFAULT_ADMIN_USERNAME", "admin")

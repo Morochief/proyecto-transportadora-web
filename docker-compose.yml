@@ -82,7 +82,7 @@ services:
       SMTP_OUTLOOK_FROM_EMAIL: ${SMTP_OUTLOOK_FROM_EMAIL:-}
       SMTP_OUTLOOK_FROM_NAME: ${SMTP_OUTLOOK_FROM_NAME:-}
       TIMEZONE: America/Asuncion
-      DEFAULT_ADMIN_EMAIL: admin@transportadora.local
+      DEFAULT_ADMIN_EMAIL: morochief95@gmail.com
       DEFAULT_ADMIN_USERNAME: admin
       DEFAULT_ADMIN_PASSWORD: admin123
       PREFERRED_URL_SCHEME: http
