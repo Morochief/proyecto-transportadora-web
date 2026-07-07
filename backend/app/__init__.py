@@ -5,6 +5,7 @@ from flask_migrate import Migrate
 
 from app.security.rbac import ensure_roles_permissions
 from app.utils.logging_config import configure_logging
+from app.services.rate_limiter import init_app as init_rate_limiter
 from .seeds import ensure_admin_user
 
 import traceback
@@ -17,6 +18,7 @@ def create_app():
     app = Flask(__name__)
     app.config.from_object('config.Config')
     configure_logging(app)
+    init_rate_limiter(app)
     db.init_app(app)
     CORS(
         app,

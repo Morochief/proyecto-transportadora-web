@@ -40,6 +40,33 @@ services:
           memory: 512M
 
   # ===========================================================================
+  # Redis (Rate Limiting + Caching)
+  # ===========================================================================
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command: redis-server --appendonly yes
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - app-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 512M
+        reservations:
+          cpus: '0.1'
+          memory: 128M
+
+  # ===========================================================================
   # Backend API (Flask)
   # ===========================================================================
   backend:
@@ -55,10 +82,13 @@ services:
     depends_on:
       db:
         condition: service_healthy
+      redis:
+        condition: service_started
     environment:
       FLASK_ENV: production
       FLASK_APP: wsgi.py
       DATABASE_URL: ${DATABASE_URL}
+      REDIS_URL: ${REDIS_URL}
       JWT_SECRET_KEY: ${JWT_SECRET_KEY}
       SECRET_KEY: ${SECRET_KEY}
       CORS_ALLOW_ORIGINS: ${CORS_ALLOW_ORIGINS}
@@ -202,3 +232,4 @@ networks:
 volumes:
   pgdata_prod:
   backend_logs:
+  redis_data:

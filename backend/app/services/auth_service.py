@@ -54,6 +54,7 @@ from app.security.tokens import (
 )
 from app.services.audit_service import audit_event
 from app.services.email_service import send_email
+from app.services.rate_limiter import check_rate_limit, record_attempt
 
 
 class AuthServiceError(Exception):
@@ -122,21 +123,21 @@ def _record_login_attempt(*, user: Optional[Usuario], email: str, ip: Optional[s
         mfa_required=mfa_required,
     )
     db.session.add(attempt)
+    if ip:
+        record_attempt(ip)
 
 
 def _check_rate_limit(ip: Optional[str]) -> None:
     if not ip:
         return
     cfg = current_app.config
-    window_start = _now() - timedelta(minutes=1)
-    attempts = (
-        LoginAttempt.query
-        .filter(LoginAttempt.ip == ip)
-        .filter(LoginAttempt.created_at >= window_start)
-        .count()
+    retry_after = check_rate_limit(
+        ip=ip,
+        limit=cfg['LOGIN_RATE_LIMIT_PER_MINUTE'],
+        backoff_factor=cfg['LOGIN_RATE_LIMIT_BACKOFF_FACTOR'],
+        window_seconds=60,
     )
-    if attempts >= cfg['LOGIN_RATE_LIMIT_PER_MINUTE']:
-        retry_after = int(60 * (cfg['LOGIN_RATE_LIMIT_BACKOFF_FACTOR'] ** max(1, attempts - cfg['LOGIN_RATE_LIMIT_PER_MINUTE'] + 1)))
+    if retry_after is not None:
         raise RateLimitExceeded(retry_after)
 
 

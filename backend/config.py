@@ -162,4 +162,8 @@ class Config:
     STRUCTURED_LOGGING = _get_bool_env("STRUCTURED_LOGGING", True)
     ENABLE_SIEM_HOOKS = _get_bool_env("ENABLE_SIEM_HOOKS", False)
 
+    REDIS_URL = os.environ.get("REDIS_URL") or None
+    REDIS_SOCKET_TIMEOUT = float(os.environ.get("REDIS_SOCKET_TIMEOUT", "2"))
+    REDIS_ENABLED = _get_bool_env("REDIS_ENABLED", True)
+
     PREFERRED_URL_SCHEME = os.environ.get("PREFERRED_URL_SCHEME", "https")

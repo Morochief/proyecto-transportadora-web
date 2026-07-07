@@ -1,14 +1,12 @@
 import React, { useEffect, useState } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams } from "react-router-dom";
 import api from "../api/api";
 import Select from "react-select";
 import {
-  FileText, User, MapPin, Truck, Package, DollarSign, Calendar, Info,
-  Save, Eye, FileCheck, AlertCircle, ChevronRight, CheckCircle, Calculator
+  FileText, User, MapPin, Truck, Package, DollarSign,
+  Save, FileCheck, CheckCircle
 } from "lucide-react";
 import ModalMICCompleto from "./ModalMICCompleto";
-import CRTPreview from "../components/CRTPreview";
-import { toast } from 'react-toastify';
 
 // Helper functions
 function hoyISO() {
@@ -30,7 +28,6 @@ const INCOTERMS = [
 
 function CRT() {
   const { id } = useParams();
-  const navigate = useNavigate();
   // State definitions (Kept identical to original)
   const [remitentes, setRemitentes] = useState([]);
   const [transportadoras, setTransportadoras] = useState([]);
@@ -49,8 +46,6 @@ function CRT() {
   const [loadingMIC, setLoadingMIC] = useState(false);
   const [diagnosticoMIC, setDiagnosticoMIC] = useState(null);
   const [loadingEmitir, setLoadingEmitir] = useState(false);
-  const [previewOpen, setPreviewOpen] = useState(false);
-  const [previewData, setPreviewData] = useState(null);
 
   const [form, setForm] = useState({
     numero_crt: "", fecha_emision: hoyISO(), estado: "EMITIDO",
@@ -68,50 +63,6 @@ function CRT() {
   const [gastoActual, setGastoActual] = useState({ tramo: "", valor_remitente: "", valor_destinatario: "" });
 
   // Effects & Logic (Kept identical but cleaned up)
-  const mostrarVistaPrevia = () => {
-    const previewData = {
-      ...form,
-      remitente: remitentes.find(r => r.id === form.remitente_id)?.nombre || '',
-      destinatario: remitentes.find(r => r.id === form.destinatario_id)?.nombre || '',
-      consignatario: remitentes.find(r => r.id === form.consignatario_id)?.nombre || '',
-      notificar_a: remitentes.find(r => r.id === form.notificar_a_id)?.nombre || '',
-      transportadora: transportadoras.find(t => t.id === form.transportadora_id)?.nombre || '',
-      moneda: monedas.find(m => m.id === form.moneda_id)?.codigo || '',
-      ciudad_emision: ciudades.find(c => c.id === form.ciudad_emision_id)?.nombre || '',
-      pais_emision: paises.find(p => p.id === form.pais_emision_id)?.nombre || '',
-      gastos: gastoActual.tramo ? [gastoActual] : [],
-      numero_crt: form.numero_crt || 'Sin asignar',
-      estado: form.estado || 'BORRADOR',
-      fecha_emision: form.fecha_emision,
-      remitente_direccion: remitentes.find(r => r.id === form.remitente_id)?.direccion || '',
-      remitente_ciudad: ciudades.find(c => c.id === remitentes.find(r => r.id === form.remitente_id)?.ciudad_id)?.nombre || '',
-      remitente_pais: paises.find(p => p.id === ciudades.find(c => c.id === remitentes.find(r => r.id === form.remitente_id)?.ciudad_id)?.pais_id)?.nombre || '',
-      destinatario_direccion: remitentes.find(r => r.id === form.destinatario_id)?.direccion || '',
-      destinatario_ciudad: ciudades.find(c => c.id === remitentes.find(r => r.id === form.destinatario_id)?.ciudad_id)?.nombre || '',
-      destinatario_pais: paises.find(p => p.id === ciudades.find(c => c.id === remitentes.find(r => r.id === form.destinatario_id)?.ciudad_id)?.pais_id)?.nombre || '',
-      consignatario_direccion: remitentes.find(r => r.id === form.consignatario_id)?.direccion || '',
-      consignatario_ciudad: ciudades.find(c => c.id === remitentes.find(r => r.id === form.consignatario_id)?.ciudad_id)?.nombre || '',
-      consignatario_pais: paises.find(p => p.id === ciudades.find(c => c.id === remitentes.find(r => r.id === form.consignatario_id)?.ciudad_id)?.pais_id)?.nombre || '',
-      transportadora_direccion: transportadoras.find(t => t.id === form.transportadora_id)?.direccion || '',
-      transportadora_ciudad: ciudades.find(c => c.id === transportadoras.find(t => t.id === form.transportadora_id)?.ciudad_id)?.nombre || '',
-      transportadora_pais: paises.find(p => p.id === ciudades.find(c => c.id === transportadoras.find(t => t.id === form.transportadora_id)?.ciudad_id)?.pais_id)?.nombre || '',
-    };
-    setPreviewData(previewData);
-    setPreviewOpen(true);
-  };
-
-  const descargarPDFFromPreview = async () => {
-    if (!crtEmitido) { alert("Primero debe emitir el CRT antes de descargar el PDF"); return; }
-    try {
-      const response = await fetch(`http://localhost:5000/api/crts/${crtEmitido.id}/pdf`, { method: "POST" });
-      if (!response.ok) throw new Error(`HTTP ${response.status}`);
-      const blob = await response.blob();
-      const url = window.URL.createObjectURL(blob);
-      const link = document.createElement('a'); link.href = url;
-      document.body.appendChild(link); link.click(); document.body.removeChild(link);
-      window.URL.revokeObjectURL(url);
-    } catch (error) { alert("Error descargando PDF: " + error.message); }
-  };
 
   const optCiudadPais = (ciudades, paises) => ciudades.map((c) => {
     const pais = paises.find((p) => p.id === c.pais_id);
@@ -671,7 +622,6 @@ function CRT() {
       </form>
 
       <ModalMICCompleto isOpen={modalMICOpen} onClose={() => { setModalMICOpen(false); setDiagnosticoMIC(null); }} crt={crtEmitido} onGenerate={handleGenerateMIC} loading={loadingMIC} diagnostico={diagnosticoMIC} />
-      <CRTPreview crtData={previewData} onClose={() => setPreviewOpen(false)} onDownloadPDF={descargarPDFFromPreview} isOpen={previewOpen} />
     </div>
   );
 }

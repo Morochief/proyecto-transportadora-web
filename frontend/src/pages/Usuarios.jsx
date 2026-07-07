@@ -27,7 +27,6 @@ function Usuarios() {
     {
       name: 'rol',
       label: 'Rol principal',
-      label: 'Rol principal',
       type: 'select',
       options: rolesList,
       required: true,

@@ -11,6 +11,17 @@ services:
     volumes:
       - pgdata:/var/lib/postgresql/data
 
+  redis:
+    image: redis:7-alpine
+    restart: always
+    ports:
+      - "127.0.0.1:6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
   mailhog:
     image: mailhog/mailhog:v1.0.1
     restart: always
@@ -42,11 +53,13 @@ services:
       - "5678:5678"
     depends_on:
       - db
+      - redis
       - mailhog
     environment:
       FLASK_DEBUG: "1"
       FLASK_APP: wsgi.py
       DATABASE_URL: postgresql://postgres:postgres@db:5432/logistica
+      REDIS_URL: redis://redis:6379/0
       JWT_SECRET_KEY: change-me
       SECRET_KEY: change-me
       CORS_ALLOW_ORIGINS: http://localhost:3000
