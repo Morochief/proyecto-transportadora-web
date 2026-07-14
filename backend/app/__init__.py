@@ -2,6 +2,7 @@ from flask import Flask, jsonify, request
 from flask_sqlalchemy import SQLAlchemy
 from flask_cors import CORS
 from flask_migrate import Migrate
+from werkzeug.middleware.proxy_fix import ProxyFix
 
 from app.security.rbac import ensure_roles_permissions
 from app.utils.logging_config import configure_logging
@@ -14,16 +15,35 @@ import traceback
 db = SQLAlchemy()
 
 
+def _validate_config(app):
+    cfg = app.config
+    errors = []
+    if not cfg.get('MFA_ENCRYPTION_KEY'):
+        errors.append("MFA_ENCRYPTION_KEY no configurada")
+    jwt_key = cfg.get('JWT_SECRET_KEY')
+    if not jwt_key or jwt_key in ('change-me', 'dev-only-insecure-key-change-in-production'):
+        errors.append("JWT_SECRET_KEY no es segura o está vacía")
+
+    if errors:
+        if not cfg.get('DEBUG') and not cfg.get('TESTING'):
+            raise RuntimeError(f"Configuración inválida para producción: {', '.join(errors)}")
+        else:
+            for error in errors:
+                app.logger.warning(f"CONFIG INSEGURA: {error}")
+
+
 def create_app():
     app = Flask(__name__)
+    app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1)
     app.config.from_object('config.Config')
     configure_logging(app)
+    _validate_config(app)
     init_rate_limiter(app)
     db.init_app(app)
     CORS(
         app,
         resources={
-            r'/api/*': {'origins': app.config.get('CORS_ALLOW_ORIGINS', ['*'])}},
+            r'/api/*': {'origins': app.config.get('CORS_ALLOW_ORIGINS', [])}},
         supports_credentials=True,
     )
     Migrate(app, db)
@@ -73,16 +93,16 @@ def create_app():
 
     @app.after_request
     def add_security_headers(response):
-        allowed_origins = app.config.get('CORS_ALLOW_ORIGINS', ['*'])
+        allowed_origins = app.config.get('CORS_ALLOW_ORIGINS', [])
         if isinstance(allowed_origins, str):
             allowed_origins = [o.strip() for o in allowed_origins.split(',') if o.strip()]
         origin = request.headers.get('Origin')
-        if '*' in allowed_origins or not origin:
-            cors_origin = origin or '*'
-        elif origin in allowed_origins:
+        if '*' in allowed_origins:
+            cors_origin = '*'
+        elif origin and origin in allowed_origins:
             cors_origin = origin
         else:
-            cors_origin = allowed_origins[0] if allowed_origins else '*'
+            cors_origin = ''
         response.headers['Access-Control-Allow-Origin'] = cors_origin
         response.headers['Access-Control-Allow-Methods'] = app.config.get(
             'CORS_ALLOW_METHODS', 'GET,POST,PUT,PATCH,DELETE,OPTIONS')

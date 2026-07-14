@@ -73,7 +73,7 @@ def revoke_session(session_id: int):
     audit_event(
         'session.revoked',
         user_id=user.id,
-        ip=request.headers.get('X-Forwarded-For', request.remote_addr),
+        ip=request.remote_addr,
         user_agent=request.headers.get('User-Agent'),
         metadata={'session_id': session_id}
     )
@@ -111,7 +111,7 @@ def revoke_all_sessions():
     audit_event(
         'sessions.revoked_all',
         user_id=user.id,
-        ip=request.headers.get('X-Forwarded-For', request.remote_addr),
+        ip=request.remote_addr,
         user_agent=request.headers.get('User-Agent'),
         metadata={'revoked_count': revoked_count}
     )

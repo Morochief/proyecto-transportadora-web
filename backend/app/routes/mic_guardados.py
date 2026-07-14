@@ -11,19 +11,7 @@ import re
 from app.security.decorators import verify_authentication
 
 
-def _extract_precintos(text):
-    """Extrae 'PRECINTOS: ...' del final del texto."""
-    if not text:
-        return ''
-    m = re.search(r'PRECINTOS:.*', text)
-    return m.group(0) if m else ''
-
-
-def _strip_precintos(text):
-    """Elimina 'PRECINTOS: ...' del final del texto."""
-    if not text:
-        return ''
-    return re.sub(r'\n?PRECINTOS:.*', '', text).strip()
+from app.routes.mic import _extract_precintos, _strip_precintos
 
 logger = logging.getLogger(__name__)
 
@@ -155,61 +143,10 @@ def crear_mic_guardado():
 
 def verificar_crear_honorario(mic):
     """
-    ACTUALIZADO: Ahora busca el honorario existente (creado por el CRT) 
-    y actualiza los datos del MIC (Placa, Chofer, NÃºmero).
-    Si no existe, lo crea (fallback).
+    Delegar la lógica de creación/actualización de honorarios para el MIC al servicio.
     """
-    try:
-        from app.models import Honorario, Transportadora, CRT
-        
-        if not mic.crt_id:
-            return
-            
-        # Verificar si ya existe honorario para este CRT
-        honorario = Honorario.query.filter_by(crt_id=mic.crt_id).first()
-        
-        # Datos del MIC para actualizar
-        placas = f"{mic.campo_11_placa or ''} / {mic.campo_15_placa_semi or ''}"
-        
-        if honorario:
-            # Actualizar existente
-            honorario.mic_numero = mic.campo_23_numero_campo2_crt
-            honorario.chofer = mic.chofer
-            honorario.placas = placas
-            # Nota: Si el usuario ya editÃ³ manualmente estos campos, esto los sobreescribirÃ¡ ?
-            # Requerimiento: "AUTOCOMPLETADO". Asumimos que la generaciÃ³n de MIC manda sobre lo manual previo.
-            db.session.commit()
-            logger.info(f"Honorario updated for CRT {mic.crt_id} with MIC data")
-            return
-
-        # Si NO existe, aplicar lÃ³gica de creaciÃ³n (Fallback)
-        # Cargar CRT y Transportadora
-        crt = CRT.query.get(mic.crt_id)
-        if not crt or not crt.transportadora_id:
-            return
-            
-        transp = Transportadora.query.get(crt.transportadora_id)
-        if not transp or not transp.honorarios:
-            return
-            
-        # Crear Honorario
-        nuevo_honorario = Honorario(
-            descripcion=f"Honorarios CRT {crt.numero_crt} / MIC {mic.campo_23_numero_campo2_crt}",
-            monto=transp.honorarios,
-            transportadora_id=transp.id,
-            moneda_id=transp.moneda_honorarios_id or 1,
-            fecha=datetime.now().date(),
-            crt_id=crt.id,
-            mic_numero=mic.campo_23_numero_campo2_crt,
-            chofer=mic.chofer,
-            placas=placas
-        )
-        db.session.add(nuevo_honorario)
-        db.session.commit()
-        logger.info(f"Honorario auto-created (fallback) for CRT {crt.numero_crt}")
-        
-    except Exception as e:
-        logger.error(f"Error auto-updating/creating honorario: {e}")
+    from app.services.honorario_service import verificar_crear_honorario as svc_verificar
+    svc_verificar(mic)
 
 # ========== LISTAR MICs GUARDADOS ==========
 

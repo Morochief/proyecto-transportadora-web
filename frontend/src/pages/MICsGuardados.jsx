@@ -3,8 +3,8 @@ import MICPreview from "../components/MICPreview";
 import ModalMICCompleto from "./ModalMICCompleto";
 import axios from "axios";
 import api from "../api/api";
-import { toast, ToastContainer } from "react-toastify";
-import "react-toastify/dist/ReactToastify.css";
+import { toast } from "react-toastify";
+import StatusBadge from "../components/StatusBadge";
 import {
   Search, Filter, Eye, Download, Trash2, Calendar, Truck,
   FileText, CheckCircle, AlertCircle, X, ChevronLeft, ChevronRight, BarChart3, RefreshCw, Edit3
@@ -161,7 +161,6 @@ export default function MICsGuardados() {
 
   return (
     <div className="min-h-full space-y-6 animate-in fade-in duration-500 pb-10">
-      <ToastContainer position="top-right" />
 
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -243,10 +242,7 @@ export default function MICsGuardados() {
                     <td className="px-6 py-4 font-mono text-xs text-slate-400">#{mic.id}</td>
                     <td className="px-6 py-4 font-medium text-slate-700">{mic.numero_carta_porte || '-'}</td>
                     <td className="px-6 py-4">
-                      <span className={`px-2 py-1 rounded-full text-xs font-bold ${mic.estado === 'DEFINITIVO' ? 'bg-emerald-100 text-emerald-700' :
-                        mic.estado === 'ANULADO' ? 'bg-red-100 text-red-700' :
-                          'bg-amber-100 text-amber-700'
-                        }`}>{mic.estado}</span>
+                    <StatusBadge status={mic.estado} />
                     </td>
                     <td className="px-6 py-4 text-slate-600">{formatearFecha(mic.fecha_emision)}</td>
                     <td className="px-6 py-4 text-slate-600 truncate max-w-xs" title={mic.transportadora}>{mic.transportadora}</td>

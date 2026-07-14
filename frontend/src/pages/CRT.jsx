@@ -46,6 +46,7 @@ function CRT() {
   const [loadingMIC, setLoadingMIC] = useState(false);
   const [diagnosticoMIC, setDiagnosticoMIC] = useState(null);
   const [loadingEmitir, setLoadingEmitir] = useState(false);
+  const [fleteExternoOverridden, setFleteExternoOverridden] = useState(false);
 
   const [form, setForm] = useState({
     numero_crt: "", fecha_emision: hoyISO(), estado: "EMITIDO",
@@ -53,11 +54,12 @@ function CRT() {
     transportadora_id: null, ciudad_emision_id: null, pais_emision_id: null,
     lugar_entrega: "", fecha_entrega: "", detalles_mercaderia: "",
     peso_bruto: "", peso_neto: "", volumen: "",
-    incoterm: "", moneda_id: null, valor_incoterm: "", valor_mercaderia: "",
+    incoterm: "", moneda_id: null, valor_incoterm: "",
     declaracion_mercaderia: "", valor_flete_externo: "", valor_reembolso: "",
     factura_exportacion: "", nro_despacho: "", transporte_sucesivos: "",
     observaciones: "", formalidades_aduana: "", fecha_firma: "", gastos: [],
     local_responsabilidad: "", firma_remitente_id: null, firma_transportador_id: null, firma_destinatario_id: null,
+    plazo_entrega: "", fecha_firma_remitente: hoyISO(), fecha_firma_transportador: hoyISO(), fecha_firma_destinatario: hoyISO(),
   });
 
   const [gastoActual, setGastoActual] = useState({ tramo: "", valor_remitente: "", valor_destinatario: "" });
@@ -104,14 +106,32 @@ function CRT() {
           const res = await api.get(`/crts/${id}`);
           const data = res.data;
 
+          const formatDecimal = (val) => {
+            if (val === undefined || val === null || val === "") return "";
+            return val.toString().replace(".", ",");
+          };
+
           // Pre-populate form
           setForm(prev => ({
             ...prev,
             ...data,
-            // Ensure dates/numbers are correctly formatted if needed, usually string from JSON is fine
+            peso_bruto: formatDecimal(data.peso_bruto),
+            peso_neto: formatDecimal(data.peso_neto),
+            volumen: formatDecimal(data.volumen),
+            valor_incoterm: formatDecimal(data.valor_incoterm),
+            declaracion_mercaderia: formatDecimal(data.declaracion_mercaderia),
+            valor_flete_externo: formatDecimal(data.valor_flete_externo),
+            valor_reembolso: formatDecimal(data.valor_reembolso),
             transporte_sucesivos: data.transporte_sucesivos || "",
+            detalles_mercaderia: data.detalles_mercaderia || "",
+            plazo_entrega: data.plazo_entrega || "",
+            fecha_firma_remitente: data.fecha_firma_remitente || "",
+            fecha_firma_transportador: data.fecha_firma_transportador || "",
+            fecha_firma_destinatario: data.fecha_firma_destinatario || "",
             gastos: data.gastos || []
           }));
+
+          setFleteExternoOverridden(true);
 
           // Set auxiliary states
           if (data.moneda_id) {
@@ -126,6 +146,17 @@ function CRT() {
           }
 
           // Parse complex fields
+          if (data.local_responsabilidad) {
+            const parts = data.local_responsabilidad.split("-");
+            if (parts.length >= 3) {
+              const dd = parts[parts.length - 3].trim();
+              const mm = parts[parts.length - 2].trim();
+              const yyyy = parts[parts.length - 1].trim();
+              if (/^\d{4}$/.test(yyyy) && /^\d{2}$/.test(mm) && /^\d{2}$/.test(dd)) {
+                setFecha7(`${yyyy}-${mm}-${dd}`);
+              }
+            }
+          }
           // Campo 7
           // form.ciudad_emision_id ... handled by form state.
 
@@ -219,11 +250,12 @@ function CRT() {
   useEffect(() => { if (form.destinatario_id && !form.firma_destinatario_id) setForm(f => ({ ...f, firma_destinatario_id: form.destinatario_id })); }, [form.destinatario_id, form.firma_destinatario_id]);
 
   useEffect(() => {
+    if (fleteExternoOverridden) return;
     if (form.gastos.length > 0) {
       const g0 = form.gastos[0];
       setForm(f => ({ ...f, valor_flete_externo: (g0.valor_remitente && parseFloat(g0.valor_remitente) > 0) ? g0.valor_remitente : (g0.valor_destinatario || "") }));
     } else { setForm(f => ({ ...f, valor_flete_externo: "" })); }
-  }, [form.gastos]);
+  }, [form.gastos, fleteExternoOverridden]);
 
   // Handlers
   const handleRemitente = (opt) => setForm(f => ({ ...f, remitente_id: opt?.value || null }));
@@ -421,12 +453,31 @@ function CRT() {
               <label className="block text-sm font-medium text-slate-700 mb-1">7. Responsabilidad (Lugar, País, Fecha) *</label>
               <div className="flex gap-2">
                 <div className="flex-1"><Select options={optCiudadPais(ciudades, paises)} value={ciudad7} onChange={setCiudad7} placeholder="Ciudad / País" className={errClass('ciudad7')} /></div>
-                <input type="date" value={fecha7} onChange={(e) => setFecha7(e.target.value)} className="w-40 p-2 border border-slate-300 rounded-lg" />
+                <input
+                  type="date"
+                  value={fecha7}
+                  onChange={(e) => {
+                    const newDate = e.target.value;
+                    setFecha7(newDate);
+                    setForm(f => ({
+                      ...f,
+                      fecha_firma_remitente: newDate,
+                      fecha_firma_transportador: newDate,
+                      fecha_firma_destinatario: newDate
+                    }));
+                  }}
+                  className="w-40 p-2 border border-slate-300 rounded-lg"
+                />
               </div>
             </div>
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-1">8. Entrega (Lugar, País, Plazo) *</label>
-              <Select options={optCiudadPais(ciudades, paises)} value={optCiudadPais(ciudades, paises).find(x => x.label === form.lugar_entrega)} onChange={(o) => { setLugarEntregaManual(true); setForm(f => ({ ...f, lugar_entrega: o?.label || "" })); }} placeholder="Lugar Entrega" className={errClass('lugar_entrega')} />
+              <div className="flex gap-2">
+                <div className="flex-1">
+                  <Select options={optCiudadPais(ciudades, paises)} value={optCiudadPais(ciudades, paises).find(x => x.label === form.lugar_entrega)} onChange={(o) => { setLugarEntregaManual(true); setForm(f => ({ ...f, lugar_entrega: o?.label || "" })); }} placeholder="Lugar Entrega" className={errClass('lugar_entrega')} />
+                </div>
+                <input type="text" name="plazo_entrega" value={form.plazo_entrega || ""} onChange={handleInput} placeholder="Plazo" className="w-40 p-2 border border-slate-300 rounded-lg" />
+              </div>
             </div>
           </div>
         </div>
@@ -441,22 +492,22 @@ function CRT() {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-1">11. Descripción de Mercaderías *</label>
-              <textarea name="detalles_mercaderia" value={form.detalles_mercaderia} onChange={handleInput} rows={6} className={`w-full p-2 border rounded-lg resize-none ${errClass('detalles_mercaderia')}`}></textarea>
+              <textarea name="detalles_mercaderia" value={form.detalles_mercaderia || ""} onChange={handleInput} rows={6} className={`w-full p-2 border rounded-lg resize-none ${errClass('detalles_mercaderia')}`}></textarea>
             </div>
             <div className="space-y-4">
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-slate-700 mb-1">12. Peso Bruto (Kg) *</label>
-                  <input type="text" name="peso_bruto" value={form.peso_bruto} onChange={(e) => setForm({ ...form, peso_bruto: e.target.value.replace(/[^\d,]/g, '') })} className={`w-full p-2 border rounded-lg text-right ${errClass('peso_bruto')}`} placeholder="0,000" />
+                  <input type="text" name="peso_bruto" value={form.peso_bruto} onChange={(e) => setForm(prev => ({ ...prev, peso_bruto: e.target.value.replace(/\./g, ',').replace(/[^\d,]/g, '') }))} className={`w-full p-2 border rounded-lg text-right ${errClass('peso_bruto')}`} placeholder="0,000" />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-slate-700 mb-1">Peso Neto (Kg) *</label>
-                  <input type="text" name="peso_neto" value={form.peso_neto} onChange={(e) => setForm({ ...form, peso_neto: e.target.value.replace(/[^\d,]/g, '') })} className={`w-full p-2 border rounded-lg text-right ${errClass('peso_neto')}`} placeholder="0,000" />
+                  <input type="text" name="peso_neto" value={form.peso_neto} onChange={(e) => setForm(prev => ({ ...prev, peso_neto: e.target.value.replace(/\./g, ',').replace(/[^\d,]/g, '') }))} className={`w-full p-2 border rounded-lg text-right ${errClass('peso_neto')}`} placeholder="0,000" />
                 </div>
               </div>
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-1">13. Volumen (m³) *</label>
-                <input type="text" name="volumen" value={form.volumen} onChange={(e) => setForm({ ...form, volumen: e.target.value.replace(/[^\d,]/g, '') })} className="w-full p-2 border border-slate-300 rounded-lg text-right" placeholder="0,000" />
+                <input type="text" name="volumen" value={form.volumen} onChange={(e) => setForm(prev => ({ ...prev, volumen: e.target.value.replace(/[^\d,]/g, '') }))} className="w-full p-2 border border-slate-300 rounded-lg text-right" placeholder="0,000" />
               </div>
             </div>
           </div>
@@ -466,7 +517,7 @@ function CRT() {
               <label className="block text-sm font-medium text-slate-700 mb-1">14. Valor (Incoterm) *</label>
               <div className="flex gap-2">
                 <div className="w-24"><Select options={INCOTERMS} value={INCOTERMS.find(x => x.value === form.incoterm)} onChange={handleIncoterm} placeholder="Tipo" className={errClass('incoterm')} /></div>
-                <input type="text" name="valor_incoterm" value={form.valor_incoterm} onChange={(e) => setForm({ ...form, valor_incoterm: e.target.value.replace(/[^\d,]/g, '') })} className={`flex-1 p-2 border rounded-lg text-right ${errClass('valor_incoterm')}`} placeholder="0,00" />
+                <input type="text" name="valor_incoterm" value={form.valor_incoterm} onChange={(e) => setForm(prev => ({ ...prev, valor_incoterm: e.target.value.replace(/[^\d,]/g, '') }))} className={`flex-1 p-2 border rounded-lg text-right ${errClass('valor_incoterm')}`} placeholder="0,00" />
               </div>
             </div>
             <div>
@@ -475,7 +526,7 @@ function CRT() {
             </div>
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-1">16. Valor Declarado *</label>
-              <input type="text" name="declaracion_mercaderia" value={form.declaracion_mercaderia} onChange={(e) => setForm({ ...form, declaracion_mercaderia: e.target.value.replace(/[^\d,]/g, '') })} className={`w-full p-2 border rounded-lg text-right ${errClass('declaracion_mercaderia')}`} placeholder="0,00" />
+              <input type="text" name="declaracion_mercaderia" value={form.declaracion_mercaderia} onChange={(e) => setForm(prev => ({ ...prev, declaracion_mercaderia: e.target.value.replace(/\./g, ',').replace(/[^\d,]/g, '') }))} className={`w-full p-2 border rounded-lg text-right ${errClass('declaracion_mercaderia')}`} placeholder="0,00" />
             </div>
           </div>
         </div>
@@ -560,6 +611,34 @@ function CRT() {
               </table>
             </div>
           )}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6 pt-6 border-t border-slate-100">
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1">19. Flete Externo (Campo 19)</label>
+              <input
+                type="text"
+                name="valor_flete_externo"
+                value={form.valor_flete_externo}
+                onChange={(e) => {
+                  setFleteExternoOverridden(true);
+                  const val = e.target.value.replace(/\./g, ',').replace(/[^\d,]/g, '');
+                  setForm(prev => ({ ...prev, valor_flete_externo: val }));
+                }}
+                className="w-full p-2 border border-slate-300 rounded-lg text-right"
+                placeholder="0,00"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1">20. Monto de reembolso contra entrega</label>
+              <input
+                type="text"
+                name="valor_reembolso"
+                value={form.valor_reembolso}
+                onChange={(e) => setForm(prev => ({ ...prev, valor_reembolso: e.target.value.replace(/\./g, ',').replace(/[^\d,]/g, '') }))}
+                className="w-full p-2 border border-slate-300 rounded-lg text-right"
+                placeholder="0,00"
+              />
+            </div>
+          </div>
         </div>
 
         {/* Card 5: Firmas y Finalización */}
@@ -569,11 +648,15 @@ function CRT() {
             <h3 className="font-semibold text-lg text-slate-800">5. Firmas y Documentos</h3>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-1">17. Documentos Anexos</label>
               <input type="text" name="factura_exportacion" value={form.factura_exportacion} onChange={handleInput} placeholder="Factura Exportación" className={`w-full p-2 border rounded-lg mb-2 ${errClass('factura_exportacion')}`} />
               <input type="text" name="nro_despacho" value={form.nro_despacho} onChange={handleInput} placeholder="Nro Despacho" className="w-full p-2 border border-slate-300 rounded-lg" />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1">18. Instrucciones sobre formalidades de aduana</label>
+              <textarea name="formalidades_aduana" value={form.formalidades_aduana || ""} onChange={handleInput} rows={3} className="w-full p-2 border border-slate-300 rounded-lg resize-none" placeholder="Instrucciones sobre formalidades..." />
             </div>
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-1">22. Observaciones</label>
@@ -585,14 +668,26 @@ function CRT() {
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-1">21. Firma Remitente *</label>
               <Select options={opt(remitentes)} value={opt(remitentes).find(x => x.value === form.firma_remitente_id)} onChange={(o) => setForm(f => ({ ...f, firma_remitente_id: o?.value }))} placeholder="Seleccionar..." className={errClass('firma_remitente_id')} />
+              <div className="mt-2">
+                <label className="block text-xs font-medium text-slate-500 mb-1">Fecha Firma Remitente</label>
+                <input type="date" name="fecha_firma_remitente" value={form.fecha_firma_remitente || ""} onChange={handleInput} className="w-full p-2 border border-slate-300 rounded-lg text-sm" />
+              </div>
             </div>
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-1">23. Firma Transportador *</label>
               <Select options={opt(transportadoras)} value={opt(transportadoras).find(x => x.value === form.firma_transportador_id)} onChange={(o) => setForm(f => ({ ...f, firma_transportador_id: o?.value }))} placeholder="Seleccionar..." className={errClass('firma_transportador_id')} />
+              <div className="mt-2">
+                <label className="block text-xs font-medium text-slate-500 mb-1">Fecha Firma Transportador</label>
+                <input type="date" name="fecha_firma_transportador" value={form.fecha_firma_transportador || ""} onChange={handleInput} className="w-full p-2 border border-slate-300 rounded-lg text-sm" />
+              </div>
             </div>
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-1">24. Firma Destinatario *</label>
               <Select options={opt(remitentes)} value={opt(remitentes).find(x => x.value === form.firma_destinatario_id)} onChange={(o) => setForm(f => ({ ...f, firma_destinatario_id: o?.value }))} placeholder="Seleccionar..." className={errClass('firma_destinatario_id')} />
+              <div className="mt-2">
+                <label className="block text-xs font-medium text-slate-500 mb-1">Fecha Firma Destinatario</label>
+                <input type="date" name="fecha_firma_destinatario" value={form.fecha_firma_destinatario || ""} onChange={handleInput} className="w-full p-2 border border-slate-300 rounded-lg text-sm" />
+              </div>
             </div>
           </div>
         </div>

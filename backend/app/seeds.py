@@ -39,7 +39,19 @@ def ensure_admin_user() -> None:
             return
 
         cfg = current_app.config
-        temp_password = cfg.get('DEFAULT_ADMIN_PASSWORD') or _generate_temp_password()
+        email = cfg.get('DEFAULT_ADMIN_EMAIL')
+        username = cfg.get('DEFAULT_ADMIN_USERNAME')
+        password = cfg.get('DEFAULT_ADMIN_PASSWORD')
+
+        if not all([email, username, password]):
+            if not cfg.get('DEBUG') and not cfg.get('TESTING'):
+                raise RuntimeError(
+                    "CRÍTICO: DEFAULT_ADMIN_EMAIL, DEFAULT_ADMIN_USERNAME y "
+                    "DEFAULT_ADMIN_PASSWORD deben estar configurados en producción."
+                )
+            return
+
+        temp_password = password or _generate_temp_password()
 
         mfa_secret = None
         backup_codes = []

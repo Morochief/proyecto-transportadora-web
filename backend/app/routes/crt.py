@@ -1,4 +1,4 @@
-﻿# ========== IMPORTS LIMPIOS ==========
+# ========== IMPORTS LIMPIOS ==========
 from flask import Blueprint, request, jsonify, send_file
 from sqlalchemy import text, or_
 from sqlalchemy.orm import joinedload, aliased, subqueryload
@@ -26,35 +26,17 @@ logger = logging.getLogger(__name__)
 # ========== SIGUIENTE NÚMERO CRT ==========
 
 
+from app.services.crt_service import get_next_crt_number as svc_get_next_crt_number
+
 @crt_bp.route('/next_number', methods=['GET'])
 def get_next_crt_number():
     transportadora_id = request.args.get('transportadora_id')
     codigo = request.args.get('codigo')
-    if not transportadora_id or not codigo or len(codigo) != 11 or not codigo.startswith("PY") or not codigo[2:].isdigit():
-        return jsonify({'error': 'CÃ³digo invÃ¡lido'}), 400
-
-    ultimo_crt = (
-        CRT.query
-        .filter(
-            CRT.transportadora_id == transportadora_id,
-            CRT.numero_crt.startswith("PY"),
-            db.func.length(CRT.numero_crt) == 11
-        )
-        .order_by(CRT.numero_crt.desc())
-        .first()
-    )
-
-    if ultimo_crt and ultimo_crt.numero_crt:
-        try:
-            ultimo_num = int(ultimo_crt.numero_crt[2:])
-            siguiente = ultimo_num + 1
-        except Exception:
-            siguiente = int(codigo[2:])
-    else:
-        siguiente = int(codigo[2:])
-
-    numero_crt = f"PY{siguiente:09d}"
-    return jsonify({'next_number': numero_crt})
+    try:
+        numero_crt = svc_get_next_crt_number(transportadora_id, codigo)
+        return jsonify({'next_number': numero_crt})
+    except ValueError as e:
+        return jsonify({'error': str(e)}), 400
 
 # ========== LISTAR CRTs ==========
 
@@ -303,7 +285,6 @@ def duplicar_crt(crt_id):
             incoterm=original_crt.incoterm,
             moneda_id=original_crt.moneda_id,
             valor_incoterm=None,  # Limpiar para nuevo ingreso
-            valor_mercaderia=original_crt.valor_mercaderia,
             declaracion_mercaderia=None,  # Limpiar para nuevo ingreso
             valor_flete_externo=original_crt.valor_flete_externo,
             valor_reembolso=original_crt.valor_reembolso,
@@ -391,6 +372,15 @@ def crear_crt():
         if existe:
             return jsonify({"error": "NÃºmero de CRT ya existe, recargue la pÃ¡gina."}), 400
 
+        val_rem = data.get("fecha_firma_remitente")
+        fecha_firma_remitente = datetime.strptime(val_rem, '%Y-%m-%d').date() if val_rem else None
+
+        val_trans = data.get("fecha_firma_transportador")
+        fecha_firma_transportador = datetime.strptime(val_trans, '%Y-%m-%d').date() if val_trans else None
+
+        val_dest = data.get("fecha_firma_destinatario")
+        fecha_firma_destinatario = datetime.strptime(val_dest, '%Y-%m-%d').date() if val_dest else None
+
         crt = CRT(
             numero_crt=data.get("numero_crt"),
             fecha_emision=datetime.strptime(data.get(
@@ -412,7 +402,6 @@ def crear_crt():
             incoterm=data.get("incoterm"),
             moneda_id=data["moneda_id"],
             valor_incoterm=data.get("valor_incoterm"),
-            valor_mercaderia=data.get("valor_mercaderia"),
             declaracion_mercaderia=data.get("declaracion_mercaderia"),
             factura_exportacion=data.get("factura_exportacion"),
             nro_despacho=data.get("nro_despacho"),
@@ -422,7 +411,11 @@ def crear_crt():
             transporte_sucesivos=data.get("transporte_sucesivos"),
             observaciones=data.get("observaciones"),
             fecha_firma=datetime.strptime(
-                data.get("fecha_firma"), "%Y-%m-%d") if data.get("fecha_firma") else None
+                data.get("fecha_firma"), "%Y-%m-%d") if data.get("fecha_firma") else None,
+            plazo_entrega=data.get("plazo_entrega"),
+            fecha_firma_remitente=fecha_firma_remitente,
+            fecha_firma_transportador=fecha_firma_transportador,
+            fecha_firma_destinatario=fecha_firma_destinatario
         )
         db.session.add(crt)
         db.session.flush()
@@ -521,7 +514,6 @@ def editar_crt(crt_id):
                 'remitente_id': 'Remitente',
                 'destinatario_id': 'Destinatario',
                 'transportadora_id': 'Transportadora',
-                'valor_mercaderia': 'Valor MercaderÃ­a',
                 'peso_bruto': 'Peso Bruto'
             }
 
@@ -560,8 +552,6 @@ def editar_crt(crt_id):
         crt.incoterm = data.get("incoterm", crt.incoterm)
         crt.moneda_id = data.get("moneda_id", crt.moneda_id)
         crt.valor_incoterm = data.get("valor_incoterm", crt.valor_incoterm)
-        crt.valor_mercaderia = data.get(
-            "valor_mercaderia", crt.valor_mercaderia)
         crt.declaracion_mercaderia = data.get(
             "declaracion_mercaderia", crt.declaracion_mercaderia)
         crt.factura_exportacion = data.get(
@@ -574,6 +564,19 @@ def editar_crt(crt_id):
         crt.valor_reembolso = data.get("valor_reembolso", crt.valor_reembolso)
         crt.transporte_sucesivos = data.get(
             "transporte_sucesivos", crt.transporte_sucesivos)
+        crt.plazo_entrega = data.get("plazo_entrega", crt.plazo_entrega)
+
+        if "fecha_firma_remitente" in data:
+            val_rem = data.get("fecha_firma_remitente")
+            crt.fecha_firma_remitente = datetime.strptime(val_rem, '%Y-%m-%d').date() if val_rem else None
+
+        if "fecha_firma_transportador" in data:
+            val_trans = data.get("fecha_firma_transportador")
+            crt.fecha_firma_transportador = datetime.strptime(val_trans, '%Y-%m-%d').date() if val_trans else None
+
+        if "fecha_firma_destinatario" in data:
+            val_dest = data.get("fecha_firma_destinatario")
+            crt.fecha_firma_destinatario = datetime.strptime(val_dest, '%Y-%m-%d').date() if val_dest else None
 
         # âœ… PRESERVAR OBSERVACIONES ORIGINALES
         observaciones_originales = crt.observaciones
@@ -725,73 +728,7 @@ def generar_pdf_crt(crt_id):
         c = canvas.Canvas(output, pagesize=A4)
         dibujar_lineas_dinamicas(c, lineas)
 
-        def wrap_text_multiline(text, fontName, fontSize, max_width):
-            result = []
-            for original_line in (text or "").split('\n'):
-                words = original_line.split()
-                line = ""
-                for word in words:
-                    test = f"{line} {word}".strip()
-                    if stringWidth(test, fontName, fontSize) <= max_width:
-                        line = test
-                    else:
-                        if line:
-                            result.append(line)
-                        line = word
-                if line:
-                    result.append(line)
-            return result
-
-        def draw_text_fit_area(c, text, x, y, width, height, fontName="Helvetica", min_font=5, max_font=8, leading_ratio=1.13):
-            font_size = max_font
-            while font_size >= min_font:
-                lines = []
-                for original_line in (text or "").split('\n'):
-                    words = original_line.split()
-                    line = ""
-                    for word in words:
-                        test = f"{line} {word}".strip()
-                        if stringWidth(test, fontName, font_size) <= width:
-                            line = test
-                        else:
-                            if line:
-                                lines.append(line)
-                            line = word
-                    if line:
-                        lines.append(line)
-                line_height = font_size * leading_ratio
-                total_height = len(lines) * line_height
-                if total_height <= height:
-                    break
-                font_size -= 0.5
-            max_lines = int(height // (font_size * leading_ratio))
-            if len(lines) > max_lines:
-                lines = lines[:max_lines]
-                if lines:
-                    if len(lines[-1]) > 4:
-                        lines[-1] = lines[-1][:-3] + "..."
-            c.setFont(fontName, font_size)
-            curr_y = y
-            for line in lines:
-                c.drawString(x, curr_y, line)
-                curr_y -= font_size * leading_ratio
-            return curr_y
-
-        def format_number(num, decimals=3):
-            try:
-                num = float(num)
-                s = f"{{:,.{decimals}f}}".format(num)
-                s = s.replace(",", "X").replace(".", ",").replace("X", ".")
-                return s
-            except Exception:
-                return str(num) if num not in [None, "None"] else ""
-
-        # âœ… VERIFICACIÃ“N ADICIONAL DE DATOS ANTES DE USAR
-        def safe_get_attr(obj, attr, default=""):
-            """FunciÃ³n segura para obtener atributos con fallback"""
-            if obj is None:
-                return default
-            return getattr(obj, attr, default) or default
+        from app.utils.pdf_helpers import wrap_text_multiline, draw_text_fit_area, format_number, safe_get_attr
 
         max_width = 250
         max_width_trans = 250
@@ -1100,6 +1037,9 @@ def generar_pdf_crt(crt_id):
             ciudad_dest_8 = safe_get_attr(destinatario.ciudad, 'nombre') if destinatario and destinatario.ciudad else ""
             pais_dest_8 = safe_get_attr(destinatario.ciudad.pais, 'nombre') if destinatario and destinatario.ciudad and destinatario.ciudad.pais else ""
             texto_campo8 = f"{ciudad_dest_8} - {pais_dest_8}"
+        plazo = safe_get_attr(crt, 'plazo_entrega')
+        if plazo:
+            texto_campo8 = f"{texto_campo8} (Plazo: {plazo})"
         c.setFont("Helvetica", 8)
         w_campo8 = stringWidth(texto_campo8, "Helvetica", 8)
         c.drawString(x_campo8 + (max_width_trans - w_campo8) / 2, y_campo8, texto_campo8)
@@ -1115,7 +1055,7 @@ def generar_pdf_crt(crt_id):
             c.drawString(x_campo10 + (max_width_trans - w_line) / 2, y_campo10, linea)
             y_campo10 -= 10
 
-        # ========== CAMPO 11: DETALLES DE MERCADERÃA ==========
+        # ========== CAMPO 11: DETALLES DE MERCADERÃ A ==========
         x11 = 34
         y11 = 498
         width11 = 375
@@ -1212,11 +1152,12 @@ def generar_pdf_crt(crt_id):
         c.setFont("Helvetica", 10)
         c.drawString(x_incoterm, y_incoterm, incoterm)
 
-        # ========== CAMPO 16: DeclaraciÃ³n del valor ==========
+        # ========== CAMPO 16: Declaración del valor ==========
         x16 = 450
         y16 = 842 - 442 - 8
         c.setFont("Helvetica-Bold", 8)
-        c.drawString(x16, y16, format_number(crt.declaracion_mercaderia, decimals=2))
+        valor_declarado_campo16 = crt.declaracion_mercaderia if crt.declaracion_mercaderia else ""
+        c.drawString(x16, y16, valor_declarado_campo16)
 
         # ========== CAMPO 17: Documentos Anexos ==========
         x_factura = 465
@@ -1234,7 +1175,7 @@ def generar_pdf_crt(crt_id):
         height18 = 54
         texto_campo18 = safe_get_attr(crt, 'formalidades_aduana')
         draw_text_fit_area(
-            c, texto_campo18, x=x18, y=y18 + height18, width=width18,
+            c, texto_campo18, x=x18, y=y18, width=width18,
             height=height18, fontName="Helvetica", min_font=5.0, max_font=8.5, leading_ratio=1.13
         )
 
@@ -1275,11 +1216,11 @@ def generar_pdf_crt(crt_id):
         x21_fecha = 100
         y21_fecha = 193
         remitente_nombre = safe_get_attr(remitente, 'nombre') if remitente else ""
-        fecha_emision = crt.fecha_emision.strftime('%d/%m/%Y') if crt.fecha_emision else ""
+        fecha_remitente = crt.fecha_firma_remitente.strftime('%d/%m/%Y') if crt.fecha_firma_remitente else (crt.fecha_firma.strftime('%d/%m/%Y') if crt.fecha_firma else (crt.fecha_emision.strftime('%d/%m/%Y') if crt.fecha_emision else ""))
         c.setFont("Helvetica-Bold", 9)
         c.drawString(x21_nombre, y21_nombre, remitente_nombre)
         c.setFont("Helvetica", 8)
-        c.drawString(x21_fecha, y21_fecha, fecha_emision)
+        c.drawString(x21_fecha, y21_fecha, fecha_remitente)
 
         # ========== CAMPO 23: TRANSPORTADORA ==========
         x23_nombre = 38
@@ -1287,10 +1228,11 @@ def generar_pdf_crt(crt_id):
         x23_fecha = 100
         y23_fecha = 87
         transportadora_nombre = safe_get_attr(transportadora, 'nombre') if transportadora else ""
+        fecha_transportador = crt.fecha_firma_transportador.strftime('%d/%m/%Y') if crt.fecha_firma_transportador else (crt.fecha_firma.strftime('%d/%m/%Y') if crt.fecha_firma else (crt.fecha_emision.strftime('%d/%m/%Y') if crt.fecha_emision else ""))
         c.setFont("Helvetica-Bold", 9)
         c.drawString(x23_nombre, y23_nombre, transportadora_nombre)
         c.setFont("Helvetica", 8)
-        c.drawString(x23_fecha, y23_fecha, fecha_emision)
+        c.drawString(x23_fecha, y23_fecha, fecha_transportador)
 
         # ========== CAMPO 24: DESTINATARIO ==========
         x24_nombre = 305
@@ -1300,10 +1242,11 @@ def generar_pdf_crt(crt_id):
         # Usar firma_destinatario si existe, sino usar destinatario
         firma_destinatario_obj = firma_destinatario if firma_destinatario else destinatario
         destinatario_nombre = safe_get_attr(firma_destinatario_obj, 'nombre') if firma_destinatario_obj else ""
+        fecha_destinatario = crt.fecha_firma_destinatario.strftime('%d/%m/%Y') if crt.fecha_firma_destinatario else (crt.fecha_firma.strftime('%d/%m/%Y') if crt.fecha_firma else (crt.fecha_emision.strftime('%d/%m/%Y') if crt.fecha_emision else ""))
         c.setFont("Helvetica-Bold", 9)
         c.drawString(x24_nombre, y24_nombre, destinatario_nombre)
         c.setFont("Helvetica", 8)
-        c.drawString(x24_fecha, y24_fecha, fecha_emision)
+        c.drawString(x24_fecha, y24_fecha, fecha_destinatario)
 
         # ========== CAMPO 22: Declaraciones y observaciones ==========
         x22 = 305
@@ -1420,129 +1363,17 @@ def obtener_entidades():
         return jsonify({"error": str(e)}), 500
 
 
-@crt_bp.route('/data/monedas', methods=['GET'])
-def obtener_monedas():
-    """
-    âœ… NUEVO: Obtener lista de monedas para formularios
-    """
-    try:
-        logger.info("Fetching currency catalog")
-        monedas = Moneda.query.order_by(Moneda.nombre).all()
-
-        items = []
-        for m in monedas:
-            items.append({
-                "id": m.id,
-                "nombre": m.nombre,
-                "codigo": getattr(m, 'codigo', m.nombre[:3].upper()) if hasattr(m, 'codigo') else m.nombre[:3].upper()
-            })
-
-        return jsonify({
-            "items": items,
-            "total": len(items)
-        })
-
-    except Exception as e:
-        logger.exception("Error fetching city catalog")
-        return jsonify({"error": str(e)}), 500
-
-
-@crt_bp.route('/data/ciudades', methods=['GET'])
-def obtener_ciudades():
-    """
-    âœ… NUEVO: Obtener lista de ciudades con paÃ­ses
-    """
-    try:
-        logger.info("Fetching city catalog")
-        ciudades = Ciudad.query.options(
-            joinedload(Ciudad.pais)
-        ).order_by(Ciudad.nombre).all()
-
-        items = []
-        for c in ciudades:
-            items.append({
-                "id": c.id,
-                "nombre": c.nombre,
-                "pais_id": c.pais_id,
-                "pais": c.pais.nombre if c.pais else ""
-            })
-
-        return jsonify({
-            "items": items,
-            "total": len(items)
-        })
-
-    except Exception as e:
-        logger.exception("Error fetching country catalog")
-        return jsonify({"error": str(e)}), 500
-
-
-@crt_bp.route('/data/paises', methods=['GET'])
-def obtener_paises():
-    """
-    âœ… NUEVO: Obtener lista de paÃ­ses
-    """
-    try:
-        logger.info("Fetching country catalog")
-        paises = Pais.query.order_by(Pais.nombre).all()
-
-        items = []
-        for p in paises:
-            items.append({
-                "id": p.id,
-                "nombre": p.nombre
-            })
-
-        return jsonify({
-            "items": items,
-            "total": len(items)
-        })
-
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
+# Endpoints de catálogos duplicados removidos. Se utilizan las rutas correspondientes en monedas.py, ciudades.py y paises.py.
 
 
 # Recuerda registrar el blueprint en tu app principal:
 
 def crear_honorario_desde_crt(crt):
     """
-    Crea automÃ¡ticamente un honorario para el CRT reciÃ©n creado.
-    Asigna monto de la transportadora vinculada y campos bÃ¡sicos.
-    Los campos del MIC se pueden llenar despuÃ©s manual o automÃ¡ticamente.
+    Delegar la creación automática de honorario para CRT al servicio.
     """
-    try:
-        from app.models import Honorario
-        
-        # Verificar si ya existe honorario para este CRT (por si acaso)
-        existe = Honorario.query.filter_by(crt_id=crt.id).first()
-        if existe:
-            return
-
-        # Verificar si tiene transportadora con honorarios
-        if not crt.transportadora or not crt.transportadora.honorarios:
-            logger.warning(f"CRT {crt.id} no tiene transportadora o transportadora sin honorarios definidos. No se crea honorario auto.")
-            return
-
-        # Crear Honorario
-        # Nota: mic_numero, chofer y placas quedarÃ¡n vacÃ­os hasta que:
-        # A) Se cree el MIC
-        # B) Se completen manualmente en el mÃ³dulo de Honorarios
-        nuevo_honorario = Honorario(
-            descripcion=f"Honorarios CRT {crt.numero_crt}",
-            monto=crt.transportadora.honorarios,
-            transportadora_id=crt.transportadora.id,
-            moneda_id=crt.transportadora.moneda_honorarios_id or 1, # Default USD
-            fecha=datetime.now().date(),
-            crt_id=crt.id
-,
-            tipo_operacion='EXPORTACION'  # CRT siempre es exportación
-        )
-        db.session.add(nuevo_honorario)
-        db.session.commit()
-        logger.info(f"Honorario auto-generated for CRT {crt.numero_crt}")
-        
-    except Exception as e:
-        logger.error(f"Error auto-generating honorario for CRT {crt.id}: {e}")
+    from app.services.honorario_service import crear_honorario_desde_crt as svc_crear
+    svc_crear(crt)
 # from app.routes.crt import crt_bp
 # app.register_blueprint(crt_bp)
 

@@ -116,7 +116,7 @@ class Config:
         os.environ.get("PASSWORD_EXPIRATION_DAYS", "0"))
 
     ACCOUNT_LOCK_THRESHOLD = int(
-        os.environ.get("ACCOUNT_LOCK_THRESHOLD", "10"))
+        os.environ.get("ACCOUNT_LOCK_THRESHOLD", "5"))
     ACCOUNT_LOCK_WINDOW_MINUTES = int(
         os.environ.get("ACCOUNT_LOCK_WINDOW_MINUTES", "15"))
     LOGIN_RATE_LIMIT_PER_MINUTE = int(
@@ -147,13 +147,12 @@ class Config:
     CSP_SCRIPT_SRC = os.environ.get("CSP_SCRIPT_SRC", "'self'")
     CSP_STYLE_SRC = os.environ.get("CSP_STYLE_SRC", "'self'")
 
-    DEFAULT_ADMIN_EMAIL = os.environ.get(
-        "DEFAULT_ADMIN_EMAIL", "morochief95@gmail.com")
+    DEFAULT_ADMIN_EMAIL = os.environ.get("DEFAULT_ADMIN_EMAIL")
     DEFAULT_ADMIN_NAME = os.environ.get(
         "DEFAULT_ADMIN_NAME", "Super Administrador")
-    DEFAULT_ADMIN_USERNAME = os.environ.get("DEFAULT_ADMIN_USERNAME", "admin")
-    DEFAULT_ADMIN_PASSWORD = os.environ.get("DEFAULT_ADMIN_PASSWORD", "")
-    ALLOW_SELF_REGISTRATION = _get_bool_env("ALLOW_SELF_REGISTRATION", True)
+    DEFAULT_ADMIN_USERNAME = os.environ.get("DEFAULT_ADMIN_USERNAME")
+    DEFAULT_ADMIN_PASSWORD = os.environ.get("DEFAULT_ADMIN_PASSWORD")
+    ALLOW_SELF_REGISTRATION = _get_bool_env("ALLOW_SELF_REGISTRATION", False)
     MAIL_LINK_TTL_MINUTES = int(os.environ.get("MAIL_LINK_TTL_MINUTES", "30"))
     RESET_TOKEN_EXPIRATION_MINUTES = int(
         os.environ.get("RESET_TOKEN_EXPIRATION_MINUTES", "30"))

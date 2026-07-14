@@ -69,7 +69,6 @@ def to_dict_crt(crt):
         "moneda_id": crt.moneda_id,
         "moneda": crt.moneda.nombre if crt.moneda else "",
         "valor_incoterm": str(val(crt, 'valor_incoterm', '')),
-        "valor_mercaderia": str(val(crt, 'valor_mercaderia', '')),
         "declaracion_mercaderia": str(val(crt, 'declaracion_mercaderia', '')),
         "factura_exportacion": val(crt, 'factura_exportacion', ''),
         "nro_despacho": val(crt, 'nro_despacho', ''),
@@ -79,5 +78,9 @@ def to_dict_crt(crt):
         "transporte_sucesivos": val(crt, 'transporte_sucesivos', ''),
         "observaciones": val(crt, 'observaciones', ''),
         "fecha_firma": crt.fecha_firma.strftime('%Y-%m-%d') if crt.fecha_firma else "",
+        "plazo_entrega": val(crt, 'plazo_entrega', ''),
+        "fecha_firma_remitente": crt.fecha_firma_remitente.strftime('%Y-%m-%d') if crt.fecha_firma_remitente else "",
+        "fecha_firma_transportador": crt.fecha_firma_transportador.strftime('%Y-%m-%d') if crt.fecha_firma_transportador else "",
+        "fecha_firma_destinatario": crt.fecha_firma_destinatario.strftime('%Y-%m-%d') if crt.fecha_firma_destinatario else "",
         "gastos": [to_dict_gasto(g) for g in crt.gastos],
     }

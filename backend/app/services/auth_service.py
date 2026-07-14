@@ -106,7 +106,9 @@ def _normalize_user_estado(estado: Optional[str], is_active: Optional[bool]) -> 
 
 
 def _hash_reset_token(raw: str) -> str:
-    return hashlib.sha256(raw.encode('utf-8')).hexdigest()
+    import hmac
+    key = current_app.config['SECRET_KEY'].encode()
+    return hmac.new(key, raw.encode(), hashlib.sha256).hexdigest()
 
 
 def _now() -> datetime:
@@ -424,9 +426,9 @@ def complete_password_reset(token: str, new_password: str) -> None:
     if not user:
         raise AuthServiceError('Usuario no encontrado')
 
-    hashed_password = hash_password(new_password)
-    if not password_not_reused(user, hashed_password):
+    if not password_not_reused(user, new_password):
         raise PasswordPolicyError(['No puede reutilizar contrasenas recientes'])
+    hashed_password = hash_password(new_password)
 
     user.clave_hash = hashed_password
     update_password_metadata(user)
@@ -444,9 +446,9 @@ def change_password(user: Usuario, current_password: str, new_password: str) -> 
     ok, errors = password_policy_checks(new_password)
     if not ok:
         raise PasswordPolicyError(errors)
-    hashed = hash_password(new_password)
-    if not password_not_reused(user, hashed):
+    if not password_not_reused(user, new_password):
         raise PasswordPolicyError(['No puede reutilizar contrasenas recientes'])
+    hashed = hash_password(new_password)
 
     user.clave_hash = hashed
     update_password_metadata(user)

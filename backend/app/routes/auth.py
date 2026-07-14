@@ -16,6 +16,7 @@ from app.schemas.auth import (
     RegisterRequest,
     ResetPasswordRequest,
     UpdateUserRequest,
+    ConfirmPasswordRequest,
 )
 from app.security.decorators import auth_required, permissions_required, roles_required
 from app.security.rbac import ensure_roles_permissions, get_user_permissions, normalize_role
@@ -36,6 +37,7 @@ from app.utils.security import (
     password_policy_checks,
     register_password_history,
     update_password_metadata,
+    verify_password,
 )
 
 
@@ -52,7 +54,7 @@ def _parse(model_cls):
 
 def _client_context():
     return {
-        'ip': request.headers.get('X-Forwarded-For', request.remote_addr),
+        'ip': request.remote_addr,
         'user_agent': request.headers.get('User-Agent'),
     }
 
@@ -225,6 +227,11 @@ def mfa_verify():
 @auth_bp.route('/mfa/disable', methods=['POST'])
 @auth_required
 def mfa_disable():
+    payload, errors = _parse(ConfirmPasswordRequest)
+    if errors:
+        return jsonify({'error': 'Se requiere la contraseña actual', 'details': errors}), 400
+    if not verify_password(payload.password, g.current_user.clave_hash):
+        return jsonify({'error': 'Contraseña incorrecta'}), 401
     auth_service.disable_mfa(g.current_user)
     return jsonify({'status': 'ok'})
 

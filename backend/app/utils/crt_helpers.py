@@ -6,8 +6,9 @@ Contiene utilidades de parsing y validación de datos.
 
 def parse_number(val):
     """
-    Convierte un valor a número flotante, manejando formatos locales.
-    Acepta puntos como separador de miles y comas como decimales.
+    Convierte un valor a número flotante, manejando formatos locales y estándar.
+    Si contiene coma, asume formato local (coma decimal, punto opcional de miles).
+    Si no contiene coma pero tiene punto, asume formato estándar (punto decimal).
     
     Args:
         val: Valor a convertir (str, int, float o None)
@@ -19,9 +20,11 @@ def parse_number(val):
         return None
     if isinstance(val, (int, float)):
         return float(val)
-    val = str(val).replace('.', '').replace(',', '.')
+    val_str = str(val).strip()
+    if ',' in val_str:
+        val_str = val_str.replace('.', '').replace(',', '.')
     try:
-        return float(val)
+        return float(val_str)
     except Exception:
         return None
 
@@ -45,6 +48,6 @@ def limpiar_numericos(dic, campos):
 # Campos numéricos estándar en CRT
 NUMERIC_FIELDS = [
     "peso_bruto", "peso_neto", "volumen",
-    "valor_incoterm", "valor_mercaderia", "declaracion_mercaderia",
+    "valor_incoterm", "declaracion_mercaderia",
     "valor_flete_externo", "valor_reembolso"
 ]

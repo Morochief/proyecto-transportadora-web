@@ -32,7 +32,7 @@ def password_policy_checks(password: str) -> Tuple[bool, Iterable[str]]:
     return len(errors) == 0, errors
 
 
-def password_not_reused(user, password_hash: str) -> bool:
+def password_not_reused(user, plain_password: str) -> bool:
     from app.models import PasswordHistory
 
     history = (
@@ -42,7 +42,10 @@ def password_not_reused(user, password_hash: str) -> bool:
         .limit(current_app.config['PASSWORD_HISTORY_SIZE'])
         .all()
     )
-    return all(entry.password_hash != password_hash for entry in history)
+    for entry in history:
+        if check_password_hash(entry.password_hash, plain_password):
+            return False
+    return True
 
 
 def register_password_history(user, password_hash: str) -> None:
@@ -58,13 +61,15 @@ def register_password_history(user, password_hash: str) -> None:
             .filter_by(user_id=user.id)
             .order_by(PasswordHistory.created_at.desc())
             .offset(max_entries)
+            .all()
         )
         for item in obsolete:
             db.session.delete(item)
 
 
 def update_password_metadata(user) -> None:
-    now = datetime.utcnow()
+    from datetime import timezone
+    now = datetime.now(timezone.utc)
     user.password_changed_at = now
     expiration_days = current_app.config['PASSWORD_EXPIRATION_DAYS']
     user.password_expires_at = now + \

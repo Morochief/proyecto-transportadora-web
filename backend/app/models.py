@@ -412,6 +412,10 @@ class CRT(db.Model):
     formalidades_aduana = db.Column(db.Text)
     fecha_firma = db.Column(db.DateTime)
     usuario_id = db.Column(db.Integer, db.ForeignKey('usuarios.id'))
+    plazo_entrega = db.Column(db.String(255), nullable=True)
+    fecha_firma_remitente = db.Column(db.Date, nullable=True)
+    fecha_firma_transportador = db.Column(db.Date, nullable=True)
+    fecha_firma_destinatario = db.Column(db.Date, nullable=True)
 
     # 🔥 RELATIONSHIPS PARA JOINS
     remitente = db.relationship('Remitente', foreign_keys=[remitente_id])

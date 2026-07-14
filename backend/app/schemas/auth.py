@@ -68,3 +68,7 @@ class UpdateUserRequest(BaseModel):
 class InvitationSeedResponse(BaseModel):
     email: EmailStr
     password: str
+
+
+class ConfirmPasswordRequest(BaseModel):
+    password: constr(min_length=8, max_length=256)

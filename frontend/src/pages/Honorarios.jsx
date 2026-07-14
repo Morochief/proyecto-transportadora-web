@@ -4,8 +4,11 @@ import { Search, Plus, Edit3, Trash2, DollarSign, Truck, Calendar, Loader2, Chev
 import { toast } from 'react-toastify';
 import EnhancedTable from '../components/EnhancedTable';
 import FormModal from '../components/FormModal';
+import { useDebounce } from "../hooks/useDebounce";
+import { useConfirm } from "../hooks/useConfirm.jsx";
 
 function Honorarios() {
+  const [ConfirmDialog, confirm] = useConfirm();
   const [honorarios, setHonorarios] = useState([]);
   const [transportadoras, setTransportadoras] = useState([]);
   const [monedas, setMonedas] = useState([]);
@@ -21,11 +24,12 @@ function Honorarios() {
 
   // Filtros
   const [search, setSearch] = useState('');
+  const debouncedSearch = useDebounce(search, 400);
   const [filterTipo, setFilterTipo] = useState('');
 
   useEffect(() => {
     fetchData();
-  }, [currentPage, search, filterTipo]);
+  }, [currentPage, debouncedSearch, filterTipo]);
 
   const fetchData = async () => {
     setIsLoading(true);
@@ -33,7 +37,7 @@ function Honorarios() {
       const params = new URLSearchParams({
         page: currentPage,
         per_page: perPage,
-        ...(search && { search }),
+        ...(debouncedSearch && { search: debouncedSearch }),
         ...(filterTipo && { tipo_operacion: filterTipo })
       });
 
@@ -65,7 +69,11 @@ function Honorarios() {
   };
 
   const handleDelete = async (id) => {
-    if (window.confirm("¿Seguro que deseas eliminar este honorario?")) {
+    const isConfirmed = await confirm({
+      title: "Eliminar Honorario",
+      message: "¿Seguro que deseas eliminar este honorario?"
+    });
+    if (isConfirmed) {
       try {
         await api.delete(`/honorarios/${id}`);
         fetchData();
@@ -117,6 +125,7 @@ function Honorarios() {
 
   return (
     <div className="min-h-full space-y-8 animate-in fade-in duration-500">
+      <ConfirmDialog title="Eliminar Honorario" message="¿Seguro que deseas eliminar este honorario?" />
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <h1 className="text-3xl font-bold text-slate-800 tracking-tight">Gestión de Honorarios</h1>
